@@ -27,6 +27,7 @@ export function FillBlank({
   feedback,
   busy,
   onSubmit,
+  feedbackInFooter = false,
 }: {
   component: FillBlankComponent;
   result?: Result;
@@ -34,6 +35,8 @@ export function FillBlank({
   busy: boolean;
   /** Absent while the server cannot score this component yet: the Check button is then disabled. */
   onSubmit?: (answers: { gapId: string; value: string }[]) => void;
+  /** The screen shows the explanation and the retry/continue action itself. */
+  feedbackInFooter?: boolean;
 }) {
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries((result?.answers ?? []).map((a) => [a.gapId, a.value])));
   const solved = feedback?.correct ?? result?.correct ?? false;
@@ -87,7 +90,7 @@ export function FillBlank({
         })}
       </View>
 
-      {feedback ? (
+      {feedback && !feedbackInFooter ? (
         <View style={[styles.feedback, feedback.correct ? styles.feedbackRight : styles.feedbackWrong]} accessibilityLiveRegion="polite">
           <Text style={styles.feedbackTitle}>{feedback.correct ? 'Nice!' : feedback.gaps.length > 1 ? 'Not quite. Check the marked gap' : 'Not quite. Here’s the idea'}</Text>
           {feedback.gaps
@@ -102,7 +105,7 @@ export function FillBlank({
         </View>
       ) : null}
 
-      {!solved && (
+      {!solved && !(feedback && feedbackInFooter) && (
         <ChunkyButton
           label={feedback ? 'Check again' : 'Check'}
           onPress={() => onSubmit?.(component.gaps.map((g) => ({ gapId: g.id, value: values[g.id] ?? '' })))}

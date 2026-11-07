@@ -19,6 +19,8 @@ export interface SlideInteractions {
   /** Optional until the server scores fillBlank; without a handler the component renders with Check disabled. */
   fillBlankFeedback?: Record<string, FillBlankFeedback | undefined>;
   onFillBlank?: (componentId: string, answers: { gapId: string; value: string }[]) => void;
+  /** The screen renders explanations and retry/continue in its footer; components keep only their colouring. */
+  feedbackInFooter?: boolean;
 }
 
 /** Renders one slide: each component through its renderer, in order. Unknown types cannot occur: the contract is closed. */
@@ -79,6 +81,7 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
           component={component}
           result={result?.type === 'multipleChoice' ? result : undefined}
           feedback={interactions.feedback[component.id]}
+          feedbackInFooter={interactions.feedbackInFooter}
           busy={interactions.busyComponentId === component.id}
           onSubmit={(optionId) => interactions.onAnswer(component.id, optionId)}
         />
@@ -94,6 +97,7 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
           component={component}
           result={result?.type === 'fillBlank' ? result : undefined}
           feedback={interactions.fillBlankFeedback?.[component.id]}
+          feedbackInFooter={interactions.feedbackInFooter}
           busy={interactions.busyComponentId === component.id}
           onSubmit={onFillBlank ? (answers) => onFillBlank(component.id, answers) : undefined}
         />

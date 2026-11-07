@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BASE_COMPANION } from '../src/contracts';
 import { Companion } from '../src/features/companion/Companion';
 import { colors, fonts } from '../src/features/theme';
 import { ChunkyButton } from '../src/features/ui/ChunkyButton';
+import { ProgressGlass } from '../src/features/ui/ProgressGlass';
 import { ErrorBox, Eyebrow, Screen } from '../src/features/ui/Screen';
 import { useAsync } from '../src/features/ui/useAsync';
 import { api } from '../src/services/api';
@@ -49,6 +50,13 @@ export default function HomeScreen() {
   };
 
   const streak = courses.data?.streak.count ?? 0;
+  // The course to continue: the most recently updated one that is not finished, else the newest.
+  const featured = useMemo(() => {
+    const list = courses.data?.courses ?? [];
+    const active = list.filter((c) => c.course.status !== 'completed');
+    return [...(active.length ? active : list)].sort((a, b) => b.course.updatedAt.localeCompare(a.course.updatedAt))[0] ?? null;
+  }, [courses.data]);
+  const otherCourses = (courses.data?.courses ?? []).filter((c) => c.course.id !== featured?.course.id);
 
   return (
     <Screen>
@@ -62,11 +70,42 @@ export default function HomeScreen() {
           ) : null}
         </View>
         <View style={styles.speech}>
-          <Companion theme={BASE_COMPANION} mood="curious" size={88} />
+          <Companion theme={featured ? featured.course.companion : BASE_COMPANION} mood={featured ? 'happy' : 'curious'} size={88} />
           <View style={styles.bubble}>
-            <Text style={styles.bubbleText}>Hi, I’m Pip! What do you want to learn?</Text>
+            <Text style={styles.bubbleText}>
+              {featured
+                ? featured.course.status === 'completed'
+                  ? `You finished ${featured.course.title}. Want to go further?`
+                  : featured.nextNodeTitle
+                    ? `Welcome back! “${featured.nextNodeTitle}” is ready when you are.`
+                    : `Welcome back! Your course is ready.`
+                : 'Hi, I’m Pip! What do you want to learn?'}
+            </Text>
           </View>
         </View>
+        {featured ? (
+          <View style={styles.continueCard}>
+            <ProgressGlass completed={featured.progress.completed} required={featured.progress.required} width={64} height={100} />
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={styles.continueTitle} numberOfLines={2}>
+                {featured.course.title}
+              </Text>
+              <Text style={styles.continueMeta}>
+                {featured.course.status === 'completed' ? 'Completed' : `${featured.progress.completed} of ${featured.progress.required} lessons done`}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+        {featured ? (
+          <ChunkyButton
+            label={featured.course.status === 'completed' ? 'Open course' : `Continue · ${featured.nextNodeTitle ?? 'your course'}`}
+            onPress={() => router.push({ pathname: '/course/[id]', params: { id: featured.course.id } })}
+          />
+        ) : null}
+      </View>
+
+      <View style={[styles.section, featured && styles.newSection]}>
+        {featured ? <Eyebrow color={colors.purple}>Learn something new</Eyebrow> : null}
         <TextInput
           accessibilityLabel="What do you want to learn?"
           placeholder="e.g. make great cocktails for a party"
@@ -87,17 +126,15 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </View>
-        <ChunkyButton label="Let’s go" onPress={() => void start(goal)} disabled={goal.trim().length < 2} loading={starting} />
+        <ChunkyButton label="Let’s go" variant={featured ? 'secondary' : 'primary'} onPress={() => void start(goal)} disabled={goal.trim().length < 2} loading={starting} />
         {startError ? <ErrorBox message={startError} /> : null}
       </View>
 
+      {courses.error ? <ErrorBox message={courses.error} onRetry={courses.reload} /> : null}
+      {otherCourses.length > 0 ? (
       <View style={styles.section}>
-        <Eyebrow>Your courses</Eyebrow>
-        {courses.error ? <ErrorBox message={courses.error} onRetry={courses.reload} /> : null}
-        {courses.data && courses.data.courses.length === 0 ? (
-          <Text style={styles.empty}>Nothing yet. Tell Pip what you’re up to and a course appears here.</Text>
-        ) : null}
-        {courses.data?.courses.map(({ course, progress, nextNodeTitle }) => (
+        <Eyebrow>Your other courses</Eyebrow>
+        {otherCourses.map(({ course, progress, nextNodeTitle }) => (
           <Pressable
             key={course.id}
             accessibilityRole="button"
@@ -118,6 +155,7 @@ export default function HomeScreen() {
           </Pressable>
         ))}
       </View>
+      ) : null}
       {discover.data && discover.data.courses.length > 0 ? (
         <View style={styles.section}>
           <Eyebrow>Discover courses others built</Eyebrow>
@@ -145,10 +183,14 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  hero: { backgroundColor: colors.soft, borderRadius: 28, padding: 18, gap: 14 },
+  hero: { backgroundColor: colors.purple, borderRadius: 28, padding: 18, gap: 14, borderBottomWidth: 6, borderBottomColor: colors.purpleDeep },
+  newSection: { padding: 16, borderRadius: 24, borderWidth: 3, borderStyle: 'dashed', borderColor: '#C4B5FD' },
+  continueCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 22, backgroundColor: colors.coralTint },
+  continueTitle: { fontFamily: fonts.black, fontSize: 18, lineHeight: 22, color: colors.ink },
+  continueMeta: { fontFamily: fonts.bold, fontSize: 13, color: colors.muted },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  brand: { fontFamily: fonts.black, fontSize: 24, color: colors.purple },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.bg },
+  brand: { fontFamily: fonts.black, fontSize: 24, color: '#FFFFFF' },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.yellow },
   chipText: { fontFamily: fonts.black, fontSize: 14, color: colors.ink },
   speech: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   bubble: { flex: 1, backgroundColor: colors.bg, padding: 14, borderRadius: 20, borderBottomLeftRadius: 6 },

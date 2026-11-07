@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import type { CompanionThemeV1, TreeView } from '../../src/contracts';
 import { Companion } from '../../src/features/companion/Companion';
 import { layoutPath, type PlacedNode } from '../../src/features/course/path-layout';
+import { ProgressGlass } from '../../src/features/ui/ProgressGlass';
 import { colors, fonts } from '../../src/features/theme';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
 import { BackButton, ErrorBox, Eyebrow, Loading, Screen } from '../../src/features/ui/Screen';
@@ -106,21 +107,39 @@ export default function CourseScreen() {
 
       {data && current ? (
         <>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${data.course.companion.name}, your companion. Rename or get a new look.`}
-            onPress={() => setEditingCompanion((v) => !v)}
-            style={styles.hero}
-          >
-            <Companion theme={data.course.companion} mood={current.complete ? 'cheering' : nextReady ? 'happy' : 'thinking'} size={72} />
-            <View style={{ flex: 1, gap: 6 }}>
-              <Eyebrow color={colors.coralDeep}>{`${data.course.companion.name} · your guide, picked by Pip`}</Eyebrow>
-              <Text style={styles.greeting} accessibilityLiveRegion="polite">
+          <View style={styles.unit}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.unitEyebrow} numberOfLines={2}>
+                Skill tree {current.tree.sequence + 1} · {data.course.title}
+              </Text>
+              <Text style={styles.unitTitle} accessibilityRole="header">
+                {current.tree.title}
+              </Text>
+            </View>
+            <ProgressGlass completed={current.progress.completed} required={current.progress.required} width={52} height={84} liquid={colors.yellow} showCount={false} />
+            <Text style={styles.unitProgress} aria-hidden>
+              {current.progress.completed}/{current.progress.required}
+            </Text>
+          </View>
+
+          <View style={styles.hero}>
+            <Companion theme={data.course.companion} mood={current.complete ? 'cheering' : nextReady ? 'happy' : 'thinking'} size={56} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Eyebrow color={colors.coralDeep}>{data.course.companion.name}</Eyebrow>
+              <Text style={styles.greeting} accessibilityLiveRegion="polite" numberOfLines={3}>
                 {companionLine()}
               </Text>
-              <Text style={styles.heroHint}>{editingCompanion ? 'Tap to close' : 'Tap to rename or change look'}</Text>
             </View>
-          </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${data.course.companion.name}, your companion. Rename or get a new look.`}
+              aria-expanded={editingCompanion}
+              onPress={() => setEditingCompanion((v) => !v)}
+              style={styles.pencil}
+            >
+              <Text style={styles.pencilIcon}>{editingCompanion ? '✕' : '✎'}</Text>
+            </Pressable>
+          </View>
           {editingCompanion ? (
             <View style={styles.companionPanel}>
               <TextInput
@@ -150,11 +169,6 @@ export default function CourseScreen() {
           ) : null}
           {extending ? <Loading message={`${data.course.companion.name} is planning your next skill tree…`} /> : null}
 
-          <Text accessibilityRole="header" style={styles.title}>
-            {data.course.title}
-          </Text>
-          <Text style={styles.summary}>{data.course.summary}</Text>
-
           {data.trees.length > 1 ? (
             <View style={styles.priorTrees} accessibilityRole="summary">
               {data.trees.slice(0, -1).map((t) => (
@@ -170,16 +184,6 @@ export default function CourseScreen() {
               ))}
             </View>
           ) : null}
-
-          <View style={styles.unit}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.unitEyebrow}>Skill tree {current.tree.sequence + 1}</Text>
-              <Text style={styles.unitTitle}>{current.tree.title}</Text>
-            </View>
-            <Text style={styles.unitProgress}>
-              {current.progress.completed}/{current.progress.required}
-            </Text>
-          </View>
 
           {error ? <ErrorBox message={error} /> : null}
 
@@ -374,25 +378,24 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   streak: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.coralTint },
   streakText: { fontFamily: fonts.black, fontSize: 14, color: colors.ink },
-  hero: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, padding: 16, borderRadius: 24, backgroundColor: colors.coralTint },
-  greeting: { fontFamily: fonts.extraBold, fontSize: 16, lineHeight: 22, color: colors.ink },
-  heroHint: { fontFamily: fonts.bold, fontSize: 11, color: colors.muted },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 22, backgroundColor: colors.coralTint },
+  pencil: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  pencilIcon: { fontFamily: fonts.black, fontSize: 20, color: colors.coralDeep },
+  greeting: { fontFamily: fonts.extraBold, fontSize: 15, lineHeight: 20, color: colors.ink },
   companionPanel: { gap: 10, padding: 14, borderRadius: 20, borderWidth: 3, borderColor: colors.line },
   input: { minHeight: 52, borderWidth: 3, borderColor: '#C4B5FD', borderRadius: 16, paddingHorizontal: 14, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
   completeCard: { gap: 10, padding: 16, borderRadius: 22, backgroundColor: colors.mintTint },
   completeTitle: { fontFamily: fonts.black, fontSize: 18, color: colors.mintDeep },
   completeText: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.ink },
-  title: { fontFamily: fonts.black, fontSize: 28, lineHeight: 33, color: colors.ink },
-  summary: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 21, color: colors.muted },
   priorTrees: { gap: 6 },
   priorTree: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: colors.soft },
   priorCheck: { fontFamily: fonts.black, fontSize: 14, color: colors.purple, width: 16, textAlign: 'center' },
   priorTitle: { flex: 1, fontFamily: fonts.extraBold, fontSize: 13, color: colors.ink },
   priorProgress: { fontFamily: fonts.black, fontSize: 13, color: colors.purple },
-  unit: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, backgroundColor: colors.purple, borderBottomWidth: 6, borderBottomColor: colors.purpleDeep },
-  unitEyebrow: { fontFamily: fonts.black, fontSize: 12, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.purpleTint },
+  unit: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 20, backgroundColor: colors.purple, borderBottomWidth: 6, borderBottomColor: colors.purpleDeep },
+  unitEyebrow: { fontFamily: fonts.black, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.purpleTint },
   unitTitle: { fontFamily: fonts.black, fontSize: 20, color: '#FFFFFF' },
-  unitProgress: { fontFamily: fonts.black, fontSize: 22, color: colors.yellow },
+  unitProgress: { fontFamily: fonts.black, fontSize: 20, color: colors.yellow },
   dot: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
   ring: { position: 'absolute', borderWidth: 4, borderColor: colors.yellowTint },
   circle: { position: 'absolute', borderBottomWidth: 7, alignItems: 'center', justifyContent: 'center' },
