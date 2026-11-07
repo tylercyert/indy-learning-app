@@ -1,41 +1,37 @@
-This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
+# Agent working agreement
 
-## Expo has changed — do not trust your training data
+## Read first
 
-Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:
+Read `README.md`, `docs/product.md`, `docs/architecture.md`, `docs/factory.md`, the assigned GitHub issue and any nearer `AGENTS.md`. The issue defines the outcome, acceptance criteria, dependencies and owned paths. Repo documents must make the project understandable without private chat history.
 
-1. Read the major version of the `expo` package in `package.json`.
-2. Fetch the matching versioned docs: `https://docs.expo.dev/versions/v<major>.0.0/`
-3. For anything else, fetch https://docs.expo.dev/llms.txt — an index of all Expo docs with corrections to common LLM misconceptions. Follow its links to the specific page you need; never answer from memory.
+## Work in isolation
 
-## Commands
+- One active issue and one branch/worktree per implementer. Never share a dirty checkout or check out another agent's branch.
+- Branch: `agent/<name>/<issue>-<slug>` (humans can use the same pattern).
+- Claim work in the issue before editing. State owned files, proposed shared-contract changes and dependencies.
+- A single owner per issue controls `src/contracts/**`. Agree and merge shared shapes before parallel consumers. Do not fork duplicate types inside features.
+- Do not edit another worker's paths, revert their changes, use `git reset --hard`, or force push.
+- Keep changes small. Do not introduce generic factory machinery, permanent role fleets or extra services just to support this app.
 
-Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
+## Quality and honesty
 
-```bash
-npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
-npx expo start              # start the dev server
-npx expo lint               # lint
-npx tsc --noEmit            # typecheck
-npx expo-doctor             # diagnose dependency and config issues
-npx expo install --fix      # fix incompatible package versions
-```
+Run `npm run verify` and `npm run export:all` on the final code. Report exact commands, results, commit SHA and untested surfaces. UI work also needs device/browser evidence, accessibility checks, back/cancel/retry and saved-progress recovery. Never call a bundle export a device test.
 
-Run lint and typecheck before declaring any task done.
+An independent person or agent reviews the diff and acceptance criteria. Record findings on the draft PR. An agent review is not a GitHub approval from a second account. No self-approval workaround and no claim that protections exist unless verified.
 
-## Navigation & Routing
+Use draft PRs linked with `Closes #<issue>`. Merge/release, new collaborators, public visibility and paid services need owner authorization. Do not create credentials or share API keys. No GitHub Actions or persistent self-hosted runner until the owner selects and authorizes the automation/cost approach. Local checks are the current gate, not automated enforcement.
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
+## Runtime rules
 
-## Building with EAS
+- Expo SDK 58, React Native, TypeScript strict mode, Node 24 LTS, npm with lockfile.
+- Before Expo/React Native API changes read matching docs: https://docs.expo.dev/versions/v58.0.0/ and https://docs.expo.dev/llms.txt. Do not trust remembered APIs.
+- Use `npx expo install` for compatible runtime packages. Add only needed dependencies.
+- Use Expo Router when navigation is introduced. The initial single-screen scaffold has no router yet.
+- Keep generated `ios/`, `android/`, caches and secrets out of Git. Do not hand-edit generated native folders.
+- Runtime-validate model output and persisted JSON. Infer types from shared schemas.
+- Score objective answers with code. Keep learning preferences distinct from demonstrated evidence. Do not assign permanent learning-style labels.
+- Never place a provider secret in `EXPO_PUBLIC_*` or a client build. Fixture mode must be clearly labeled.
 
-Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
-Docs: https://docs.expo.dev/eas/index.md
+## Stop and ask
 
-## Rules
-
-- If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
-- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
-- Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+After two failed approaches, summarize the blocker and propose the smallest next step. Stop for unclear ownership, incompatible contracts, data-loss risk or missing permission. Update the issue when blocked rather than silently accumulating local work.

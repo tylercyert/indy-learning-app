@@ -1,0 +1,34 @@
+name: Bounded work item
+description: A small outcome with ownership and verifiable acceptance
+title: "[Work] "
+labels: ["status:backlog"]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What improves for the learner or team?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Concrete pass/fail behavior and failure states.
+      value: "- [ ] "
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Ownership and scope
+      description: Owned files, out-of-scope work, dependencies and shared-contract owner.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification plan
+      description: Tests, runtime checks and review evidence required.
+    validations:
+      required: true

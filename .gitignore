@@ -39,3 +39,12 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# project-local state and secrets
+.env
+.env.*
+!.env.example
+coverage/
+.worktrees/
+.handoff/
+.claude/settings.local.json

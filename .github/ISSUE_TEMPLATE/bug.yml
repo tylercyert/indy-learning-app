@@ -1,0 +1,19 @@
+name: Bug report
+description: Reproducible behavior and impact
+title: "[Bug] "
+labels: ["bug", "status:backlog"]
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Steps, expected result, actual result, platform and version/commit. Do not include secrets or private learner data.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact and verification
+      description: Who is affected and what regression test should prove the fix?
+    validations:
+      required: true
