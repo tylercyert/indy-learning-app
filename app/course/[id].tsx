@@ -64,10 +64,11 @@ export default function CourseScreen() {
   }, [current?.tree.id, nextNode?.id, nextReady]);
 
   const open = async (nodeId: string) => {
+    if (opening) return; // one open at a time; a second tap while generating must not race
     setOpening(nodeId);
     setError(null);
     try {
-      const exp = await api.openNode(id, nodeId);
+      const exp = await api.openNode(id, nodeId, current?.tree.id);
       router.push({ pathname: '/lesson/[id]', params: { id: exp.experience.id } });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not open that lesson');

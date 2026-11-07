@@ -58,6 +58,7 @@ async function nextTurn(transcript: IntakeMessage[]): Promise<IntakeTurnV1> {
   const asked = questionsAsked(transcript);
   const { data } = await generateStructured({
     task: 'intake',
+    fast: false,
     schema: IntakeTurnV1Schema,
     system: INTAKE_SYSTEM,
     messages: [{ role: 'user', content: intakeUserMessage(transcript, asked, MAX_INTAKE_QUESTIONS) }],

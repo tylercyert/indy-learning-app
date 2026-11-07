@@ -131,7 +131,8 @@ export const api = {
   discover: () => validated(DiscoverListSchema, get('/discover')),
   startFromDiscovered: (courseId: string, goal?: string) => validated(CourseViewSchema, post(`/discover/${courseId}/start`, { goal })),
 
-  openNode: (courseId: string, nodeId: string) => validated(ExperienceViewSchema, post(`/courses/${courseId}/nodes/${nodeId}/experience`, {})),
+  openNode: (courseId: string, nodeId: string, treeId?: string) =>
+    validated(ExperienceViewSchema, post(`/courses/${courseId}/nodes/${nodeId}/experience${treeId ? `?tree=${encodeURIComponent(treeId)}` : ''}`, {})),
   getExperience: (id: string) => validated(ExperienceViewSchema, get(`/experiences/${id}`)),
   sendEvent: (experienceId: string, event: ExperienceEventRequest) =>
     validated(ExperienceEventResponseSchema, post(`/experiences/${experienceId}/events`, event)),

@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { z } from 'zod';
-import { aiEnabled } from '../env';
+import { aiEnabled, env } from '../env';
 import { outputJsonSchema, schemaForPrompt } from './output-format';
 
 /**
@@ -16,9 +16,13 @@ import { outputJsonSchema, schemaForPrompt } from './output-format';
  * falls back to prompt mode and remembers that choice for the schema.
  */
 export const MODEL = 'claude-opus-5-5';
+/** Fast mode: research preview on Opus 5.5, 2x price; separate rate limit, so we fall back on 429. */
+const FAST_MODE_BETA = 'fast-mode-2026-02-01';
+let fastModeAvailable = env.ANTHROPIC_FAST_MODE === '1';
 
 export type Effort = 'low' | 'medium' | 'high';
 type Mode = 'grammar' | 'prompt';
+type AnyMessage = Anthropic.Message | Anthropic.Beta.BetaMessage;
 
 export class GenerationError extends Error {
   constructor(
@@ -44,6 +48,8 @@ export interface StructuredRequest<S extends z.ZodType> {
   /** Short label for logs and the `generatedBy` audit field. */
   task: string;
   schema: S;
+  /** Use fast mode when available (default true). Intake turns are short and stay on standard speed. */
+  fast?: boolean;
   /** Stable instructions: cached across calls. Keep volatile content in `messages`. */
   system: string;
   messages: Anthropic.MessageParam[];
@@ -91,10 +97,18 @@ export async function generateStructured<S extends z.ZodType>(
   const maxTokens = req.maxTokens ?? 32_000;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    let message: Anthropic.Message;
+    let message: AnyMessage;
+    const useFast = fastModeAvailable && (req.fast ?? true);
     try {
-      message = await callOnce(anthropic, req, messages, mode, maxTokens);
+      message = await callOnce(anthropic, req, messages, mode, maxTokens, useFast);
     } catch (error) {
+      if (error instanceof Anthropic.APIError && useFast && (error.status === 429 || (error.status === 400 && /speed|fast/i.test(error.message)))) {
+        // Fast mode has its own rate limit (or is unavailable); continue at standard speed.
+        console.warn(`[generation] ${req.task}: fast mode unavailable (${error.status}); using standard speed for this process`);
+        fastModeAvailable = false;
+        attempt--;
+        continue;
+      }
       if (error instanceof Anthropic.APIError && mode === 'grammar' && isSchemaRejection(error)) {
         console.warn(`[generation] ${req.task}: schema rejected for grammar mode (${error.message.slice(0, 120)}); using prompt mode`);
         mode = 'prompt';
@@ -116,7 +130,7 @@ export async function generateStructured<S extends z.ZodType>(
     }
 
     const text = message.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .filter((b): b is Anthropic.TextBlock | Anthropic.Beta.BetaTextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('');
     const json = extractJson(text);
@@ -125,7 +139,7 @@ export async function generateStructured<S extends z.ZodType>(
     if (parsed?.success) {
       return {
         data: parsed.data,
-        model: message.model,
+        model: `${message.model}${useFast ? '+fast' : ''}`,
         mode,
         usage: {
           input: message.usage.input_tokens,
@@ -145,7 +159,8 @@ export async function generateStructured<S extends z.ZodType>(
     }
 
     console.warn(`[generation] ${req.task}: attempt ${attempt} failed validation (${issues.length} issues); retrying. First: ${issues.slice(0, 3).join(' | ')}`);
-    messages.push({ role: 'assistant', content: message.content });
+    // Replay the attempt as plain text (works for beta and standard responses alike).
+    messages.push({ role: 'assistant', content: text || '(empty response)' });
     messages.push({
       role: 'user',
       content: `Your previous output did not satisfy the contract. Fix exactly these issues and return the full corrected JSON object, nothing else:\n- ${issues.join('\n- ')}`,
@@ -160,7 +175,8 @@ async function callOnce<S extends z.ZodType>(
   messages: Anthropic.MessageParam[],
   mode: Mode,
   maxTokens: number,
-): Promise<Anthropic.Message> {
+  fast: boolean,
+): Promise<AnyMessage> {
   const system: Anthropic.TextBlockParam[] =
     mode === 'grammar'
       ? [{ type: 'text', text: req.system, cache_control: { type: 'ephemeral' } }]
@@ -172,14 +188,29 @@ async function callOnce<S extends z.ZodType>(
             cache_control: { type: 'ephemeral' },
           },
         ];
+  const output_config =
+    mode === 'grammar'
+      ? { effort: req.effort, format: { type: 'json_schema' as const, schema: outputJsonSchema(req.schema) } }
+      : { effort: req.effort };
+  if (fast) {
+    // Fast mode lives on the beta endpoint and needs the beta flag plus a top-level speed parameter.
+    const stream = anthropic.beta.messages.stream({
+      model: MODEL,
+      max_tokens: maxTokens,
+      thinking: { type: 'adaptive' },
+      output_config,
+      system,
+      messages,
+      speed: 'fast',
+      betas: [FAST_MODE_BETA],
+    });
+    return stream.finalMessage();
+  }
   const stream = anthropic.messages.stream({
     model: MODEL,
     max_tokens: maxTokens,
     thinking: { type: 'adaptive' },
-    output_config:
-      mode === 'grammar'
-        ? { effort: req.effort, format: { type: 'json_schema', schema: outputJsonSchema(req.schema) } }
-        : { effort: req.effort },
+    output_config,
     system,
     messages,
   });
