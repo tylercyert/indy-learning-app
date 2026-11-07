@@ -27,12 +27,15 @@ export function MultipleChoice({
   feedback,
   busy,
   onSubmit,
+  feedbackInFooter = false,
 }: {
   component: Choice;
   result?: Result;
   feedback?: ChoiceFeedback;
   busy: boolean;
   onSubmit: (optionId: string) => void;
+  /** The screen shows the explanation and the retry/continue action itself; keep only the option colouring here. */
+  feedbackInFooter?: boolean;
 }) {
   const [selected, setSelected] = useState<string | null>(result?.selectedOptionId ?? null);
   const answeredCorrectly = feedback?.correct ?? result?.correct ?? false;
@@ -76,7 +79,7 @@ export function MultipleChoice({
         })}
       </View>
 
-      {showFeedback ? (
+      {showFeedback && !feedbackInFooter ? (
         <View style={[styles.feedback, feedback.correct ? styles.feedbackRight : styles.feedbackWrong]} accessibilityLiveRegion="polite">
           <Text style={styles.feedbackTitle}>{feedback.correct ? 'Nice!' : 'Not quite. Here’s the idea'}</Text>
           <Text style={styles.feedbackText}>{feedback.explanation}</Text>
@@ -84,7 +87,7 @@ export function MultipleChoice({
         </View>
       ) : null}
 
-      {!answeredCorrectly && (
+      {!answeredCorrectly && !(showFeedback && feedbackInFooter) && (
         <ChunkyButton
           label={showFeedback ? 'Check again' : 'Check'}
           onPress={() => selected && onSubmit(selected)}

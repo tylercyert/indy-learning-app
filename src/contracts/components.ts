@@ -317,6 +317,62 @@ export const FillBlankResultSchema = z.strictObject({
   attempt: z.int().min(1),
 });
 
+/**
+ * Match pairs: 3–5 one-to-one relationships (term ↔ definition, cause ↔ effect, symbol ↔ meaning).
+ * The renderer keeps `left` in order and shows `right` in a deterministic shuffle derived from the
+ * pair ids, so no shuffle field exists. Scoring is deterministic in src/domain/scoring.ts
+ * (`scoreMatchPairs`): a match is correct when the learner paired a left item with its own right item.
+ */
+export const MATCH_PAIRS_MIN = 3;
+export const MATCH_PAIRS_MAX = 5;
+
+export const MatchPairSchema = z.strictObject({
+  id: LocalIdSchema,
+  left: ShortTextSchema.max(40),
+  right: ShortTextSchema.max(60),
+  /** Shown when THIS pair was matched wrongly. Must teach, not just mark. */
+  explanation: MediumTextSchema.max(160),
+});
+
+export const MatchPairsComponentSchema = z
+  .strictObject({
+    ...Base,
+    type: z.literal('matchPairs'),
+    prompt: MediumTextSchema.max(160),
+    pairs: z.array(MatchPairSchema).min(MATCH_PAIRS_MIN).max(MATCH_PAIRS_MAX),
+  })
+  .superRefine((value, ctx) => {
+    assertUniqueLocalIds(value.pairs, ctx, 'pair');
+    for (const side of ['left', 'right'] as const) {
+      const seen = new Set<string>();
+      value.pairs.forEach((pair, index) => {
+        const key = pair[side].toLowerCase();
+        if (seen.has(key)) ctx.addIssue({ code: 'custom', message: `${side} items must be distinct (a duplicate makes the match ambiguous)`, path: ['pairs', index, side] });
+        seen.add(key);
+      });
+    }
+  });
+
+/**
+ * One learner attempt at a matchPairs. `matches` holds every pair in component order: the pair
+ * whose left item was shown, the pair whose right item the learner chose for it, and whether they
+ * agree. `correct` is true only when every match agrees.
+ * Server request shape to score one (main lane, src/contracts/api.ts ExperienceEventRequest):
+ *   { type: 'matchPairs', slideId, componentId, matches: [{ pairId, chosenPairId }] }
+ * The server runs scoreMatchPairs and stores this result; it returns the wrong pairs' explanations.
+ */
+export const MatchPairsResultSchema = z.strictObject({
+  type: z.literal('matchPairs'),
+  componentId: LocalIdSchema,
+  matches: z
+    .array(z.strictObject({ pairId: LocalIdSchema, chosenPairId: LocalIdSchema, correct: z.boolean() }))
+    .min(MATCH_PAIRS_MIN)
+    .max(MATCH_PAIRS_MAX),
+  correctCount: z.int().min(0).max(MATCH_PAIRS_MAX),
+  correct: z.boolean(),
+  attempt: z.int().min(1),
+});
+
 // ---------- unions and manifests ----------
 
 /** Order is part of the generation schema; append new members, never reorder. */
@@ -329,6 +385,7 @@ export const ComponentV1Schema = z.discriminatedUnion('type', [
   MultipleChoiceComponentSchema,
   CodeBlockComponentSchema,
   FillBlankComponentSchema,
+  MatchPairsComponentSchema,
 ]);
 export type ComponentV1 = z.infer<typeof ComponentV1Schema>;
 export type ComponentType = ComponentV1['type'];
@@ -337,6 +394,7 @@ export const ComponentResultV1Schema = z.discriminatedUnion('type', [
   ChecklistResultSchema,
   MultipleChoiceResultSchema,
   FillBlankResultSchema,
+  MatchPairsResultSchema,
 ]);
 export type ComponentResultV1 = z.infer<typeof ComponentResultV1Schema>;
 
@@ -387,6 +445,11 @@ export const COMPONENT_MANIFESTS: Readonly<Record<ComponentType, ComponentManife
     type: 'fillBlank',
     role: 'assessable',
     whenToUse: 'Check recall of one exact word, number or symbol: a sentence with one or two ___ gaps and every accepted spelling.',
+  },
+  matchPairs: {
+    type: 'matchPairs',
+    role: 'assessable',
+    whenToUse: 'Check 3-5 one-to-one relationships (term and definition, cause and effect, symbol and meaning) in one go.',
   },
 };
 

@@ -64,6 +64,20 @@ async function main() {
         log(`  answered wrong on ${c.id}: correct=${r1.scored?.correct} explanation="${r1.scored?.explanation.slice(0, 70)}…"`);
         const r2 = ExperienceEventResponseSchema.parse(await call(`/experiences/${exp.experience.id}/events`, { method: 'POST', body: JSON.stringify({ type: 'answer', slideId: s.id, componentId: c.id, selectedOptionId: c.correctOptionId }) }, token));
         log(`  answered right on ${c.id}: correct=${r2.scored?.correct} attempt=${r2.scored?.attempt}`);
+      } else if (c.type === 'fillBlank') {
+        const guess = c.gaps.map((g) => ({ gapId: g.id, value: 'a guess' }));
+        const r1 = ExperienceEventResponseSchema.parse(await call(`/experiences/${exp.experience.id}/events`, { method: 'POST', body: JSON.stringify({ type: 'fillBlank', slideId: s.id, componentId: c.id, answers: guess }) }, token));
+        log(`  fillBlank wrong on ${c.id}: correct=${r1.scoredFillBlank?.correct} explanation="${r1.scoredFillBlank?.gaps[0]?.explanation.slice(0, 70)}…"`);
+        const right = c.gaps.map((g) => ({ gapId: g.id, value: g.accepted[0]! }));
+        const r2 = ExperienceEventResponseSchema.parse(await call(`/experiences/${exp.experience.id}/events`, { method: 'POST', body: JSON.stringify({ type: 'fillBlank', slideId: s.id, componentId: c.id, answers: right }) }, token));
+        log(`  fillBlank right on ${c.id}: correct=${r2.scoredFillBlank?.correct} attempt=${r2.scoredFillBlank?.attempt}`);
+      } else if (c.type === 'matchPairs') {
+        const ids = c.pairs.map((p) => p.id);
+        const rotated = ids.map((id, i) => ({ pairId: id, chosenPairId: ids[(i + 1) % ids.length]! }));
+        const r1 = ExperienceEventResponseSchema.parse(await call(`/experiences/${exp.experience.id}/events`, { method: 'POST', body: JSON.stringify({ type: 'matchPairs', slideId: s.id, componentId: c.id, matches: rotated }) }, token));
+        log(`  matchPairs wrong on ${c.id}: correct=${r1.scoredMatchPairs?.correct} explanation="${r1.scoredMatchPairs?.matches[0]?.explanation.slice(0, 70)}…"`);
+        const r2 = ExperienceEventResponseSchema.parse(await call(`/experiences/${exp.experience.id}/events`, { method: 'POST', body: JSON.stringify({ type: 'matchPairs', slideId: s.id, componentId: c.id, matches: ids.map((id) => ({ pairId: id, chosenPairId: id })) }) }, token));
+        log(`  matchPairs right on ${c.id}: correct=${r2.scoredMatchPairs?.correct} attempt=${r2.scoredMatchPairs?.attempt}`);
       }
     }
     last = ExperienceEventResponseSchema.parse(await call(`/experiences/${exp.experience.id}/events`, { method: 'POST', body: JSON.stringify({ type: 'slideViewed', slideId: s.id }) }, token));

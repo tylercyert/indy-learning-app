@@ -41,11 +41,13 @@ app.route('/api', learning);
  * browser on the tailnet opens http://<tailscale-ip>:8787 and the app talks to this server
  * without CORS. Expo Router web export is a single-page app: unknown GET paths fall back to index.html.
  */
-const distDir = path.resolve(process.cwd(), 'dist');
+/** DIST_DIR lets a QA server serve a build exported elsewhere (e.g. a branch build on another port). */
+const distRel = process.env.DIST_DIR ?? 'dist';
+const distDir = path.resolve(process.cwd(), distRel);
 const indexHtml = path.join(distDir, 'index.html');
 export const servesWeb = fs.existsSync(indexHtml);
 if (servesWeb) {
-  app.use('/*', serveStatic({ root: './dist' }));
+  app.use('/*', serveStatic({ root: `./${distRel}` }));
 }
 
 app.notFound((c) => {

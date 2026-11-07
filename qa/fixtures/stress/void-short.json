@@ -1,0 +1,64 @@
+{
+  "id": "void-short",
+  "title": "A short slide should still feel composed",
+  "purpose": "teach",
+  "components": [
+    {
+      "id": "c1",
+      "type": "callout",
+      "speaker": "companion",
+      "tone": "explain",
+      "content": {
+        "blocks": [
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "Here is the one idea behind every great sour drink."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "t",
+      "type": "text",
+      "content": {
+        "blocks": [
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "Sugar makes a drink feel heavy. Acid cuts through it so flavors taste bright instead of syrupy."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "r",
+      "type": "ratioBar",
+      "title": "A classic sour, by volume",
+      "segments": [
+        {
+          "label": "base",
+          "parts": 2,
+          "color": "primary"
+        },
+        {
+          "label": "sour",
+          "parts": 1,
+          "color": "accent"
+        },
+        {
+          "label": "sweet",
+          "parts": 1,
+          "color": "secondary"
+        }
+      ],
+      "altText": "Two parts base, one part sour, one part sweet."
+    }
+  ]
+}

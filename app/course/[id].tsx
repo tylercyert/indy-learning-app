@@ -1,8 +1,10 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import type { NodeV1, TreeView } from '../../src/contracts';
+import type { CompanionThemeV1, TreeView } from '../../src/contracts';
 import { Companion } from '../../src/features/companion/Companion';
+import { layoutPath, type PlacedNode } from '../../src/features/course/path-layout';
+import { ProgressGlass } from '../../src/features/ui/ProgressGlass';
 import { colors, fonts } from '../../src/features/theme';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
 import { BackButton, ErrorBox, Eyebrow, Loading, Screen } from '../../src/features/ui/Screen';
@@ -93,7 +95,7 @@ export default function CourseScreen() {
     <Screen>
       <View style={styles.header}>
         <BackButton label="Back to home" onPress={() => router.replace('/')} />
-        {data ? (
+        {data && data.streak.count > 0 ? (
           <View style={styles.streak} accessibilityLabel={`${data.streak.count} day streak`}>
             <Text style={styles.streakText}>🔥 {data.streak.count}</Text>
           </View>
@@ -105,21 +107,39 @@ export default function CourseScreen() {
 
       {data && current ? (
         <>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${data.course.companion.name}, your companion. Rename or get a new look.`}
-            onPress={() => setEditingCompanion((v) => !v)}
-            style={styles.hero}
-          >
-            <Companion theme={data.course.companion} mood={current.complete ? 'cheering' : nextReady ? 'happy' : 'thinking'} size={72} />
-            <View style={{ flex: 1, gap: 6 }}>
-              <Eyebrow color={colors.coralDeep}>{`${data.course.companion.name} · your guide, picked by Pip`}</Eyebrow>
-              <Text style={styles.greeting} accessibilityLiveRegion="polite">
+          <View style={styles.unit}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.unitEyebrow} numberOfLines={2}>
+                Skill tree {current.tree.sequence + 1} · {data.course.title}
+              </Text>
+              <Text style={styles.unitTitle} accessibilityRole="header">
+                {current.tree.title}
+              </Text>
+            </View>
+            <ProgressGlass completed={current.progress.completed} required={current.progress.required} width={52} height={84} liquid={colors.yellow} showCount={false} />
+            <Text style={styles.unitProgress} aria-hidden>
+              {current.progress.completed}/{current.progress.required}
+            </Text>
+          </View>
+
+          <View style={styles.hero}>
+            <Companion theme={data.course.companion} mood={current.complete ? 'cheering' : nextReady ? 'happy' : 'thinking'} size={56} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Eyebrow color={colors.coralDeep}>{data.course.companion.name}</Eyebrow>
+              <Text style={styles.greeting} accessibilityLiveRegion="polite" numberOfLines={3}>
                 {companionLine()}
               </Text>
-              <Text style={styles.heroHint}>{editingCompanion ? 'Tap to close' : 'Tap to rename or change look'}</Text>
             </View>
-          </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${data.course.companion.name}, your companion. Rename or get a new look.`}
+              aria-expanded={editingCompanion}
+              onPress={() => setEditingCompanion((v) => !v)}
+              style={styles.pencil}
+            >
+              <Text style={styles.pencilIcon}>{editingCompanion ? '✕' : '✎'}</Text>
+            </Pressable>
+          </View>
           {editingCompanion ? (
             <View style={styles.companionPanel}>
               <TextInput
@@ -149,11 +169,6 @@ export default function CourseScreen() {
           ) : null}
           {extending ? <Loading message={`${data.course.companion.name} is planning your next skill tree…`} /> : null}
 
-          <Text accessibilityRole="header" style={styles.title}>
-            {data.course.title}
-          </Text>
-          <Text style={styles.summary}>{data.course.summary}</Text>
-
           {data.trees.length > 1 ? (
             <View style={styles.priorTrees} accessibilityRole="summary">
               {data.trees.slice(0, -1).map((t) => (
@@ -170,19 +185,9 @@ export default function CourseScreen() {
             </View>
           ) : null}
 
-          <View style={styles.unit}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.unitEyebrow}>Skill tree {current.tree.sequence + 1}</Text>
-              <Text style={styles.unitTitle}>{current.tree.title}</Text>
-            </View>
-            <Text style={styles.unitProgress}>
-              {current.progress.completed}/{current.progress.required}
-            </Text>
-          </View>
-
           {error ? <ErrorBox message={error} /> : null}
 
-          <SkillPath tree={current} openingNodeId={opening} onOpen={(nodeId) => void open(nodeId)} />
+          <SkillPath tree={current} companion={data.course.companion} openingNodeId={opening} onOpen={(nodeId) => void open(nodeId)} />
 
           <ChunkyButton
             label="Learn something different"
@@ -204,60 +209,71 @@ export default function CourseScreen() {
   );
 }
 
-const ROW_H = 116;
-const R = 38;
 /** The path winds inside a fixed-width lane so it reads the same on a phone and a laptop. */
 const LANE_MAX = 520;
-/** Horizontal positions (fraction of lane) for the winding path: center, left, center, right… */
-const COLS = [0.5, 0.24, 0.5, 0.76];
+const DOT_SPACING = 34;
 
-function SkillPath({ tree, openingNodeId, onOpen }: { tree: TreeView; openingNodeId: string | null; onOpen: (nodeId: string) => void }) {
+function SkillPath({
+  tree,
+  companion,
+  openingNodeId,
+  onOpen,
+}: {
+  tree: TreeView;
+  companion: CompanionThemeV1;
+  openingNodeId: string | null;
+  onOpen: (nodeId: string) => void;
+}) {
   const disabled = !!openingNodeId;
   const [width, setWidth] = useState(0);
-  const nodes = tree.tree.nodes;
   const lane = Math.min(width, LANE_MAX);
   const offset = (width - lane) / 2;
-  const center = (i: number) => ({ cx: offset + COLS[i % COLS.length]! * lane, cy: i * ROW_H + R + 10 });
+  const layout = useMemo(() => layoutPath(tree.tree.nodes, lane, offset), [tree.tree.nodes, lane, offset]);
+  const byId = useMemo(() => new Map(layout.nodes.map((p) => [p.node.id, p])), [layout]);
 
   return (
-    <View style={{ height: nodes.length * ROW_H + 20, width: '100%' }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+    <View style={{ height: layout.height, width: '100%' }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       {width > 0 &&
-        nodes.slice(1).map((_, i) => {
-          const a = center(i);
-          const b = center(i + 1);
+        layout.edges.map((edge) => {
+          const a = byId.get(edge.from);
+          const b = byId.get(edge.to);
+          if (!a || !b) return null;
           const dx = b.cx - a.cx;
           const dy = b.cy - a.cy;
           const len = Math.hypot(dx, dy);
-          const start = (R + 10) / len;
-          const end = 1 - (R + 10) / len;
-          const doneA = tree.nodeStates[nodes[i]!.id] === 'completed';
-          return [0, 0.5, 1].map((k) => {
-            const t = start + (end - start) * k;
+          // Connectors leave below a node's label when the label sits under the circle (shared rows).
+          const exit = a.labelMode === 'below' ? a.r + 60 : a.r + 10;
+          const start = Math.min(exit / len, 0.6);
+          const end = 1 - (b.r + 10) / len;
+          const count = Math.max(2, Math.round((len * (end - start)) / DOT_SPACING));
+          const fromDone = tree.nodeStates[edge.from] === 'completed';
+          // Branch connectors are teal; the main path is purple once its source is done, lilac before.
+          const color = edge.branch ? (fromDone ? colors.mint : '#99E6DB') : fromDone ? colors.purple : '#C4B5FD';
+          const size = edge.long ? 6 : 10;
+          return Array.from({ length: count + 1 }, (_, k) => {
+            const t = start + (end - start) * (k / count);
             return (
               <View
-                key={`${i}-${k}`}
+                key={`${edge.from}-${edge.to}-${k}`}
                 aria-hidden
-                style={[styles.dot, { left: a.cx + dx * t - 5, top: a.cy + dy * t - 5, backgroundColor: doneA ? colors.purple : '#C4B5FD' }]}
+                style={[styles.dot, { left: a.cx + dx * t - size / 2, top: a.cy + dy * t - size / 2, width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity: edge.long ? 0.7 : 1 }]}
               />
             );
           });
         })}
       {width > 0 &&
-        nodes.map((node, i) => (
+        layout.nodes.map((placed) => (
           <PathNode
-            key={node.id}
-            node={node}
-            cx={center(i).cx}
-            cy={center(i).cy}
-            labelSide={COLS[i % COLS.length]! > 0.5 ? 'left' : 'right'}
-            width={lane}
-            state={tree.nodeStates[node.id] ?? 'locked'}
-            isNext={tree.nextNodeId === node.id}
-            ready={tree.readyNodeIds.includes(node.id)}
-            generating={tree.generatingNodeIds.includes(node.id)}
-            opening={openingNodeId === node.id}
+            key={placed.node.id}
+            placed={placed}
+            companion={companion}
+            state={tree.nodeStates[placed.node.id] ?? 'locked'}
+            isNext={tree.nextNodeId === placed.node.id}
+            ready={tree.readyNodeIds.includes(placed.node.id)}
+            generating={tree.generatingNodeIds.includes(placed.node.id)}
+            opening={openingNodeId === placed.node.id}
             disabled={disabled}
-            onPress={() => onOpen(node.id)}
+            onPress={() => onOpen(placed.node.id)}
           />
         ))}
     </View>
@@ -265,11 +281,8 @@ function SkillPath({ tree, openingNodeId, onOpen }: { tree: TreeView; openingNod
 }
 
 function PathNode({
-  node,
-  cx,
-  cy,
-  labelSide,
-  width,
+  placed,
+  companion,
   state,
   isNext,
   ready,
@@ -278,11 +291,8 @@ function PathNode({
   disabled,
   onPress,
 }: {
-  node: NodeV1;
-  cx: number;
-  cy: number;
-  labelSide: 'left' | 'right';
-  width: number;
+  placed: PlacedNode;
+  companion: CompanionThemeV1;
   state: NodeStatus;
   isNext: boolean;
   ready: boolean;
@@ -292,42 +302,67 @@ function PathNode({
   disabled: boolean;
   onPress: () => void;
 }) {
+  const { node, cx, cy, r, labelMode, labelSide, labelWidth } = placed;
   const locked = state === 'locked';
   const done = state === 'completed';
+  const branch = !node.required;
   const statusWord = done ? 'Done.' : locked ? 'Locked.' : isNext ? 'Up next.' : 'Available.';
   const readiness = done || locked ? '' : ready ? 'Ready to open.' : generating ? 'Being written now.' : 'Will be written when opened.';
-  const fill = done ? colors.purple : isNext ? colors.yellow : locked ? colors.line : colors.mint;
+  const fill = done ? colors.purple : isNext ? colors.yellow : locked ? colors.line : branch ? colors.mintTint : colors.mint;
   const shadow = done ? colors.purpleDeep : isNext ? colors.yellowDeep : locked ? '#D6D0E8' : colors.mintDeep;
-  const labelW = Math.min(190, width / 2 - R - 24);
-  const labelLeft = labelSide === 'right' ? cx + R + 12 : cx - R - 12 - labelW;
-  // Text aligns toward the circle: left-aligned when the label sits to the right of it, and vice versa.
-  const textAlign = labelSide === 'right' ? 'left' : 'right';
   // Only the next node advertises generation progress; other available nodes just say Ready when they are.
   const tag = opening ? (ready ? 'Opening…' : 'Writing…') : done || locked ? null : ready ? 'Ready' : isNext && generating ? 'Writing…' : isNext ? 'Tap to write' : null;
-  const meta = done ? 'Done' : node.kind === 'orientation' ? 'Start here' : node.required ? 'Core' : 'Optional';
+  const meta = done ? 'Done' : node.kind === 'orientation' ? 'Start here' : branch ? 'Branch' : 'Core';
+  const icon = done ? '✓' : locked ? '🔒' : isNext ? '★' : branch ? '↗' : '•';
+
+  const labelStyle =
+    labelMode === 'below'
+      ? { left: cx - labelWidth / 2, width: labelWidth, top: cy + r + 8, alignItems: 'center' as const }
+      : {
+          left: labelSide === 'right' ? cx + r + 12 : cx - r - 12 - labelWidth,
+          width: labelWidth,
+          top: cy - 36,
+          alignItems: labelSide === 'right' ? ('flex-start' as const) : ('flex-end' as const),
+        };
+  // Text aligns toward the circle when beside it, and is centered when under it.
+  const textAlign = labelMode === 'below' ? 'center' : labelSide === 'right' ? 'left' : 'right';
+  // The companion stands beside the next lesson when there is room (single-node rows only).
+  const companionLeft = labelMode === 'side' ? (labelSide === 'right' ? cx - r - 12 - 56 : cx + r + 12) : null;
 
   return (
     <>
-      {isNext ? <View aria-hidden style={[styles.ring, { left: cx - R - 7, top: cy - R - 7 }]} /> : null}
+      {isNext ? <View aria-hidden style={[styles.ring, { left: cx - r - 7, top: cy - r - 7, width: r * 2 + 14, height: r * 2 + 14, borderRadius: r + 7 }]} /> : null}
+      {isNext && companionLeft !== null ? (
+        <View aria-hidden style={{ position: 'absolute', left: companionLeft, top: cy - 30 }}>
+          <Companion theme={companion} mood="curious" size={56} />
+        </View>
+      ) : null}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${node.title}. ${statusWord} ${meta}. ${readiness}`}
+        accessibilityLabel={`${node.title}. ${statusWord} ${meta}${branch ? ', a side branch' : ''}. ${readiness}`}
         aria-disabled={locked || disabled}
         disabled={locked || disabled}
         onPress={onPress}
-        style={[styles.circle, { left: cx - R, top: cy - R, backgroundColor: fill, borderBottomColor: shadow }, !node.required && styles.circleOptional, locked && styles.circleLocked]}
+        style={[
+          styles.circle,
+          { left: cx - r, top: cy - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: fill, borderBottomColor: shadow },
+          branch && styles.circleOptional,
+          locked && styles.circleLocked,
+        ]}
       >
         {opening ? (
           <ActivityIndicator color={colors.ink} accessibilityLabel="Loading lesson" />
         ) : (
-          <Text style={[styles.circleIcon, done && { color: '#FFFFFF' }]}>{done ? '✓' : locked ? '🔒' : isNext ? '★' : '•'}</Text>
+          <Text style={[styles.circleIcon, branch && styles.circleIconSmall, done && { color: '#FFFFFF' }]}>{icon}</Text>
         )}
       </Pressable>
-      <View aria-hidden style={[styles.label, { left: labelLeft, width: labelW, top: cy - 36, alignItems: labelSide === 'right' ? 'flex-start' : 'flex-end' }]}>
-        <Text style={[styles.labelTitle, locked && { color: colors.muted }, { textAlign, width: '100%' }]}>{node.title}</Text>
-        <Text style={[styles.labelMeta, { textAlign, width: '100%' }]}>
+      <View aria-hidden style={[styles.label, labelStyle]}>
+        <Text style={[styles.labelTitle, (branch || labelMode === 'below') && styles.labelTitleBelow, locked && { color: colors.muted }, { textAlign, width: '100%' }]} numberOfLines={2}>
+          {node.title}
+        </Text>
+        <Text style={[styles.labelMeta, branch && !locked && { color: colors.mintDeep }, { textAlign, width: '100%' }]}>
           {isNext ? 'UP NEXT · ' : ''}
-          {meta}
+          {meta.toUpperCase()}
         </Text>
         {tag ? (
           <View style={[styles.tag, ready ? styles.tagReady : generating ? styles.tagWriting : styles.tagIdle]}>
@@ -343,33 +378,34 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   streak: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.coralTint },
   streakText: { fontFamily: fonts.black, fontSize: 14, color: colors.ink },
-  hero: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, padding: 16, borderRadius: 24, backgroundColor: colors.coralTint },
-  greeting: { fontFamily: fonts.extraBold, fontSize: 16, lineHeight: 22, color: colors.ink },
-  heroHint: { fontFamily: fonts.bold, fontSize: 11, color: colors.muted },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 22, backgroundColor: colors.coralTint },
+  pencil: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  pencilIcon: { fontFamily: fonts.black, fontSize: 20, color: colors.coralDeep },
+  greeting: { fontFamily: fonts.extraBold, fontSize: 15, lineHeight: 20, color: colors.ink },
   companionPanel: { gap: 10, padding: 14, borderRadius: 20, borderWidth: 3, borderColor: colors.line },
   input: { minHeight: 52, borderWidth: 3, borderColor: '#C4B5FD', borderRadius: 16, paddingHorizontal: 14, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
   completeCard: { gap: 10, padding: 16, borderRadius: 22, backgroundColor: colors.mintTint },
   completeTitle: { fontFamily: fonts.black, fontSize: 18, color: colors.mintDeep },
   completeText: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.ink },
-  title: { fontFamily: fonts.black, fontSize: 28, lineHeight: 33, color: colors.ink },
-  summary: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 21, color: colors.muted },
   priorTrees: { gap: 6 },
   priorTree: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: colors.soft },
   priorCheck: { fontFamily: fonts.black, fontSize: 14, color: colors.purple, width: 16, textAlign: 'center' },
   priorTitle: { flex: 1, fontFamily: fonts.extraBold, fontSize: 13, color: colors.ink },
   priorProgress: { fontFamily: fonts.black, fontSize: 13, color: colors.purple },
-  unit: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, backgroundColor: colors.purple, borderBottomWidth: 6, borderBottomColor: colors.purpleDeep },
-  unitEyebrow: { fontFamily: fonts.black, fontSize: 12, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.purpleTint },
+  unit: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 20, backgroundColor: colors.purple, borderBottomWidth: 6, borderBottomColor: colors.purpleDeep },
+  unitEyebrow: { fontFamily: fonts.black, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.purpleTint },
   unitTitle: { fontFamily: fonts.black, fontSize: 20, color: '#FFFFFF' },
-  unitProgress: { fontFamily: fonts.black, fontSize: 22, color: colors.yellow },
+  unitProgress: { fontFamily: fonts.black, fontSize: 20, color: colors.yellow },
   dot: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
-  ring: { position: 'absolute', width: R * 2 + 14, height: R * 2 + 14, borderRadius: R + 7, borderWidth: 4, borderColor: colors.yellowTint },
-  circle: { position: 'absolute', width: R * 2, height: R * 2, borderRadius: R, borderBottomWidth: 7, alignItems: 'center', justifyContent: 'center' },
+  ring: { position: 'absolute', borderWidth: 4, borderColor: colors.yellowTint },
+  circle: { position: 'absolute', borderBottomWidth: 7, alignItems: 'center', justifyContent: 'center' },
   circleOptional: { borderWidth: 3, borderColor: colors.mintDeep, borderStyle: 'dashed' },
   circleLocked: { opacity: 0.85 },
   circleIcon: { fontFamily: fonts.black, fontSize: 28, lineHeight: 32, color: colors.ink, marginTop: -4 },
+  circleIconSmall: { fontSize: 22, lineHeight: 26 },
   label: { position: 'absolute', gap: 2 },
   labelTitle: { fontFamily: fonts.black, fontSize: 15, lineHeight: 18, color: colors.ink },
+  labelTitleBelow: { fontSize: 13, lineHeight: 16 },
   labelMeta: { fontFamily: fonts.bold, fontSize: 11, color: colors.muted },
   tag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, marginTop: 2 },
   tagReady: { backgroundColor: colors.mintTint },

@@ -7,6 +7,7 @@ import { Checklist } from './Checklist';
 import { CodeBlock } from './CodeBlock';
 import { Diagram } from './Diagram';
 import { FillBlank, type FillBlankFeedback } from './FillBlank';
+import { MatchPairs, type MatchPairsFeedback } from './MatchPairs';
 import { MultipleChoice, type ChoiceFeedback } from './MultipleChoice';
 import { RichText } from './RichText';
 
@@ -19,16 +20,33 @@ export interface SlideInteractions {
   /** Optional until the server scores fillBlank; without a handler the component renders with Check disabled. */
   fillBlankFeedback?: Record<string, FillBlankFeedback | undefined>;
   onFillBlank?: (componentId: string, answers: { gapId: string; value: string }[]) => void;
+  /** Optional until the server scores matchPairs; without a handler the component renders with Check disabled. */
+  matchPairsFeedback?: Record<string, MatchPairsFeedback | undefined>;
+  onMatchPairs?: (componentId: string, matches: { pairId: string; chosenPairId: string }[]) => void;
+  /** The screen renders explanations and retry/continue in its footer; components keep only their colouring. */
+  feedbackInFooter?: boolean;
 }
 
-/** Renders one slide: each component through its renderer, in order. Unknown types cannot occur: the contract is closed. */
+/** Body text size: 17 reads better than 16 at arm's length and fills a phone slide (UX audit #36 P1-11). */
+const BODY_SIZE = 17;
+
+/**
+ * Renders one slide: each component through its renderer, in order. Unknown types cannot occur: the
+ * contract is closed. Composition (UX audit #36 P1-11): when the slide opens with the companion
+ * speaking, the bubble goes above the title so the page reads top-down like the mockup, and the
+ * whole slide grows to fill and centers itself when the screen gives it more room than it needs.
+ */
 export function SlideView({ slide, companion, interactions }: { slide: SlideV1; companion: CompanionThemeV1; interactions: SlideInteractions }) {
+  const [first, ...rest] = slide.components;
+  const leadsWithCompanion = first?.type === 'callout' && first.speaker === 'companion';
+  const body = leadsWithCompanion ? rest : slide.components;
   return (
     <View style={styles.slide}>
+      {leadsWithCompanion && first ? <ComponentRenderer component={first} companion={companion} interactions={interactions} /> : null}
       <Text accessibilityRole="header" aria-level={1} style={styles.title}>
         {slide.title}
       </Text>
-      {slide.components.map((component) => (
+      {body.map((component) => (
         <ComponentRenderer key={component.id} component={component} companion={companion} interactions={interactions} />
       ))}
     </View>
@@ -38,7 +56,7 @@ export function SlideView({ slide, companion, interactions }: { slide: SlideV1; 
 function ComponentRenderer({ component, companion, interactions }: { component: ComponentV1; companion: CompanionThemeV1; interactions: SlideInteractions }) {
   switch (component.type) {
     case 'text':
-      return <RichText doc={component.content} />;
+      return <RichText doc={component.content} size={BODY_SIZE} />;
     case 'callout': {
       const tone = { encourage: colors.coralTint, explain: colors.soft, warn: colors.coralTint, celebrate: colors.yellowTint }[component.tone];
       if (component.speaker === 'companion') {
@@ -79,6 +97,7 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
           component={component}
           result={result?.type === 'multipleChoice' ? result : undefined}
           feedback={interactions.feedback[component.id]}
+          feedbackInFooter={interactions.feedbackInFooter}
           busy={interactions.busyComponentId === component.id}
           onSubmit={(optionId) => interactions.onAnswer(component.id, optionId)}
         />
@@ -86,6 +105,20 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
     }
     case 'codeBlock':
       return <CodeBlock component={component} />;
+    case 'matchPairs': {
+      const result = interactions.results.find((r) => r.componentId === component.id && r.type === 'matchPairs');
+      const onMatchPairs = interactions.onMatchPairs;
+      return (
+        <MatchPairs
+          component={component}
+          result={result?.type === 'matchPairs' ? result : undefined}
+          feedback={interactions.matchPairsFeedback?.[component.id]}
+          busy={interactions.busyComponentId === component.id}
+          onSubmit={onMatchPairs ? (matches) => onMatchPairs(component.id, matches) : undefined}
+          feedbackInFooter={interactions.feedbackInFooter}
+        />
+      );
+    }
     case 'fillBlank': {
       const result = interactions.results.find((r) => r.componentId === component.id && r.type === 'fillBlank');
       const onFillBlank = interactions.onFillBlank;
@@ -94,6 +127,7 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
           component={component}
           result={result?.type === 'fillBlank' ? result : undefined}
           feedback={interactions.fillBlankFeedback?.[component.id]}
+          feedbackInFooter={interactions.feedbackInFooter}
           busy={interactions.busyComponentId === component.id}
           onSubmit={onFillBlank ? (answers) => onFillBlank(component.id, answers) : undefined}
         />
@@ -156,8 +190,10 @@ function fitsRatio(text: string, px: number): boolean {
 }
 
 const styles = StyleSheet.create({
-  slide: { gap: 18 },
-  title: { fontFamily: fonts.black, fontSize: 26, lineHeight: 31, color: colors.ink },
+  // flexGrow + center: when the screen's content column has spare height, the slide sits composed in it
+  // instead of hugging the top and leaving a void below (the column must itself flexGrow for this to apply).
+  slide: { gap: 16, flexGrow: 1, justifyContent: 'center' },
+  title: { fontFamily: fonts.black, fontSize: 28, lineHeight: 32, color: colors.ink },
   speech: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   // The tail points at the companion, which sits at the top of tall bubbles.
   bubble: { flex: 1, minWidth: 0, padding: 14, borderRadius: 20, borderTopLeftRadius: 6 },

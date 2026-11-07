@@ -81,11 +81,32 @@ function extractJson(text: string): unknown {
     const start = trimmed.indexOf('{');
     const end = trimmed.lastIndexOf('}');
     if (start === -1 || end <= start) return undefined;
+    const body = trimmed.slice(start, end + 1);
     try {
-      return JSON.parse(trimmed.slice(start, end + 1));
+      return JSON.parse(body);
     } catch {
-      return undefined;
+      // Last resort: raw control characters inside strings (a literal newline or tab in a text
+      // value) are the usual slip; escape them and try once more. Still validated by Zod after.
+      try {
+        return JSON.parse(body.replace(/[\u0000-\u001f]/g, (ch) => (ch === '\n' ? '\\n' : ch === '\t' ? '\\t' : ch === '\r' ? '' : ' ')));
+      } catch {
+        return undefined;
+      }
     }
+  }
+}
+
+/** Where JSON.parse gave up, with the surrounding characters, for the server log only. */
+function describeJsonError(text: string): string {
+  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try {
+    JSON.parse(trimmed);
+    return 'parses after trimming (extractJson disagreement)';
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const at = Number(/position (\d+)/.exec(msg)?.[1] ?? -1);
+    const ctx = at >= 0 ? trimmed.slice(Math.max(0, at - 90), at + 60).replace(/\s+/g, ' ') : trimmed.slice(0, 120);
+    return `${msg} near: "${ctx}"`;
   }
 }
 
@@ -155,6 +176,10 @@ export async function generateStructured<S extends z.ZodType>(
     const issues = parsed
       ? parsed.error.issues.slice(0, 25).map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
       : ['response was not valid JSON'];
+    if (!parsed) {
+      // Diagnostics only: where the JSON broke. Model output is data; it is logged truncated, never executed.
+      console.warn(`[generation] ${req.task}: non-JSON output (${text.length} chars, stop=${message.stop_reason}). ${describeJsonError(text)}`);
+    }
 
     if (attempt === maxAttempts) {
       throw new GenerationError('invalid', `${req.task}: output failed validation after ${attempt} attempt(s)`, issues);

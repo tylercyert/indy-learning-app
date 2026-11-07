@@ -1,10 +1,11 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BASE_COMPANION, SlideV1Schema, type ComponentResultV1 } from '../../src/contracts';
-import { scoreFillBlank } from '../../src/domain/scoring';
+import { scoreFillBlank, scoreMatchPairs } from '../../src/domain/scoring';
 import type { FillBlankFeedback } from '../../src/features/components/FillBlank';
+import type { MatchPairsFeedback } from '../../src/features/components/MatchPairs';
 import type { ChoiceFeedback } from '../../src/features/components/MultipleChoice';
 import { SlideView } from '../../src/features/components/SlideView';
 import { colors, fonts } from '../../src/features/theme';
@@ -24,6 +25,9 @@ export default function DevSlideScreen() {
   const [results, setResults] = useState<ComponentResultV1[]>([]);
   const [feedback, setFeedback] = useState<Record<string, ChoiceFeedback | undefined>>({});
   const [fillBlankFeedback, setFillBlankFeedback] = useState<Record<string, FillBlankFeedback | undefined>>({});
+  const [matchPairsFeedback, setMatchPairsFeedback] = useState<Record<string, MatchPairsFeedback | undefined>>({});
+  // The lesson screen gives a slide the viewport between header and footer; mirror that so short slides show their composition.
+  const { height: windowHeight } = useWindowDimensions();
 
   const parsed = useMemo(() => {
     if (!doc) return { ok: false as const, error: 'Missing ?doc= parameter' };
@@ -44,7 +48,7 @@ export default function DevSlideScreen() {
         <Text style={styles.bannerText}>QA HARNESS · local render, no server</Text>
       </View>
       {/* The document itself scrolls so full-page screenshots capture everything. */}
-      <ScrollView contentContainerStyle={styles.content} style={{ flexGrow: 0 }} scrollEnabled={false}>
+      <ScrollView contentContainerStyle={[styles.content, { minHeight: Math.max(0, windowHeight - BANNER_HEIGHT - FOOTER_ALLOWANCE) }]} style={{ flexGrow: 0 }} scrollEnabled={false}>
         {parsed.ok ? (
           <SlideView
             slide={parsed.slide}
@@ -81,6 +85,22 @@ export default function DevSlideScreen() {
                   },
                 }));
               },
+              matchPairsFeedback,
+              onMatchPairs: (componentId, matches) => {
+                const component = parsed.slide.components.find((c) => c.id === componentId);
+                if (!component || component.type !== 'matchPairs') return;
+                const attempt = (results.filter((r) => r.componentId === componentId).length ?? 0) + 1;
+                const scored = scoreMatchPairs(component, matches, attempt);
+                setResults((r) => [...r.filter((x) => x.componentId !== componentId), scored.result]);
+                setMatchPairsFeedback((f) => ({
+                  ...f,
+                  [componentId]: {
+                    correct: scored.result.correct,
+                    attempt,
+                    matches: scored.result.matches.map((m) => ({ pairId: m.pairId, correct: m.correct, explanation: scored.explanations.find((e) => e.pairId === m.pairId)?.explanation ?? '' })),
+                  },
+                }));
+              },
             }}
           />
         ) : (
@@ -93,6 +113,10 @@ export default function DevSlideScreen() {
     </SafeAreaView>
   );
 }
+
+/** Banner height and the lesson footer's height, so the column matches what a slide gets in the app. */
+const BANNER_HEIGHT = 28;
+const FOOTER_ALLOWANCE = 96;
 
 const styles = StyleSheet.create({
   safe: { backgroundColor: colors.bg },

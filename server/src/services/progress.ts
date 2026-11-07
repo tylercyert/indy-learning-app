@@ -17,6 +17,7 @@ import {
   nextNode,
   recordActivity,
   scoreFillBlank,
+  scoreMatchPairs,
   scoreMultipleChoice,
   toLocalDate,
   treeProgress,
@@ -97,6 +98,7 @@ export function recordEvent(learnerId: string, experienceId: string, req: Experi
 
   let scored: ExperienceEventResponse['scored'] = null;
   let scoredFillBlank: ExperienceEventResponse['scoredFillBlank'] = null;
+  let scoredMatchPairs: ExperienceEventResponse['scoredMatchPairs'] = null;
   const base = { id: randomUUID(), learnerId, courseId: experience.courseId, lessonId: experience.lessonId, experienceId, at: now };
   const priorEvents = repo.eventsForExperience(learnerId, experienceId);
 
@@ -124,6 +126,22 @@ export function recordEvent(learnerId: string, experienceId: string, req: Experi
         gapId: a.gapId,
         correct: a.correct,
         explanation: s.explanations.find((x) => x.gapId === a.gapId)?.explanation ?? '',
+      })),
+    };
+    event = { ...base, type: 'componentAnswered', slideId: req.slideId, result: s.result };
+  } else if (req.type === 'matchPairs') {
+    const component = slide.components.find((c) => c.id === req.componentId);
+    if (!component || component.type !== 'matchPairs') throw new repo.NotFoundError('matchPairs component');
+    const attempt =
+      priorEvents.filter((e) => e.type === 'componentAnswered' && e.result.componentId === component.id).length + 1;
+    const s = scoreMatchPairs(component, req.matches, attempt);
+    scoredMatchPairs = {
+      correct: s.result.correct,
+      attempt,
+      matches: s.result.matches.map((m) => ({
+        pairId: m.pairId,
+        correct: m.correct,
+        explanation: s.explanations.find((x) => x.pairId === m.pairId)?.explanation ?? '',
       })),
     };
     event = { ...base, type: 'componentAnswered', slideId: req.slideId, result: s.result };
@@ -187,6 +205,7 @@ export function recordEvent(learnerId: string, experienceId: string, req: Experi
   return {
     scored,
     scoredFillBlank,
+    scoredMatchPairs,
     lessonCompleted,
     treeCompleted,
     streak: repo.getStreak(learnerId),

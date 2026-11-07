@@ -242,4 +242,68 @@ describe('progress service (in-memory SQLite, no model)', () => {
       progress.recordEvent(learnerId, exp.id, { type: 'fillBlank', slideId: 'gap-slide', componentId: 'fb', answers: [{ gapId: 'nope', value: 'x' }] }),
     ).toThrow();
   });
+  it('scores a matchPairs on the server: wrong matches explained, correct count, unknown pair rejected', () => {
+    const lessonId = seeded.lessonIds.get('acidity')!;
+    const exp: LearningExperienceV1 = {
+      ...experienceFor(lessonId),
+      id: randomUUID(),
+      slides: [
+        ...exampleSlides.slides,
+        {
+          id: 'pairs-slide',
+          title: 'Match the lever to its job',
+          purpose: 'practice',
+          components: [
+            {
+              id: 'mp',
+              type: 'matchPairs',
+              prompt: 'Match each lever to what it does.',
+              pairs: [
+                { id: 'p1', left: 'Base', right: 'Gives body and strength', explanation: 'Base is the spirit; it carries the drink.' },
+                { id: 'p2', left: 'Acid', right: 'Brightens and sharpens', explanation: 'Citrus wakes the drink up.' },
+                { id: 'p3', left: 'Sweet', right: 'Rounds the edges', explanation: 'Syrup softens sharp acidity.' },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    repo.saveExperience(exp);
+    const wrong = progress.recordEvent(learnerId, exp.id, {
+      type: 'matchPairs',
+      slideId: 'pairs-slide',
+      componentId: 'mp',
+      matches: [
+        { pairId: 'p1', chosenPairId: 'p1' },
+        { pairId: 'p2', chosenPairId: 'p3' },
+        { pairId: 'p3', chosenPairId: 'p2' },
+      ],
+    });
+    expect(wrong.scoredMatchPairs?.correct).toBe(false);
+    expect(wrong.scoredMatchPairs?.matches.map((m) => m.correct)).toEqual([true, false, false]);
+    expect(wrong.scoredMatchPairs?.matches[1]?.explanation).toBe('Citrus wakes the drink up.');
+    const right = progress.recordEvent(learnerId, exp.id, {
+      type: 'matchPairs',
+      slideId: 'pairs-slide',
+      componentId: 'mp',
+      matches: [
+        { pairId: 'p1', chosenPairId: 'p1' },
+        { pairId: 'p2', chosenPairId: 'p2' },
+        { pairId: 'p3', chosenPairId: 'p3' },
+      ],
+    });
+    expect(right.scoredMatchPairs).toMatchObject({ correct: true, attempt: 2 });
+    expect(() =>
+      progress.recordEvent(learnerId, exp.id, {
+        type: 'matchPairs',
+        slideId: 'pairs-slide',
+        componentId: 'mp',
+        matches: [
+          { pairId: 'p1', chosenPairId: 'zz' },
+          { pairId: 'p2', chosenPairId: 'p2' },
+          { pairId: 'p3', chosenPairId: 'p3' },
+        ],
+      }),
+    ).toThrow();
+  });
 });

@@ -44,13 +44,15 @@ export function ChunkyButton({
       disabled={inactive}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      style={[styles.wrap, style, inactive && styles.inactive]}
+      style={[styles.wrap, style, !chunky && inactive && styles.inactive]}
     >
       <View
         style={[
           styles.face,
           { backgroundColor: v.fill, borderColor: v.border ?? v.fill },
           chunky && { borderBottomWidth: pressed ? 3 : 8, borderBottomColor: v.shadow },
+          // Disabled is a solid, quieter button, never a washed-out one: the shape stays crisp.
+          chunky && disabled && !loading && { backgroundColor: colors.line, borderColor: colors.line, borderBottomColor: '#D6D0E8' },
           chunky && pressed && { transform: [{ translateY: 5 }] },
         ]}
       >
@@ -59,7 +61,16 @@ export function ChunkyButton({
         ) : (
           <>
             {icon}
-            <Text style={[styles.label, { color: v.text }, !chunky && styles.ghostLabel]}>{label}</Text>
+            <Text
+              // Long or unbreakable labels (a 22-char confirmLabel at 200% text) wrap to two lines or shrink
+              // instead of escaping the face; the chunky shape and the disabled colours stay as they are.
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+              style={[styles.label, { color: chunky && disabled ? colors.muted : v.text }, !chunky && styles.ghostLabel]}
+            >
+              {label}
+            </Text>
           </>
         )}
       </View>
@@ -80,6 +91,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
-  label: { fontFamily: fonts.black, fontSize: 17, letterSpacing: 0.6, textTransform: 'uppercase', textAlign: 'center', flexShrink: 1 },
+  // flex + minWidth 0 give the label a real width to wrap inside (web breaks an unbreakable word at the edge).
+  label: { fontFamily: fonts.black, fontSize: 17, lineHeight: 22, letterSpacing: 0.6, textTransform: 'uppercase', textAlign: 'center', flexShrink: 1, minWidth: 0, paddingVertical: 2 },
   ghostLabel: { textTransform: 'none', fontFamily: fonts.extraBold, fontSize: 15, letterSpacing: 0 },
 });
