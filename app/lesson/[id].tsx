@@ -286,7 +286,7 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
             </View>
           ) : (
             <View style={styles.footerRow}>
-              {index > 0 ? <ChunkyButton label="Back" variant="ghost" onPress={() => setIndex((i) => i - 1)} style={{ width: 90 }} /> : <View style={{ width: 90 }} />}
+              {index > 0 ? <ChunkyButton label="Previous" variant="ghost" onPress={() => setIndex((i) => i - 1)} style={{ width: 96 }} /> : <View style={{ width: 90 }} />}
               {answeredOnSlide ? (
                 <ChunkyButton
                   label={isLast ? 'Finish' : 'Continue'}

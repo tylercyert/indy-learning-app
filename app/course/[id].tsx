@@ -95,7 +95,7 @@ export default function CourseScreen() {
     <Screen>
       <View style={styles.header}>
         <BackButton label="Back to home" onPress={() => router.replace('/')} />
-        {data ? (
+        {data && data.streak.count > 0 ? (
           <View style={styles.streak} accessibilityLabel={`${data.streak.count} day streak`}>
             <Text style={styles.streakText}>🔥 {data.streak.count}</Text>
           </View>
