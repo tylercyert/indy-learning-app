@@ -6,6 +6,10 @@ A local-first learning app built with Expo and TypeScript. Teach reusable skills
 
 ## Start here
 
+Opening Claude? `CLAUDE.md` imports the working agreement, product plan, architecture and current handoff.
+
+- [Current handoff and shared-machine setup](docs/handoff.md)
+
 - [Product and scope](docs/product.md)
 - [Architecture and shared contracts](docs/architecture.md)
 - [How this lightweight factory works](docs/factory.md)

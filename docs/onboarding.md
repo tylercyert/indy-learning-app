@@ -1,5 +1,9 @@
 # Onboard Sergio (or another contributor)
 
+## Fast path: already connected to Noir
+
+Sergio's prepared, separate worktree is `~/projects/indy-learning-app-sergio` under the existing development account. The main checkout is `~/projects/indy-learning-app`. Open Claude in Sergio's worktree; it will read `CLAUDE.md`. See [current handoff](handoff.md) for Node commands, validation and open decisions. This is separate from granting GitHub write access.
+
 ## 1. Owner grants GitHub access
 
 Repository: https://github.com/tylercyert/indy-learning-app

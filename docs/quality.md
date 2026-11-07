@@ -32,3 +32,7 @@ Production readiness requires real-device tests, privacy review, safe generation
 ## Automation
 
 No GitHub Actions workflow, persistent runner, protected branch or required-status enforcement is enabled. These remain a tracked decision until the runner, access and cost model are approved. Manual local verification is mandatory meanwhile.
+
+## Bootstrap dependency audit
+
+On 2026-11-07, `npm audit` reported 12 moderate advisories, zero high/critical. The underlying advisories are [glob cancellation/traversal](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4) and [minimatch glob amplification](https://github.com/advisories/GHSA-g3hv-75wg-m249), propagated through Expo CLI/fingerprint and TypeScript ESLint tooling. This is not a clean audit. Review reachability and compatible upgrades separately; npm's suggested force fix would downgrade major Expo packages and is not accepted automatically.
