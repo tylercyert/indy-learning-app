@@ -29,7 +29,7 @@
       "backgroundColor": "#FFFFFF",
       "display": "standalone",
       "orientation": "portrait",
-      "barStyle": "black-translucent",
+      "barStyle": "default",
       "bundler": "metro"
     },
     "plugins": [
