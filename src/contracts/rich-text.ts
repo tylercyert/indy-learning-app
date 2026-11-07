@@ -67,7 +67,8 @@ export type RichTextBlockV1 = z.infer<typeof RichTextBlockV1Schema>;
 export const RICH_TEXT_MAX_BLOCK_CHARS = 600;
 export const RICH_TEXT_MAX_HEADING_CHARS = 80;
 
-function blockChars(block: RichTextBlockV1): number {
+/** Learner-visible characters in one block (list items summed, link label only). */
+export function richTextBlockChars(block: RichTextBlockV1): number {
   switch (block.type) {
     case 'bulletList':
     case 'numberedList':
@@ -85,7 +86,7 @@ export const RichTextV1Schema = z
   })
   .superRefine((doc, ctx) => {
     doc.blocks.forEach((block, index) => {
-      const chars = blockChars(block);
+      const chars = richTextBlockChars(block);
       const limit = block.type === 'heading' ? RICH_TEXT_MAX_HEADING_CHARS : RICH_TEXT_MAX_BLOCK_CHARS;
       if (chars > limit) {
         ctx.addIssue({ code: 'custom', message: `${block.type} is ${chars} characters; keep each block under ${limit} and split long ideas across slides`, path: ['blocks', index] });
@@ -93,6 +94,11 @@ export const RichTextV1Schema = z
     });
   });
 export type RichTextV1 = z.infer<typeof RichTextV1Schema>;
+
+/** Learner-visible characters in a whole document. */
+export function richTextChars(doc: { blocks: RichTextBlockV1[] }): number {
+  return doc.blocks.reduce((n, block) => n + richTextBlockChars(block), 0);
+}
 
 /** Convenience for tests and fixtures: one paragraph of plain text. */
 export function plainParagraph(text: string): RichTextV1 {

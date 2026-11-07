@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { LocalIdSchema, MediumTextSchema, ShortTextSchema, assertUniqueLocalIds } from './ids';
-import { RichTextV1Schema } from './rich-text';
+import { RichTextV1Schema, richTextChars } from './rich-text';
 
 /**
  * The educational component catalog. A slide is an ordered list of these.
@@ -28,14 +28,36 @@ export const TextComponentSchema = z.strictObject({
   content: RichTextV1Schema,
 });
 
-export const CalloutComponentSchema = z.strictObject({
-  ...Base,
-  type: z.literal('callout'),
-  /** 'companion' renders as the course companion speaking; 'plain' is a neutral highlighted box. */
-  speaker: z.enum(['companion', 'plain']),
-  tone: z.enum(['encourage', 'explain', 'warn', 'celebrate']),
-  content: RichTextV1Schema,
-});
+/**
+ * A callout is a short aside, not a lesson body: it renders in a speech bubble beside a 64px
+ * companion on a phone, so it stays within a few sentences and never carries headings.
+ */
+export const CALLOUT_MAX_BLOCKS = 4;
+export const CALLOUT_MAX_CHARS = 400;
+
+export const CalloutComponentSchema = z
+  .strictObject({
+    ...Base,
+    type: z.literal('callout'),
+    /** 'companion' renders as the course companion speaking; 'plain' is a neutral highlighted box. */
+    speaker: z.enum(['companion', 'plain']),
+    tone: z.enum(['encourage', 'explain', 'warn', 'celebrate']),
+    content: RichTextV1Schema,
+  })
+  .superRefine((value, ctx) => {
+    if (value.content.blocks.length > CALLOUT_MAX_BLOCKS) {
+      ctx.addIssue({ code: 'custom', message: `a callout has at most ${CALLOUT_MAX_BLOCKS} blocks; use a text component for longer content`, path: ['content', 'blocks'] });
+    }
+    value.content.blocks.forEach((block, index) => {
+      if (block.type === 'heading') {
+        ctx.addIssue({ code: 'custom', message: 'a callout cannot contain headings; put headings in a text component', path: ['content', 'blocks', index] });
+      }
+    });
+    const chars = richTextChars(value.content);
+    if (chars > CALLOUT_MAX_CHARS) {
+      ctx.addIssue({ code: 'custom', message: `callout is ${chars} characters; keep it under ${CALLOUT_MAX_CHARS} so it fits a speech bubble on a phone`, path: ['content'] });
+    }
+  });
 
 export const RatioSegmentSchema = z.strictObject({
   label: ShortTextSchema.max(24),
@@ -237,7 +259,7 @@ export const COMPONENT_MANIFESTS: Readonly<Record<ComponentType, ComponentManife
   diagram: {
     type: 'diagram',
     role: 'presentational',
-    whenToUse: 'Show how a few named things relate: flows, cycles, hierarchies. Max 12 nodes.',
+    whenToUse: 'Show how a few named things relate: flows, cycles, hierarchies. 2-6 nodes.',
   },
   checklist: {
     type: 'checklist',
