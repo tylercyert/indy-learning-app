@@ -1,60 +1,55 @@
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { View, type ViewStyle } from 'react-native';
 import type { CompanionMood, CompanionThemeV1 } from '../../contracts';
 import { colors } from '../theme';
 
 /**
- * The companion, drawn with plain views so it works on every platform without an SVG dependency.
- * Body and cheek colors come from the validated theme; eyes and mouth are always ink. The headpiece
- * sits on top of the head and the prop is held at the lower right, both in the theme's accent color
- * with ink outlines like the mockup's companion-system board.
+ * Poko, the companion, drawn with plain views so it works on every platform without an SVG
+ * dependency. The body, face and moods are fixed app assets; the validated theme supplies the body
+ * color, cheek color, accent color and headpiece (props are in the contract but not drawn). Every other tone (belly patch, rim shadow,
+ * highlight, feet, costume shading) is derived from those three colors in code, so any generated
+ * palette produces a finished-looking character.
  *
- * Geometry lives on a 96 x 104 unit canvas (the mockup's viewBox) and scales by size / 96. The body
- * is a 72-unit circle at the bottom, leaving ~30 units of headroom for hats. Nothing is drawn beyond
- * x 0..96, so the rendered box is exactly `size` wide and `size * 1.08` tall and callers that already
- * reserve that space keep working.
+ * Geometry lives on a 96 x 104 unit canvas and scales by `size / 96`. Nothing is drawn outside
+ * x 0..96 / y 0..104, so the rendered box is exactly `size` wide and `size * 1.08` tall. Strokes
+ * never fall below 1.5 device-independent pixels so the character still reads at 44.
+ *
+ * Layers, back to front: headphone band · feet · body (head, shoulders, belly as one outlined
+ * silhouette) · rim shadow · belly patch · highlight · face · headpiece · arms · hands.
  */
 export function Companion({ theme, mood = 'happy', size = 96 }: { theme: CompanionThemeV1; mood?: CompanionMood; size?: number }) {
   const s = size / 96;
-  const accent = theme.accentColor;
-  const eyeOffset = mood === 'curious' ? 2 * s : 0;
+  const pal = derivePalette(theme);
+  const pose = POSES[mood];
   return (
-    <View
-      accessible
-      accessibilityRole="image"
-      accessibilityLabel={describeCompanion(theme, mood)}
-      style={{ width: size, height: size * 1.08 }}
-    >
-      {mood === 'cheering' && (
-        <>
-          <View style={[styles.arm, { backgroundColor: theme.bodyColor, width: 14 * s, height: 40 * s, left: 2 * s, top: 10 * s, transform: [{ rotate: '25deg' }] }]} />
-          <View style={[styles.arm, { backgroundColor: theme.bodyColor, width: 14 * s, height: 40 * s, right: 2 * s, top: 10 * s, transform: [{ rotate: '-25deg' }] }]} />
-        </>
-      )}
+    <View accessible accessibilityRole="image" accessibilityLabel={describeCompanion(theme, mood)} style={{ width: size, height: size * 1.08 }}>
+      {theme.headpiece === 'headphones' && <HeadphoneBand s={s} accent={theme.accentColor} />}
 
-      {/* Behind-the-head headpiece parts (the headphone band passes behind the head). */}
-      {theme.headpiece === 'headphones' && <HeadphoneBand s={s} />}
+      <Outlined s={s} fill={pal.feet} parts={FEET} />
+      <Outlined s={s} fill={theme.bodyColor} parts={BODY_PARTS} />
+      {/* Rim shadow: the belly pill in a deeper tone, then the body tone shifted up, leaving a crescent at the bottom edge. */}
+      <Rect p={BELLY} s={s} color={pal.bodyDeep} />
+      <Rect p={{ ...BELLY, y: BELLY.y - 4 }} s={s} color={theme.bodyColor} />
+      <Rect p={BELLY_PATCH} s={s} color={pal.belly} />
+      <Rect p={HIGHLIGHT} s={s} color={pal.bodyLight} />
 
-      {/* Body and face. */}
-      <View style={{ position: 'absolute', left: BODY.x * s, top: BODY.y * s, width: BODY.d * s, height: BODY.d * s, borderRadius: (BODY.d / 2) * s, backgroundColor: theme.bodyColor }}>
-        {theme.headpiece === 'bandana' && <BandanaCap s={s} accent={accent} />}
-        <Eye s={s} x={16} offset={eyeOffset} squint={mood === 'cheering'} />
-        <Eye s={s} x={40} offset={eyeOffset} squint={mood === 'cheering'} />
-        <View style={{ position: 'absolute', left: 6 * s, top: 40 * s, width: 9 * s, height: 9 * s, borderRadius: 5 * s, backgroundColor: theme.cheekColor }} />
-        <View style={{ position: 'absolute', left: 57 * s, top: 40 * s, width: 9 * s, height: 9 * s, borderRadius: 5 * s, backgroundColor: theme.cheekColor }} />
-        <Mouth s={s} mood={mood} />
-      </View>
+      <Face s={s} mood={mood} theme={theme} />
+      <Headpiece kind={theme.headpiece} s={s} accent={theme.accentColor} pal={pal} />
 
-      <Headpiece kind={theme.headpiece} s={s} accent={accent} />
-      <Prop kind={theme.prop} s={s} accent={accent} bodyColor={theme.bodyColor} />
+      <Outlined s={s} fill={theme.bodyColor} parts={[limb(SHOULDER.l, pose.left, ARM_W)]} />
+      <Outlined s={s} fill={theme.bodyColor} parts={[limb(SHOULDER.r, pose.right, ARM_W)]} />
+      <Outlined s={s} fill={theme.bodyColor} parts={[disc(pose.left, HAND_D)]} />
+      <Outlined s={s} fill={theme.bodyColor} parts={[disc(pose.right, HAND_D)]} />
     </View>
   );
 }
 
-/** Nonvisual description, e.g. "Zest, your companion, happy, wearing a sprig, holding a whisk". */
+/**
+ * Nonvisual description, e.g. "Zest, your companion, happy, wearing a sprig". Props are part of the
+ * contract but are not rendered (owner decision 2026-11-07), so they are not described either.
+ */
 export function describeCompanion(theme: CompanionThemeV1, mood: CompanionMood): string {
   const parts = [`${theme.name}, your companion`, mood];
   if (theme.headpiece !== 'none') parts.push(`wearing ${HEADPIECE_LABEL[theme.headpiece]}`);
-  if (theme.prop !== 'none') parts.push(`holding ${PROP_LABEL[theme.prop]}`);
   return parts.join(', ');
 }
 
@@ -70,74 +65,121 @@ const HEADPIECE_LABEL: Record<Exclude<CompanionThemeV1['headpiece'], 'none'>, st
   bandana: 'a bandana',
 };
 
-const PROP_LABEL: Record<Exclude<CompanionThemeV1['prop'], 'none'>, string> = {
-  umbrella: 'an umbrella',
-  whisk: 'a whisk',
-  wrench: 'a wrench',
-  book: 'a book',
-  coin: 'a coin',
-  brush: 'a brush',
-  racket: 'a racket',
-  guitar: 'a guitar',
-  flag: 'a flag',
+
+/* ---------------------------------------------------------------- geometry (96 x 104 canvas units) */
+
+type Pt = { x: number; y: number };
+/** A rounded rectangle (or circle when r >= min(w, h) / 2) in canvas units, optionally rotated about its center. */
+type Part = { x: number; y: number; w: number; h: number; r?: number; radii?: [number, number, number, number]; rotate?: number; color?: string };
+
+const INK = colors.ink;
+const WHITE = '#FFFFFF';
+const OUTLINE = 2.5;
+const THIN = 1.75;
+const MIN_STROKE_PX = 1.5;
+
+/** The head: a 60-unit circle whose top sits at y 16, leaving 16 units of headroom for costumes. */
+const HEAD = { cx: 48, cy: 46, r: 30 } as const;
+/** Head, shoulders and belly overlap into one pear silhouette, wider at the bottom. */
+const BELLY: Part = { x: 12, y: 46, w: 72, h: 46, r: 23 };
+const BODY_PARTS: Part[] = [
+  { x: HEAD.cx - HEAD.r, y: HEAD.cy - HEAD.r, w: HEAD.r * 2, h: HEAD.r * 2, r: HEAD.r },
+  { x: 15, y: 40, w: 66, h: 42, r: 21 },
+  BELLY,
+];
+const FEET: Part[] = [
+  { x: 20, y: 90, w: 20, h: 10, r: 5 },
+  { x: 56, y: 90, w: 20, h: 10, r: 5 },
+];
+const BELLY_PATCH: Part = { x: 31, y: 68, w: 34, h: 20, r: 10 };
+const HIGHLIGHT: Part = { x: 26, y: 23, w: 13, h: 7, r: 3.5, rotate: -35 };
+
+const EYE = { lx: 36, rx: 60, y: 44, d: 20, iris: 11 } as const;
+const ARM_W = 11;
+const HAND_D = 12;
+const SHOULDER = { l: { x: 21, y: 62 }, r: { x: 75, y: 62 } } as const;
+const POSES: Record<CompanionMood, { left: Pt; right: Pt }> = {
+  happy: { left: { x: 12, y: 80 }, right: { x: 84, y: 80 } },
+  curious: { left: { x: 12, y: 80 }, right: { x: 84, y: 80 } },
+  // Hand to chin.
+  thinking: { left: { x: 33, y: 72 }, right: { x: 84, y: 80 } },
+  // Both arms up.
+  cheering: { left: { x: 10, y: 44 }, right: { x: 86, y: 44 } },
 };
 
-// Canvas geometry in 96-unit space. The body circle: x 12..84, y 30..102.
-const BODY = { x: 12, y: 30, d: 72 } as const;
-const HEAD_CX = BODY.x + BODY.d / 2;
-// Where the prop is gripped (canvas coordinates); every prop's handle passes through this point.
-const GRIP = { x: 84, y: 84 } as const;
-const OUTLINE = 2.5;
-const WHITE = '#FFFFFF';
-
-/* ---------------------------------------------------------------- face */
-
-function Eye({ s, x, offset, squint }: { s: number; x: number; offset: number; squint: boolean }) {
-  if (squint) return <View style={{ position: 'absolute', left: (x + 1) * s, top: 28 * s, width: 14 * s, height: 4 * s, borderRadius: 2 * s, backgroundColor: colors.ink }} />;
-  return (
-    <View style={{ position: 'absolute', left: x * s, top: 22 * s, width: 16 * s, height: 16 * s, borderRadius: 8 * s, backgroundColor: WHITE, alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{ width: 8 * s, height: 8 * s, borderRadius: 4 * s, backgroundColor: colors.ink, transform: [{ translateX: offset }] }} />
-    </View>
-  );
+/** A capsule from one point to another, round ends reaching w / 2 past each point. */
+function limb(from: Pt, to: Pt, w: number): Part {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy);
+  const h = len + w;
+  return { x: (from.x + to.x) / 2 - w / 2, y: (from.y + to.y) / 2 - h / 2, w, h, r: w / 2, rotate: (Math.atan2(-dx, dy) * 180) / Math.PI };
 }
 
-function Mouth({ s, mood }: { s: number; mood: CompanionMood }) {
-  if (mood === 'thinking') return <View style={{ position: 'absolute', left: 28 * s, top: 46 * s, width: 16 * s, height: 3.5 * s, borderRadius: 2 * s, backgroundColor: colors.ink }} />;
-  if (mood === 'cheering')
-    return <View style={{ position: 'absolute', left: 22 * s, top: 40 * s, width: 28 * s, height: 16 * s, borderBottomLeftRadius: 14 * s, borderBottomRightRadius: 14 * s, backgroundColor: colors.ink }} />;
-  return (
-    <View
-      style={{
-        position: 'absolute',
-        left: 25 * s,
-        top: 42 * s,
-        width: 22 * s,
-        height: 11 * s,
-        borderBottomLeftRadius: 11 * s,
-        borderBottomRightRadius: 11 * s,
-        borderWidth: 3.5 * s,
-        borderTopWidth: 0,
-        borderColor: colors.ink,
-      }}
-    />
-  );
+function disc(center: Pt, d: number, color?: string): Part {
+  return { x: center.x - d / 2, y: center.y - d / 2, w: d, h: d, r: d / 2, color };
+}
+
+/* ---------------------------------------------------------------- color */
+
+function parseHex(hex: string): [number, number, number] | null {
+  const n = parseInt(hex.slice(1, 7), 16);
+  if (hex.length !== 7 || Number.isNaN(n)) return null;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** Linear mix of `hex` toward `target` by `t` (0 keeps hex, 1 gives target). Unparseable input is returned as is. */
+function mix(hex: string, target: string, t: number): string {
+  const a = parseHex(hex);
+  const b = parseHex(target);
+  if (!a || !b) return hex;
+  return `#${a.map((c, i) => Math.round(c + ((b[i] ?? c) - c) * t).toString(16).padStart(2, '0')).join('')}`;
+}
+
+type Palette = { bodyLight: string; belly: string; bodyDeep: string; feet: string; accentDeep: string; accentLight: string };
+
+function derivePalette(theme: CompanionThemeV1): Palette {
+  return {
+    bodyLight: mix(theme.bodyColor, WHITE, 0.55),
+    belly: mix(theme.bodyColor, WHITE, 0.3),
+    bodyDeep: mix(theme.bodyColor, INK, 0.22),
+    feet: mix(theme.bodyColor, INK, 0.14),
+    accentDeep: mix(theme.accentColor, INK, 0.3),
+    accentLight: mix(theme.accentColor, WHITE, 0.4),
+  };
 }
 
 /* ---------------------------------------------------------------- drawing helpers */
 
-/** A rounded rectangle (or circle when r >= min(w, h) / 2) in canvas units, optionally rotated about its center. */
-type Part = { x: number; y: number; w: number; h: number; r?: number; rotate?: number; color?: string };
+/** Stroke width in canvas units that never renders thinner than MIN_STROKE_PX. */
+function stroke(units: number, s: number): number {
+  return Math.max(units * s, MIN_STROKE_PX) / s;
+}
 
-function Rect({ p, s, color, grow = 0 }: { p: Part; s: number; color: string; grow?: number }) {
+function cornerStyle(p: Part, grow: number, s: number): ViewStyle {
+  if (p.radii) {
+    const [tl, tr, br, bl] = p.radii;
+    return {
+      borderTopLeftRadius: (tl + grow) * s,
+      borderTopRightRadius: (tr + grow) * s,
+      borderBottomRightRadius: (br + grow) * s,
+      borderBottomLeftRadius: (bl + grow) * s,
+    };
+  }
+  return { borderRadius: ((p.r ?? 0) + grow) * s };
+}
+
+function Rect({ p, s, color, grow = 0, opacity }: { p: Part; s: number; color: string; grow?: number; opacity?: number }) {
   const style: ViewStyle = {
     position: 'absolute',
     left: (p.x - grow) * s,
     top: (p.y - grow) * s,
     width: (p.w + 2 * grow) * s,
     height: (p.h + 2 * grow) * s,
-    borderRadius: ((p.r ?? 0) + grow) * s,
     backgroundColor: color,
+    opacity,
     transform: p.rotate ? [{ rotate: `${p.rotate}deg` }] : undefined,
+    ...cornerStyle(p, grow, s),
   };
   return <View style={style} />;
 }
@@ -147,10 +189,11 @@ function Rect({ p, s, color, grow = 0 }: { p: Part; s: number; color: string; gr
  * outline width, then every part is drawn in its fill color on top, so overlaps leave no seams.
  */
 function Outlined({ parts, s, fill, outline = OUTLINE }: { parts: Part[]; s: number; fill: string; outline?: number }) {
+  const grow = stroke(outline, s);
   return (
     <>
       {parts.map((p, i) => (
-        <Rect key={`o${i}`} p={p} s={s} color={colors.ink} grow={outline} />
+        <Rect key={`o${i}`} p={p} s={s} color={INK} grow={grow} />
       ))}
       {parts.map((p, i) => (
         <Rect key={`f${i}`} p={p} s={s} color={p.color ?? fill} />
@@ -168,44 +211,169 @@ function Ring({ p, s, color, width, rotate }: { p: Omit<Part, 'rotate'>; s: numb
     width: p.w * s,
     height: p.h * s,
     borderRadius: (p.r ?? 0) * s,
-    borderWidth: width * s,
+    borderWidth: stroke(width, s) * s,
     borderColor: color,
     transform: rotate ? [{ rotate: `${rotate}deg` }] : undefined,
   };
   return <View style={style} />;
 }
 
-/** Darken a hex color so a single accent token can give a shape a shadow side or a stripe. */
-function shade(hex: string, factor: number): string {
-  const n = parseInt(hex.slice(1, 7), 16);
-  if (Number.isNaN(n)) return hex;
-  const ch = (shift: number) => Math.max(0, Math.min(255, Math.round(((n >> shift) & 255) * factor)));
-  return `#${[16, 8, 0].map((sh) => ch(sh).toString(16).padStart(2, '0')).join('')}`;
+type Clip = { x: number; y: number; w: number; h: number };
+
+/**
+ * Part of a circular ring: the ring (outer radius `r`, stroke `width`, centered on cx, cy) clipped
+ * to `clip`. Bands that wrap the head, smiles and closed eyes are all arcs.
+ */
+function Arc({ cx, cy, r, width, clip, s, color }: { cx: number; cy: number; r: number; width: number; clip: Clip; s: number; color: string }) {
+  return (
+    <View style={{ position: 'absolute', left: clip.x * s, top: clip.y * s, width: clip.w * s, height: clip.h * s, overflow: 'hidden' }}>
+      <View
+        style={{
+          position: 'absolute',
+          left: (cx - r - clip.x) * s,
+          top: (cy - r - clip.y) * s,
+          width: 2 * r * s,
+          height: 2 * r * s,
+          borderRadius: r * s,
+          borderWidth: stroke(width, s) * s,
+          borderColor: color,
+        }}
+      />
+    </View>
+  );
+}
+
+/** An arc with an ink outline and round caps at its cut ends (the caps are drawn outside the clip). */
+function OutlinedArc({ cx, cy, r, width, clip, caps, s, fill, outline = OUTLINE }: { cx: number; cy: number; r: number; width: number; clip: Clip; caps: Pt[]; s: number; fill: string; outline?: number }) {
+  const o = stroke(outline, s);
+  return (
+    <>
+      <Arc cx={cx} cy={cy} r={r + o} width={width + 2 * o} clip={{ x: clip.x - o, y: clip.y - o, w: clip.w + 2 * o, h: clip.h + o }} s={s} color={INK} />
+      {caps.map((c, i) => (
+        <Rect key={`c${i}`} p={disc(c, width)} s={s} color={INK} grow={o} />
+      ))}
+      <Arc cx={cx} cy={cy} r={r} width={width} clip={clip} s={s} color={fill} />
+      {caps.map((c, i) => (
+        <Rect key={`f${i}`} p={disc(c, width)} s={s} color={fill} />
+      ))}
+    </>
+  );
+}
+
+/** The head circle (grown by `grow`) clipped to y `top`..`bottom`, with an ink edge: beanie domes and bandana caps. */
+function Cap({ s, fill, top, bottom, grow = 1 }: { s: number; fill: string; top: number; bottom: number; grow?: number }) {
+  const o = stroke(OUTLINE, s);
+  const r = HEAD.r + grow;
+  return (
+    <View style={{ position: 'absolute', left: (HEAD.cx - r - o) * s, top: top * s, width: 2 * (r + o) * s, height: (bottom - top) * s, overflow: 'hidden' }}>
+      <View style={{ position: 'absolute', left: 0, top: (HEAD.cy - r - o - top) * s, width: 2 * (r + o) * s, height: 2 * (r + o) * s, borderRadius: (r + o) * s, backgroundColor: INK }} />
+      <View style={{ position: 'absolute', left: o * s, top: (HEAD.cy - r - top) * s, width: 2 * r * s, height: 2 * r * s, borderRadius: r * s, backgroundColor: fill }} />
+    </View>
+  );
+}
+
+/* ---------------------------------------------------------------- face */
+
+function Face({ s, mood, theme }: { s: number; mood: CompanionMood; theme: CompanionThemeV1 }) {
+  const pal = { tongue: mix(theme.cheekColor, '#C2185B', 0.45) };
+  return (
+    <>
+      <Rect p={{ x: 21, y: 52, w: 14, h: 8, r: 4 }} s={s} color={theme.cheekColor} />
+      <Rect p={{ x: 61, y: 52, w: 14, h: 8, r: 4 }} s={s} color={theme.cheekColor} />
+      <Eye s={s} cx={EYE.lx} cy={EYE.y} mood={mood} lid={theme.bodyColor} />
+      <Eye s={s} cx={EYE.rx} cy={EYE.y} mood={mood} lid={theme.bodyColor} />
+      <Brows s={s} mood={mood} />
+      <Mouth s={s} mood={mood} tongue={pal.tongue} />
+    </>
+  );
+}
+
+function Eye({ s, cx, cy, mood, lid }: { s: number; cx: number; cy: number; mood: CompanionMood; lid: string }) {
+  if (mood === 'cheering') {
+    // Happy closed eye: the top of a ring.
+    return <OutlinedArc cx={cx} cy={cy + 2} r={8.5} width={3} clip={{ x: cx - 9, y: cy - 7, w: 18, h: 9 }} caps={[{ x: cx - 6.7, y: cy + 2 }, { x: cx + 6.7, y: cy + 2 }]} s={s} fill={INK} outline={0} />;
+  }
+  const o = stroke(THIN, s);
+  const d = EYE.d;
+  const look = mood === 'thinking' ? { x: 3, y: -2 } : mood === 'curious' ? { x: 1.5, y: -1 } : { x: 0, y: 0 };
+  const iris = EYE.iris;
+  const irisX = (d - iris) / 2 + look.x;
+  const irisY = (d - iris) / 2 + look.y;
+  return (
+    <View style={{ position: 'absolute', left: (cx - d / 2 - o) * s, top: (cy - d / 2 - o) * s, width: (d + 2 * o) * s, height: (d + 2 * o) * s, borderRadius: (d / 2 + o) * s, backgroundColor: INK }}>
+      <View style={{ position: 'absolute', left: o * s, top: o * s, width: d * s, height: d * s, borderRadius: (d / 2) * s, backgroundColor: WHITE, overflow: 'hidden' }}>
+        <View style={{ position: 'absolute', left: irisX * s, top: irisY * s, width: iris * s, height: iris * s, borderRadius: (iris / 2) * s, backgroundColor: INK }} />
+        <View style={{ position: 'absolute', left: (irisX + 1.5) * s, top: (irisY + 1.5) * s, width: 4 * s, height: 4 * s, borderRadius: 2 * s, backgroundColor: WHITE }} />
+        {mood === 'thinking' && (
+          <View style={{ position: 'absolute', left: -2 * s, right: -2 * s, top: -2 * s, height: (d * 0.45 + 2) * s, backgroundColor: lid, borderBottomWidth: o * s, borderBottomColor: INK }} />
+        )}
+      </View>
+    </View>
+  );
+}
+
+function Brows({ s, mood }: { s: number; mood: CompanionMood }) {
+  const t = stroke(3, s);
+  if (mood === 'curious')
+    return (
+      <>
+        <Rect p={{ x: 27, y: 27.5, w: 14, h: t, r: t / 2, rotate: -12 }} s={s} color={INK} />
+        <Rect p={{ x: 55, y: 27.5, w: 14, h: t, r: t / 2, rotate: 12 }} s={s} color={INK} />
+      </>
+    );
+  if (mood === 'thinking')
+    return (
+      <>
+        <Rect p={{ x: 29, y: 31, w: 13, h: t, r: t / 2, rotate: 8 }} s={s} color={INK} />
+        <Rect p={{ x: 54, y: 27, w: 13, h: t, r: t / 2, rotate: -10 }} s={s} color={INK} />
+      </>
+    );
+  return null;
+}
+
+function Mouth({ s, mood, tongue }: { s: number; mood: CompanionMood; tongue: string }) {
+  switch (mood) {
+    case 'cheering':
+      return (
+        <>
+          <Rect p={{ x: 36, y: 57, w: 24, h: 13, radii: [2, 2, 12, 12] }} s={s} color={INK} />
+          <View style={{ position: 'absolute', left: 36 * s, top: 57 * s, width: 24 * s, height: 13 * s, borderBottomLeftRadius: 12 * s, borderBottomRightRadius: 12 * s, overflow: 'hidden' }}>
+            <View style={{ position: 'absolute', left: 5 * s, top: 7 * s, width: 14 * s, height: 14 * s, borderRadius: 7 * s, backgroundColor: tongue }} />
+          </View>
+        </>
+      );
+    case 'thinking':
+      return <Rect p={{ x: 49, y: 62, w: 11, h: stroke(3, s), r: 1.5, rotate: -14 }} s={s} color={INK} />;
+    case 'curious':
+      return <Rect p={disc({ x: 48, y: 62 }, 6.5)} s={s} color={INK} />;
+    default:
+      // Smile: the bottom of a ring, with round ends.
+      return <OutlinedArc cx={48} cy={55} r={11} width={3.25} clip={{ x: 36, y: 59, w: 24, h: 8 }} caps={[{ x: 39.5, y: 59 }, { x: 56.5, y: 59 }]} s={s} fill={INK} outline={0} />;
+  }
 }
 
 /* ---------------------------------------------------------------- headpieces */
 
-function Headpiece({ kind, s, accent }: { kind: CompanionThemeV1['headpiece']; s: number; accent: string }) {
-  const top = BODY.y; // y of the top of the head
+function Headpiece({ kind, s, accent, pal }: { kind: CompanionThemeV1['headpiece']; s: number; accent: string; pal: Palette }) {
+  const cx = HEAD.cx;
   switch (kind) {
     case 'none':
       return null;
-    case 'bandana':
-      // The cap is drawn inside the body so it clips to the head; only the knot lives out here.
-      return <BandanaKnot s={s} accent={accent} />;
     case 'sprig':
       return (
         <>
-          <Rect p={{ x: HEAD_CX - 1.5, y: top - 10, w: 3, h: 13, r: 1.5 }} s={s} color={colors.ink} />
+          <Rect p={{ x: cx - 1.5, y: 11, w: 3, h: 9, r: 1.5 }} s={s} color={INK} />
           <Outlined
             s={s}
             fill={accent}
-            outline={1.75}
+            outline={THIN}
             parts={[
-              { x: HEAD_CX - 15, y: top - 20, w: 11, h: 20, r: 6, rotate: -38 },
-              { x: HEAD_CX + 3, y: top - 23, w: 11, h: 22, r: 6, rotate: 30, color: shade(accent, 0.8) },
+              { x: cx - 11.5, y: 2.7, w: 9, h: 14, r: 4.5, rotate: -62 },
+              { x: cx + 1.5, y: 2.7, w: 9, h: 14, r: 4.5, rotate: 62, color: pal.accentDeep },
             ]}
           />
+          <Rect p={{ x: cx - 7.6, y: 4.7, w: 1.2, h: 10, r: 0.6, rotate: -62 }} s={s} color={pal.accentLight} />
+          <Rect p={{ x: cx + 5.4, y: 4.7, w: 1.2, h: 10, r: 0.6, rotate: 62 }} s={s} color={pal.accentLight} />
         </>
       );
     case 'chefHat':
@@ -215,35 +383,32 @@ function Headpiece({ kind, s, accent }: { kind: CompanionThemeV1['headpiece']; s
             s={s}
             fill={accent}
             parts={[
-              { x: HEAD_CX - 13, y: top - 23, w: 26, h: 26, r: 13 },
-              { x: HEAD_CX - 22, y: top - 16, w: 18, h: 18, r: 9 },
-              { x: HEAD_CX + 4, y: top - 16, w: 18, h: 18, r: 9 },
-              { x: HEAD_CX - 18, y: top - 10, w: 36, h: 10 },
-              { x: HEAD_CX - 20, y: top - 4, w: 40, h: 9, r: 3, color: shade(accent, 0.86) },
+              { x: cx - 18, y: 6.5, w: 13, h: 13, r: 6.5 },
+              { x: cx + 5, y: 6.5, w: 13, h: 13, r: 6.5 },
+              { x: cx - 7.5, y: 2.5, w: 15, h: 15, r: 7.5 },
             ]}
           />
+          <OutlinedArc cx={cx} cy={HEAD.cy} r={34} width={8} clip={{ x: 8, y: 12, w: 80, h: 14 }} caps={[{ x: 25.6, y: 26 }, { x: 70.4, y: 26 }]} s={s} fill={pal.accentDeep} />
         </>
       );
     case 'antenna':
       return (
         <>
-          <Rect p={{ x: HEAD_CX - 1.5, y: top - 20, w: 3, h: 23, r: 1.5 }} s={s} color={colors.ink} />
-          <Outlined s={s} fill={accent} parts={[{ x: HEAD_CX - 6, y: top - 28, w: 12, h: 12, r: 6 }]} />
-          <Rect p={{ x: HEAD_CX - 3, y: top - 25.5, w: 3.5, h: 3.5, r: 2 }} s={s} color={WHITE} />
+          <Outlined s={s} fill={pal.accentDeep} outline={2} parts={[{ x: cx - 5.5, y: 14, w: 11, h: 6, r: 3 }]} />
+          <Rect p={{ x: cx - 1.25, y: 7, w: 2.5, h: 9 }} s={s} color={INK} />
+          <Outlined s={s} fill={accent} outline={2} parts={[disc({ x: cx, y: 7 }, 9)]} />
+          <Rect p={disc({ x: cx - 1.5, y: 5.5 }, 2.8)} s={s} color={WHITE} />
         </>
       );
     case 'beanie':
       return (
         <>
-          {/* Dome: the head's own circle, clipped to its top 16 units, in accent with an ink edge. */}
-          <View style={{ position: 'absolute', left: (BODY.x - OUTLINE) * s, top: (top - OUTLINE) * s, width: (BODY.d + 2 * OUTLINE) * s, height: 17 * s, overflow: 'hidden' }}>
-            <View style={{ width: (BODY.d + 2 * OUTLINE) * s, height: (BODY.d + 2 * OUTLINE) * s, borderRadius: ((BODY.d + 2 * OUTLINE) / 2) * s, backgroundColor: colors.ink }} />
-            <View style={{ position: 'absolute', left: OUTLINE * s, top: OUTLINE * s, width: BODY.d * s, height: BODY.d * s, borderRadius: (BODY.d / 2) * s, backgroundColor: accent }} />
-          </View>
-          {/* Cuff across the brow. */}
-          <Outlined s={s} fill={shade(accent, 0.82)} parts={[{ x: HEAD_CX - 30, y: top + 11, w: 60, h: 9, r: 4.5 }]} />
-          {/* Pom-pom. */}
-          <Outlined s={s} fill={shade(accent, 1.15)} parts={[{ x: HEAD_CX - 7, y: top - 10, w: 14, h: 14, r: 7 }]} />
+          <Cap s={s} fill={accent} top={12.5} bottom={30} />
+          <Rect p={{ x: cx - 9, y: 17, w: 1.6, h: 11, r: 0.8, rotate: 8 }} s={s} color={pal.accentDeep} />
+          <Rect p={{ x: cx - 0.8, y: 15.5, w: 1.6, h: 12, r: 0.8 }} s={s} color={pal.accentDeep} />
+          <Rect p={{ x: cx + 7.4, y: 17, w: 1.6, h: 11, r: 0.8, rotate: -8 }} s={s} color={pal.accentDeep} />
+          <OutlinedArc cx={cx} cy={HEAD.cy} r={34.5} width={7.5} clip={{ x: 8, y: 19.5, w: 80, h: 13.5 }} caps={[{ x: 20.1, y: 33 }, { x: 75.9, y: 33 }]} s={s} fill={pal.accentDeep} />
+          <Outlined s={s} fill={pal.accentLight} parts={[disc({ x: cx, y: 13 }, 13)]} />
         </>
       );
     case 'headphones':
@@ -253,19 +418,23 @@ function Headpiece({ kind, s, accent }: { kind: CompanionThemeV1['headpiece']; s
             s={s}
             fill={accent}
             parts={[
-              { x: 5, y: top + 22, w: 14, h: 22, r: 6 },
-              { x: 77, y: top + 22, w: 14, h: 22, r: 6 },
+              { x: 8, y: 36, w: 14, h: 22, r: 6 },
+              { x: 74, y: 36, w: 14, h: 22, r: 6 },
             ]}
           />
-          <Rect p={{ x: 9, y: top + 27, w: 3, h: 12, r: 1.5 }} s={s} color="rgba(255,255,255,0.55)" />
+          <Rect p={{ x: 11, y: 40, w: 8, h: 14, r: 4 }} s={s} color={pal.accentDeep} />
+          <Rect p={{ x: 77, y: 40, w: 8, h: 14, r: 4 }} s={s} color={pal.accentDeep} />
+          <Rect p={{ x: 10, y: 39, w: 2, h: 7, r: 1 }} s={s} color={WHITE} opacity={0.6} />
+          <Rect p={{ x: 76, y: 39, w: 2, h: 7, r: 1 }} s={s} color={WHITE} opacity={0.6} />
         </>
       );
     case 'leaf':
       return (
         <>
-          <Rect p={{ x: HEAD_CX - 1.5, y: top - 7, w: 3, h: 10, r: 1.5 }} s={s} color={colors.ink} />
-          <Outlined s={s} fill={accent} outline={1.75} parts={[{ x: HEAD_CX - 4, y: top - 21, w: 30, h: 13, r: 7, rotate: -22 }]} />
-          <Rect p={{ x: HEAD_CX - 1, y: top - 15.5, w: 24, h: 1.6, r: 1, rotate: -22 }} s={s} color={shade(accent, 0.6)} />
+          <Rect p={{ x: cx - 1.5, y: 12, w: 3, h: 7, r: 1.5 }} s={s} color={INK} />
+          <Outlined s={s} fill={accent} outline={THIN} parts={[{ x: cx - 2, y: 5, w: 26, h: 12, r: 6, rotate: -15 }]} />
+          <Rect p={{ x: cx, y: 10.3, w: 22, h: 1.4, r: 0.7, rotate: -15 }} s={s} color={pal.accentDeep} />
+          <Rect p={disc({ x: cx + 15, y: 7.5 }, 3)} s={s} color={WHITE} opacity={0.85} />
         </>
       );
     case 'crown':
@@ -275,216 +444,61 @@ function Headpiece({ kind, s, accent }: { kind: CompanionThemeV1['headpiece']; s
             s={s}
             fill={accent}
             parts={[
-              { x: HEAD_CX - 15, y: top - 19, w: 10, h: 10, r: 2, rotate: 45 },
-              { x: HEAD_CX - 5, y: top - 22, w: 10, h: 10, r: 2, rotate: 45 },
-              { x: HEAD_CX + 5, y: top - 19, w: 10, h: 10, r: 2, rotate: 45 },
-              { x: HEAD_CX - 19, y: top - 14, w: 38, h: 15, r: 3 },
+              { x: cx - 16.5, y: 7.5, w: 9, h: 9, r: 1.5, rotate: 45 },
+              { x: cx - 4.5, y: 4.5, w: 9, h: 9, r: 1.5, rotate: 45 },
+              { x: cx + 7.5, y: 7.5, w: 9, h: 9, r: 1.5, rotate: 45 },
             ]}
           />
-          <Rect p={{ x: HEAD_CX - 11.5, y: top - 7.5, w: 5, h: 5, r: 2.5 }} s={s} color={WHITE} />
-          <Rect p={{ x: HEAD_CX - 2.5, y: top - 7.5, w: 5, h: 5, r: 2.5 }} s={s} color={WHITE} />
-          <Rect p={{ x: HEAD_CX + 6.5, y: top - 7.5, w: 5, h: 5, r: 2.5 }} s={s} color={WHITE} />
+          <OutlinedArc cx={cx} cy={HEAD.cy} r={35} width={9} clip={{ x: 6, y: 8.5, w: 84, h: 18.5 }} caps={[{ x: 24.1, y: 27 }, { x: 71.9, y: 27 }]} s={s} fill={accent} />
+          <Rect p={disc({ x: cx - 11, y: 19 }, 4)} s={s} color={pal.accentDeep} />
+          <Rect p={disc({ x: cx, y: 16.5 }, 4)} s={s} color={pal.accentDeep} />
+          <Rect p={disc({ x: cx + 11, y: 19 }, 4)} s={s} color={pal.accentDeep} />
         </>
       );
-    case 'glasses': {
-      // Lenses are centered on the eyes (body-relative eye centers at (24, 30) and (48, 30)).
-      const ey = BODY.y + 30;
-      const lens = { w: 24, h: 24, r: 12 };
+    case 'glasses':
       return (
         <>
-          <Rect p={{ x: BODY.x + 2, y: ey - 1.75, w: 12, h: 3.5, r: 1.5 }} s={s} color={accent} />
-          <Rect p={{ x: BODY.x + 58, y: ey - 1.75, w: 12, h: 3.5, r: 1.5 }} s={s} color={accent} />
-          <Rect p={{ x: HEAD_CX - 4, y: ey - 1.75, w: 8, h: 3.5, r: 1.5 }} s={s} color={accent} />
-          <Ring p={{ x: BODY.x + 24 - 12, y: ey - 12, ...lens }} s={s} color={accent} width={3.5} />
-          <Ring p={{ x: BODY.x + 48 - 12, y: ey - 12, ...lens }} s={s} color={accent} width={3.5} />
+          <Outlined s={s} fill={accent} outline={1.5} parts={[{ x: 9, y: 42.5, w: 15, h: 3.5, r: 1.75 }, { x: 72, y: 42.5, w: 15, h: 3.5, r: 1.75 }, { x: 45, y: 41.5, w: 6, h: 4, r: 1.5 }]} />
+          {[EYE.lx, EYE.rx].map((ex) => (
+            <View key={ex}>
+              <Ring p={{ x: ex - 13.5, y: EYE.y - 13.5, w: 27, h: 27, r: 13.5 }} s={s} color={INK} width={6} />
+              <Ring p={{ x: ex - 12, y: EYE.y - 12, w: 24, h: 24, r: 12 }} s={s} color={accent} width={3} />
+              <Rect p={{ x: ex - 7, y: EYE.y - 8, w: 4.5, h: 2, r: 1, rotate: -35 }} s={s} color={WHITE} opacity={0.75} />
+            </View>
+          ))}
         </>
       );
-    }
+    case 'bandana':
+      return (
+        <>
+          <Cap s={s} fill={accent} top={12.5} bottom={31} />
+          <Rect p={disc({ x: 36, y: 20 }, 5)} s={s} color={WHITE} opacity={0.8} />
+          <Rect p={disc({ x: 48, y: 25 }, 4)} s={s} color={WHITE} opacity={0.8} />
+          <Rect p={disc({ x: 59, y: 18.5 }, 5)} s={s} color={WHITE} opacity={0.8} />
+          <Rect p={disc({ x: 27, y: 27 }, 3.5)} s={s} color={WHITE} opacity={0.8} />
+          <Rect p={{ x: 18.5, y: 29, w: 59, h: stroke(OUTLINE, s), r: 1 }} s={s} color={INK} />
+          <Outlined
+            s={s}
+            fill={accent}
+            outline={THIN}
+            parts={[
+              { x: 78, y: 23, w: 14, h: 6, r: 3, rotate: 25 },
+              { x: 79, y: 30, w: 13, h: 6, r: 3, rotate: -8 },
+              { x: 73, y: 25.5, w: 9, h: 9, r: 4.5, color: pal.accentDeep },
+            ]}
+          />
+        </>
+      );
   }
 }
 
-/** Headphone band: a thick ink arc behind the head, clipped so only the part above the ear cups shows. */
-function HeadphoneBand({ s }: { s: number }) {
-  const d = 86;
-  return (
-    <View style={{ position: 'absolute', left: (HEAD_CX - d / 2) * s, top: (BODY.y - 4) * s, width: d * s, height: 40 * s, overflow: 'hidden' }}>
-      <View style={{ width: d * s, height: d * s, borderRadius: (d / 2) * s, borderWidth: 5 * s, borderColor: colors.ink }} />
-    </View>
-  );
-}
-
-/** Bandana cap: fills the head from the top down to the brow, clipped by the head circle (rendered inside the body). */
-function BandanaCap({ s, accent }: { s: number; accent: string }) {
-  return (
-    <View style={{ position: 'absolute', left: 0, top: 0, width: BODY.d * s, height: BODY.d * s, borderRadius: (BODY.d / 2) * s, overflow: 'hidden' }}>
-      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 19 * s, backgroundColor: accent }} />
-      <View style={{ position: 'absolute', left: 0, right: 0, top: 16.5 * s, height: OUTLINE * s, backgroundColor: colors.ink }} />
-      <View style={{ position: 'absolute', left: 20 * s, top: 3 * s, width: 7 * s, height: 7 * s, borderRadius: 3.5 * s, backgroundColor: 'rgba(255,255,255,0.7)' }} />
-      <View style={{ position: 'absolute', left: 34 * s, top: 8 * s, width: 5 * s, height: 5 * s, borderRadius: 2.5 * s, backgroundColor: 'rgba(255,255,255,0.7)' }} />
-      <View style={{ position: 'absolute', left: 48 * s, top: 3 * s, width: 7 * s, height: 7 * s, borderRadius: 3.5 * s, backgroundColor: 'rgba(255,255,255,0.7)' }} />
-    </View>
-  );
-}
-
-/** Bandana knot and two tails at the right side of the head. */
-function BandanaKnot({ s, accent }: { s: number; accent: string }) {
-  return (
-    <Outlined
-      s={s}
-      fill={accent}
-      outline={1.75}
-      parts={[
-        { x: 78, y: BODY.y + 8, w: 16, h: 6, r: 3, rotate: 30 },
-        { x: 79, y: BODY.y + 15, w: 15, h: 6, r: 3, rotate: -8 },
-        { x: 74, y: BODY.y + 10, w: 9, h: 9, r: 4.5, color: shade(accent, 0.82) },
-      ]}
-    />
-  );
-}
-
-/* ---------------------------------------------------------------- props */
-
-function Prop({ kind, s, accent, bodyColor }: { kind: CompanionThemeV1['prop']; s: number; accent: string; bodyColor: string }) {
-  if (kind === 'none') return null;
+/** Headphone band: an ink arc with an accent stripe, drawn behind the body so the head covers its lower half. */
+function HeadphoneBand({ s, accent }: { s: number; accent: string }) {
+  const clip = { x: 6, y: 8.5, w: 84, h: 31.5 };
   return (
     <>
-      {/* Arm reaching out from the body to the grip. */}
-      <Rect p={{ x: GRIP.x - 7, y: GRIP.y - 18, w: 12, h: 24, r: 6, rotate: -28 }} s={s} color={bodyColor} />
-      <PropArt kind={kind} s={s} accent={accent} />
-      {/* Hand closing over the handle. */}
-      <Rect p={{ x: GRIP.x - 5.5, y: GRIP.y - 5, w: 11, h: 11, r: 5.5 }} s={s} color={bodyColor} />
+      <Arc cx={HEAD.cx} cy={HEAD.cy} r={37.5} width={5} clip={clip} s={s} color={INK} />
+      <Arc cx={HEAD.cx} cy={HEAD.cy} r={36.25} width={2.5} clip={clip} s={s} color={accent} />
     </>
   );
 }
-
-function PropArt({ kind, s, accent }: { kind: Exclude<CompanionThemeV1['prop'], 'none'>; s: number; accent: string }) {
-  const gx = GRIP.x;
-  const gy = GRIP.y;
-  switch (kind) {
-    case 'umbrella':
-      return (
-        <>
-          <Rect p={{ x: gx - 1.5, y: gy - 20, w: 3, h: 34, r: 1.5 }} s={s} color={colors.ink} />
-          <Rect p={{ x: gx - 4, y: gy + 11, w: 6, h: 4, r: 2 }} s={s} color={colors.ink} />
-          {/* Canopy: the top half of an outlined, striped disc. */}
-          <View style={{ position: 'absolute', left: (gx - 12 - OUTLINE) * s, top: (gy - 32 - OUTLINE) * s, width: (24 + 2 * OUTLINE) * s, height: (12 + OUTLINE) * s, overflow: 'hidden' }}>
-            <View style={{ width: (24 + 2 * OUTLINE) * s, height: (24 + 2 * OUTLINE) * s, borderRadius: (12 + OUTLINE) * s, backgroundColor: colors.ink }} />
-            <View style={{ position: 'absolute', left: OUTLINE * s, top: OUTLINE * s, width: 24 * s, height: 24 * s, borderRadius: 12 * s, backgroundColor: accent, overflow: 'hidden' }}>
-              <View style={{ position: 'absolute', left: 4 * s, top: 0, width: 4 * s, height: 24 * s, backgroundColor: shade(accent, 0.72) }} />
-              <View style={{ position: 'absolute', left: 12 * s, top: 0, width: 4 * s, height: 24 * s, backgroundColor: shade(accent, 0.72) }} />
-              <View style={{ position: 'absolute', left: 20 * s, top: 0, width: 4 * s, height: 24 * s, backgroundColor: shade(accent, 0.72) }} />
-            </View>
-          </View>
-          <Rect p={{ x: gx - 12, y: gy - 21.5, w: 24, h: 2.5, r: 1 }} s={s} color={colors.ink} />
-        </>
-      );
-    case 'whisk':
-      return (
-        <>
-          <Ring p={{ x: gx - 7, y: gy - 34, w: 14, h: 26, r: 7 }} s={s} color={colors.ink} width={1.75} />
-          <Ring p={{ x: gx - 3, y: gy - 34, w: 6, h: 26, r: 3 }} s={s} color={colors.ink} width={1.75} />
-          <Rect p={{ x: gx - 2, y: gy - 24, w: 4, h: 16 }} s={s} color={colors.ink} />
-          <Outlined s={s} fill={accent} outline={1.75} parts={[{ x: gx - 3, y: gy - 10, w: 6, h: 24, r: 3 }]} />
-        </>
-      );
-    case 'wrench':
-      return (
-        <>
-          <Outlined
-            s={s}
-            fill={accent}
-            parts={[
-              { x: gx - 3.5, y: gy - 16, w: 7, h: 30, r: 3.5, rotate: 18 },
-              { x: gx - 8, y: gy - 26, w: 16, h: 16, r: 8, rotate: 18 },
-            ]}
-          />
-          {/* Open jaw. */}
-          <Rect p={{ x: gx - 2.5, y: gy - 28, w: 5, h: 8, r: 1, rotate: 18 }} s={s} color={colors.ink} />
-        </>
-      );
-    case 'book':
-      return (
-        <>
-          <Outlined s={s} fill={accent} parts={[{ x: gx - 10, y: gy - 20, w: 20, h: 24, r: 3, rotate: -12 }]} />
-          <Rect p={{ x: gx - 10, y: gy - 20, w: 5, h: 24, r: 2, rotate: -12 }} s={s} color={shade(accent, 0.7)} />
-          <Rect p={{ x: gx - 2, y: gy - 13, w: 9, h: 2, r: 1, rotate: -12 }} s={s} color="rgba(255,255,255,0.8)" />
-          <Rect p={{ x: gx - 1, y: gy - 8, w: 9, h: 2, r: 1, rotate: -12 }} s={s} color="rgba(255,255,255,0.8)" />
-        </>
-      );
-    case 'coin':
-      return (
-        <>
-          <Outlined s={s} fill={accent} parts={[{ x: gx - 11, y: gy - 23, w: 22, h: 22, r: 11 }]} />
-          <Ring p={{ x: gx - 7, y: gy - 19, w: 14, h: 14, r: 7 }} s={s} color={shade(accent, 0.7)} width={2} />
-          <Rect p={{ x: gx - 1.5, y: gy - 16, w: 3, h: 8, r: 1.5 }} s={s} color={shade(accent, 0.7)} />
-          <Rect p={{ x: gx + 2, y: gy - 20.5, w: 3.5, h: 3.5, r: 2 }} s={s} color="rgba(255,255,255,0.85)" />
-        </>
-      );
-    case 'brush':
-      return (
-        <>
-          <Outlined s={s} fill={accent} outline={1.75} parts={[{ x: gx - 2.5, y: gy - 12, w: 5, h: 26, r: 2.5 }]} />
-          <Rect p={{ x: gx - 4.5, y: gy - 17, w: 9, h: 6, r: 1 }} s={s} color={colors.ink} />
-          <Outlined s={s} fill={WHITE} outline={1.75} parts={[{ x: gx - 5, y: gy - 30, w: 10, h: 15, r: 4 }]} />
-          <View style={{ position: 'absolute', left: (gx - 5) * s, top: (gy - 30) * s, width: 10 * s, height: 6 * s, borderTopLeftRadius: 4 * s, borderTopRightRadius: 4 * s, backgroundColor: accent }} />
-        </>
-      );
-    case 'racket':
-      return (
-        <>
-          <Rect p={{ x: gx - 2, y: gy - 14, w: 4, h: 28, r: 2, rotate: -14 }} s={s} color={colors.ink} />
-          <View
-            style={{
-              position: 'absolute',
-              left: (gx - 10) * s,
-              top: (gy - 36) * s,
-              width: 20 * s,
-              height: 26 * s,
-              borderRadius: 11 * s,
-              borderWidth: 3.5 * s,
-              borderColor: accent,
-              backgroundColor: 'rgba(255,255,255,0.75)',
-              overflow: 'hidden',
-              transform: [{ rotate: '-14deg' }],
-            }}
-          >
-            <View style={{ position: 'absolute', left: 6.5 * s, top: 0, width: 1.5 * s, height: 26 * s, backgroundColor: colors.ink, opacity: 0.6 }} />
-            <View style={{ position: 'absolute', left: 11 * s, top: 0, width: 1.5 * s, height: 26 * s, backgroundColor: colors.ink, opacity: 0.6 }} />
-            <View style={{ position: 'absolute', left: 0, top: 7 * s, width: 20 * s, height: 1.5 * s, backgroundColor: colors.ink, opacity: 0.6 }} />
-            <View style={{ position: 'absolute', left: 0, top: 13 * s, width: 20 * s, height: 1.5 * s, backgroundColor: colors.ink, opacity: 0.6 }} />
-          </View>
-          <Ring p={{ x: gx - 10, y: gy - 36, w: 20, h: 26, r: 11 }} s={s} color={colors.ink} width={1.5} rotate={-14} />
-        </>
-      );
-    case 'guitar':
-      return (
-        <>
-          <Rect p={{ x: gx - 2, y: gy - 36, w: 4, h: 26, r: 1.5, rotate: -12 }} s={s} color={colors.ink} />
-          <Outlined s={s} fill={shade(accent, 0.75)} outline={1.75} parts={[{ x: gx - 6, y: gy - 41, w: 7, h: 8, r: 2, rotate: -12 }]} />
-          <Outlined
-            s={s}
-            fill={accent}
-            parts={[
-              { x: gx - 7, y: gy - 16, w: 14, h: 14, r: 7, rotate: -12 },
-              { x: gx - 9, y: gy - 7, w: 18, h: 18, r: 9, rotate: -12 },
-            ]}
-          />
-          <Rect p={{ x: gx - 3, y: gy - 5, w: 6, h: 6, r: 3, rotate: -12 }} s={s} color={colors.ink} />
-          <Rect p={{ x: gx - 0.5, y: gy - 16, w: 1.2, h: 24, rotate: -12 }} s={s} color="rgba(255,255,255,0.8)" />
-        </>
-      );
-    case 'flag':
-      return (
-        <>
-          <Rect p={{ x: gx - 1.5, y: gy - 38, w: 3, h: 50, r: 1.5 }} s={s} color={colors.ink} />
-          <Rect p={{ x: gx - 3, y: gy - 40, w: 6, h: 6, r: 3 }} s={s} color={colors.ink} />
-          <Outlined s={s} fill={accent} parts={[{ x: gx - 23, y: gy - 36, w: 22, h: 15, r: 2 }]} />
-          <Rect p={{ x: gx - 17, y: gy - 32, w: 7, h: 7, r: 3.5 }} s={s} color="rgba(255,255,255,0.85)" />
-        </>
-      );
-  }
-}
-
-const styles = StyleSheet.create({
-  arm: { position: 'absolute', borderRadius: 999 },
-});

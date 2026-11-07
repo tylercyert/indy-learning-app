@@ -7,6 +7,7 @@ import { layoutPath, type PlacedNode } from '../../src/features/course/path-layo
 import { ProgressGlass } from '../../src/features/ui/ProgressGlass';
 import { colors, fonts } from '../../src/features/theme';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
+import { BranchIcon, CheckIcon, LockIcon, StarIcon } from '../../src/features/ui/icons';
 import { BackButton, ErrorBox, Eyebrow, Loading, Screen } from '../../src/features/ui/Screen';
 import { useAsync } from '../../src/features/ui/useAsync';
 import { api } from '../../src/services/api';
@@ -313,7 +314,17 @@ function PathNode({
   // Only the next node advertises generation progress; other available nodes just say Ready when they are.
   const tag = opening ? (ready ? 'Opening…' : 'Writing…') : done || locked ? null : ready ? 'Ready' : isNext && generating ? 'Writing…' : isNext ? 'Tap to write' : null;
   const meta = done ? 'Done' : node.kind === 'orientation' ? 'Start here' : branch ? 'Branch' : 'Core';
-  const icon = done ? '✓' : locked ? '🔒' : isNext ? '★' : branch ? '↗' : '•';
+  const icon = done ? (
+    <CheckIcon color="#FFFFFF" size={30} />
+  ) : locked ? (
+    <LockIcon color={colors.ink} holeColor={colors.line} size={26} />
+  ) : isNext ? (
+    <StarIcon color={colors.ink} size={32} />
+  ) : branch ? (
+    <BranchIcon color={colors.mintDeep} size={24} />
+  ) : (
+    <View aria-hidden style={styles.circleDot} />
+  );
 
   const labelStyle =
     labelMode === 'below'
@@ -353,7 +364,7 @@ function PathNode({
         {opening ? (
           <ActivityIndicator color={colors.ink} accessibilityLabel="Loading lesson" />
         ) : (
-          <Text style={[styles.circleIcon, branch && styles.circleIconSmall, done && { color: '#FFFFFF' }]}>{icon}</Text>
+          icon
         )}
       </Pressable>
       <View aria-hidden style={[styles.label, labelStyle]}>
@@ -401,8 +412,7 @@ const styles = StyleSheet.create({
   circle: { position: 'absolute', borderBottomWidth: 7, alignItems: 'center', justifyContent: 'center' },
   circleOptional: { borderWidth: 3, borderColor: colors.mintDeep, borderStyle: 'dashed' },
   circleLocked: { opacity: 0.85 },
-  circleIcon: { fontFamily: fonts.black, fontSize: 28, lineHeight: 32, color: colors.ink, marginTop: -4 },
-  circleIconSmall: { fontSize: 22, lineHeight: 26 },
+  circleDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.ink },
   label: { position: 'absolute', gap: 2 },
   labelTitle: { fontFamily: fonts.black, fontSize: 15, lineHeight: 18, color: colors.ink },
   labelTitleBelow: { fontSize: 13, lineHeight: 16 },
