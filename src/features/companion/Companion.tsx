@@ -45,7 +45,7 @@ export function Companion({ theme, mood = 'happy', size = 96 }: { theme: Compani
       </View>
 
       <Headpiece kind={theme.headpiece} s={s} accent={accent} />
-      <Prop kind={theme.prop} s={s} accent={accent} bodyColor={theme.bodyColor} />
+      {/* Held items are not drawn (owner decision 2026-11-07): the theme keeps the token, the art omits it. */}
     </View>
   );
 }
@@ -54,7 +54,6 @@ export function Companion({ theme, mood = 'happy', size = 96 }: { theme: Compani
 export function describeCompanion(theme: CompanionThemeV1, mood: CompanionMood): string {
   const parts = [`${theme.name}, your companion`, mood];
   if (theme.headpiece !== 'none') parts.push(`wearing ${HEADPIECE_LABEL[theme.headpiece]}`);
-  if (theme.prop !== 'none') parts.push(`holding ${PROP_LABEL[theme.prop]}`);
   return parts.join(', ');
 }
 
@@ -70,6 +69,7 @@ const HEADPIECE_LABEL: Record<Exclude<CompanionThemeV1['headpiece'], 'none'>, st
   bandana: 'a bandana',
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PROP_LABEL: Record<Exclude<CompanionThemeV1['prop'], 'none'>, string> = {
   umbrella: 'an umbrella',
   whisk: 'a whisk',
@@ -344,6 +344,7 @@ function BandanaKnot({ s, accent }: { s: number; accent: string }) {
 
 /* ---------------------------------------------------------------- props */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function Prop({ kind, s, accent, bodyColor }: { kind: CompanionThemeV1['prop']; s: number; accent: string; bodyColor: string }) {
   if (kind === 'none') return null;
   return (
