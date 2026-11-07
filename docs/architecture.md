@@ -29,6 +29,8 @@ Planning and generation are separate: a course plan is produced at creation; eac
 
 The model is `claude-opus-5-5` with adaptive thinking; effort is set per task. One retry with validation issues fed back, then a clear error. Scoring and progression never involve the model.
 
+Goal Screening (`server/src/services/screening.ts`) runs before the first intake question and again when intake completes, on `claude-haiku-5-5` against the `GoalScreeningV1` contract. A refusal returns 422 with the companion's message and nothing is planned or stored; a classifier failure also blocks planning (fail closed).
+
 ## Data
 
 SQLite via Drizzle (`server/src/db/schema.ts`), documents as validated JSON next to the columns we query by. Migrations are generated SQL in `server/drizzle` and applied at startup. Moving to Postgres is a driver change. Learning history is append-only events; course progress is a view over them.
