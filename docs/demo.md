@@ -137,7 +137,7 @@ Limitations: the structured-output grammar mode is used only for planning today;
 - **Goal Screening spoken by the companion**, twice per course, fail closed (#31).
 - **A visual QA loop driven by Playwright that reads the real app**, with screenshots as evidence on issues (`qa/journey.ts`, #13 to #17, #36).
 
-Limitations: the mockup's forked skill path and the richer celebration are still in flight (#35/#37, #40); social features are unbuilt (#6).
+Limitations: no real device run yet (#9); social features are deliberately out of scope (#6).
 
 ## Part 3: likely judge questions
 

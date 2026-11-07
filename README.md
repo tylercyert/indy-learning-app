@@ -1,8 +1,8 @@
-# Indy Learning
+# Poko: Learn Anything
 
 Learn anything, for a real reason. A learner states a goal, a short conversation gathers context, and the platform generates a personalized course as a skill tree of reusable lessons delivered as typed, interactive slides. Expo + TypeScript client; Hono + SQLite API server in this repo; Claude for generation behind validated contracts.
 
-**Status (2026-11-07):** slices 1–5 are merged: a learner states a goal, is screened, answers a short intake, gets a course whose first lesson is ready on arrival, plays slides from an eight-component catalog (text, callout, ratioBar, diagram, checklist, multipleChoice, codeBlock, fillBlank) with deterministic scoring and teaching feedback, celebrates, keeps a streak, extends a finished course or explores sideways, and can start from courses other learners built. Social features are blocked on an owners' brief; the branching skill-path layout (#35) is in progress; no real device has run the app yet (#9). The tracker is GitHub Issues; `docs/handoff.md` is the current snapshot and `docs/roadmap.md` the map.
+**Status (2026-11-07):** slices 1–5 are merged: a learner states a goal, is screened, answers a short intake, gets a course whose first lesson is ready on arrival, plays slides from an eight-component catalog (text, callout, ratioBar, diagram, checklist, multipleChoice, codeBlock, fillBlank) with deterministic scoring and teaching feedback, celebrates, keeps a streak, extends a finished course or explores sideways, and can start from courses other learners built. Social features are out of scope (#6); the winding skill path with side branches is merged (#35, #51); no real device has run the app yet (#9). The tracker is GitHub Issues; `docs/handoff.md` is the current snapshot and `docs/roadmap.md` the map.
 
 ## Start here
 

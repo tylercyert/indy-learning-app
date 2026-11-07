@@ -41,4 +41,4 @@ Expo Router with file routes under `app/`. Lesson state lives in features and se
 
 ## Not configured, by decision
 
-No paid services: no Supabase, EAS, hosting or CI runners. Phones reach the server over Tailscale/LAN during the hackathon. Social features are pending an owners' brief; the data model carries stable ids and no relationship assumptions.
+No paid services: no Supabase, EAS, hosting or CI runners. Phones reach the server over Tailscale/LAN during the hackathon. Social features are out of scope (owner decision 2026-11-07, #6); the data model carries stable ids and no relationship assumptions.

@@ -45,7 +45,7 @@ export type CompanionThemeV1 = z.infer<typeof CompanionThemeV1Schema>;
 
 export const BASE_COMPANION: CompanionThemeV1 = {
   schemaVersion: 1,
-  name: 'Pip',
+  name: 'Poko',
   bodyColor: '#A78BFA',
   cheekColor: '#DDD6FE',
   accentColor: '#6D28D9',

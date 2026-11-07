@@ -65,7 +65,7 @@ Use a unique Metro port per workspace. `ALLOW_NO_AI=1` runs the server without a
 
 ## What is deliberately not configured
 
-No Supabase, EAS, hosting, CI runners, branch protections, analytics or store signing. The only spend is the Anthropic API key, which lives in `server/.env` and nowhere else. Social features are pending.
+No Supabase, EAS, hosting, CI runners, branch protections, analytics or store signing. The only spend is the Anthropic API key, which lives in `server/.env` and nowhere else. Social features were removed from scope on 2026-11-07 (#6).
 
 ## Open items (each has an issue)
 
@@ -78,5 +78,4 @@ No Supabase, EAS, hosting, CI runners, branch protections, analytics or store si
 - #10 `npm audit`: 12 moderate advisories via Expo/ESLint tooling (glob/minimatch). Assess exposure; do not force-downgrade Expo.
 - #11 licensing of the application code is undecided; the starter's MIT notice is preserved.
 - #12 hosting beyond Tailscale: undecided.
-- #6 social features: blocked on the owners' brief.
 - Structured-output observability (from #7): no validation-failure-rate tracking beyond server warnings; per-slide generation remains a fallback idea if prompt-mode validity drops.

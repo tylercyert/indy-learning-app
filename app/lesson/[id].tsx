@@ -1,7 +1,7 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BASE_COMPANION, componentRole, type CompanionThemeV1, type ExperienceView, type StreakV1 } from '../../src/contracts';
 import { Companion } from '../../src/features/companion/Companion';
 import type { FillBlankFeedback } from '../../src/features/components/FillBlank';
@@ -13,7 +13,7 @@ import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
 import { Confetti } from '../../src/features/ui/Confetti';
 import { ProgressGlass } from '../../src/features/ui/ProgressGlass';
 import * as Haptics from 'expo-haptics';
-import { BackButton, CONTENT_MAX_WIDTH, ErrorBox, Loading } from '../../src/features/ui/Screen';
+import { AppBar, CONTENT_MAX_WIDTH, ErrorBox, Loading } from '../../src/features/ui/Screen';
 import { useAsync } from '../../src/features/ui/useAsync';
 import { api, localDate } from '../../src/services/api';
 
@@ -42,10 +42,8 @@ export default function LessonScreen() {
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <BackButton label="Close lesson" />
-      </View>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <AppBar back={{ label: 'Close lesson' }} />
       {children}
     </SafeAreaView>
   );
@@ -74,6 +72,7 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
   /** One always-mounted polite region: screen readers hear feedback and completion reliably. */
   const [announce, setAnnounce] = useState('');
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const insets = useSafeAreaInsets();
 
   const celebrate = (c: Celebration) => {
     setCelebration(c);
@@ -119,6 +118,17 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
       // If the lesson was completed on an earlier visit, still celebrate briefly rather than exit cold.
       const latest = await api.getExperience(view.experience.id).catch(() => null);
       if (latest) setView(latest);
+      if (!celebration && latest && !latest.completed) {
+        // A check was skipped earlier: go back to it instead of exiting cold.
+        const answered = new Set(latest.results.map((r) => r.componentId));
+        const missing = slides.findIndex((s) => s.components.some((c) => componentRole(c.type) === 'assessable' && !answered.has(c.id)));
+        if (missing >= 0) {
+          setIndex(missing);
+          setError('One quick check is still open. Answer it (or skip it after reading the idea) to finish the lesson.');
+          setAnnounce('One check is still open on this slide.');
+          return;
+        }
+      }
       if (!celebration && latest?.completed) {
         const course = await api.getCourse(view.experience.courseId).catch(() => null);
         celebrate({ streak: course?.streak ?? { count: 0, lastActiveDate: null }, treeCompleted: course?.trees.at(-1)?.complete ?? false });
@@ -216,29 +226,24 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <Text accessibilityLiveRegion="polite" style={styles.srOnly}>
         {announce}
       </Text>
-      <View style={styles.header}>
-        <View style={styles.headerColumn}>
-          <BackButton label="Close lesson" onPress={onExit} />
-          <View
-            style={styles.progress}
-            accessibilityRole="progressbar"
-            aria-label="Lesson progress"
-            aria-valuemin={0}
-            aria-valuemax={slides.length}
-            aria-valuenow={index + 1}
-            aria-valuetext={`Slide ${index + 1} of ${slides.length}`}
-          >
-            <View style={[styles.progressFill, { width: `${((index + 1) / slides.length) * 100}%` }]} />
-          </View>
-          <Text style={styles.count} aria-hidden>
-            {index + 1}/{slides.length}
-          </Text>
+      {/* Same purple bar as every other screen; the progress track takes the wordmark's place. */}
+      <AppBar back={{ label: 'Close lesson', onPress: onExit }} right={<Text style={styles.count} aria-hidden>{index + 1}/{slides.length}</Text>}>
+        <View
+          style={styles.progress}
+          accessibilityRole="progressbar"
+          aria-label="Lesson progress"
+          aria-valuemin={0}
+          aria-valuemax={slides.length}
+          aria-valuenow={index + 1}
+          aria-valuetext={`Slide ${index + 1} of ${slides.length}`}
+        >
+          <View style={[styles.progressFill, { width: `${((index + 1) / slides.length) * 100}%` }]} />
         </View>
-      </View>
+      </AppBar>
       {/* Keyed per slide so each slide opens scrolled to the top. */}
       <ScrollView ref={scrollRef} key={slide.id} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.content}>
@@ -262,7 +267,7 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
         </View>
       </ScrollView>
       <View style={[styles.footer, sheet && (sheet.correct ? styles.footerRight : styles.footerWrong)]}>
-        <View style={styles.footerColumn}>
+        <View style={[styles.footerColumn, { paddingBottom: 16 + insets.bottom }]}>
           {sheet ? (
             // The correction moment: one explanation, one primary action.
             <View style={styles.sheet} accessibilityLiveRegion="polite">
@@ -286,7 +291,7 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
             </View>
           ) : (
             <View style={styles.footerRow}>
-              {index > 0 ? <ChunkyButton label="Previous" variant="ghost" onPress={() => setIndex((i) => i - 1)} style={{ width: 96 }} /> : <View style={{ width: 90 }} />}
+              {index > 0 ? <ChunkyButton label="Previous" variant="ghost" onPress={() => setIndex((i) => i - 1)} style={{ minWidth: 100 }} /> : <View style={{ width: 100 }} />}
               {answeredOnSlide ? (
                 <ChunkyButton
                   label={isLast ? 'Finish' : 'Continue'}
@@ -311,11 +316,9 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   srOnly: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
-  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
-  headerColumn: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 12 },
-  progress: { flex: 1, height: 16, borderRadius: 8, backgroundColor: colors.line, overflow: 'hidden' },
+  progress: { flex: 1, height: 16, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.28)', overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: colors.yellow, borderRadius: 8 },
-  count: { fontFamily: fonts.black, fontSize: 13, color: colors.muted, minWidth: 44, textAlign: 'right' },
+  count: { fontFamily: fonts.black, fontSize: 13, color: '#FFFFFF', minWidth: 44, textAlign: 'right' },
   scroll: { flexGrow: 1 },
   content: { flexGrow: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', padding: 20, gap: 18, paddingBottom: 40 },
   footer: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.bg },

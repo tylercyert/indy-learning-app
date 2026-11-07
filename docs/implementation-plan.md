@@ -54,9 +54,9 @@ Course creation awaits the orientation lesson so the first node is Ready on arri
 - **Goal Screening (PR #32, #31):** `claude-haiku-5-5` classifies the stated goal before the first intake question and the completed learner context before planning, validated against `GoalScreeningV1`; a refusal is a 422 the companion speaks; classifier failure fails closed.
 - **Component hardening lane (PR #34, #23 batches 1–2, #33):** stress fixtures regenerated from contract constants and asserted by tests; nine render defects fixed (edge labels never lost, column gaps, proportional ratio segments, bubble tail, heading sizes, 200% text layouts, badge sizes, list markers); callout bounded to ≤ 4 blocks / ≤ 400 characters with no headings; new components `codeBlock` (presentational) and `fillBlank` (assessable, scored in `src/domain/scoring.ts` on the server, feedback in the lesson player). `matchPairs` is proposed and held.
 
-## Slice 6 — social (blocked: owners' brief, #6)
+## Slice 6 — social (removed from scope, owner decision 2026-11-07, #6)
 
-Pending the owners' brief. The learner, course and history models carry stable ids and no assumptions about relationships.
+Social features are out of scope for this product. The learner, course and history models keep stable ids, so nothing blocks adding sharing later, but no social work is planned.
 
 ## Component sub-agents (after slice 2; not implemented as described, see #8)
 

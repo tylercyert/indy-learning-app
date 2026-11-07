@@ -6,9 +6,9 @@ import { Companion } from '../src/features/companion/Companion';
 import { colors, fonts } from '../src/features/theme';
 import { ChunkyButton } from '../src/features/ui/ChunkyButton';
 import { ProgressGlass } from '../src/features/ui/ProgressGlass';
-import { ErrorBox, Eyebrow, Screen } from '../src/features/ui/Screen';
+import { AppBar, ErrorBox, Eyebrow, Screen } from '../src/features/ui/Screen';
 import { useAsync } from '../src/features/ui/useAsync';
-import { api } from '../src/services/api';
+import { api, resetLearner } from '../src/services/api';
 
 const EXAMPLES = ['Make great cocktails for a party', 'Learn Indonesian basics', 'Understand how engines work', 'Python for data analysis'];
 
@@ -21,6 +21,15 @@ export default function HomeScreen() {
   const discover = useAsync(() => api.discover(), []);
   const [startingDiscovered, setStartingDiscovered] = useState<string | null>(null);
   const [showAllDiscover, setShowAllDiscover] = useState(false);
+  const [resetArmed, setResetArmed] = useState(false);
+  const resetAsNewLearner = async () => {
+    await resetLearner();
+    setResetArmed(false);
+    setGoal('');
+    setShowAllDiscover(false);
+    courses.reload();
+    discover.reload();
+  };
   /** Home stays short: three recommended courses, the rest behind one tap. */
   const DISCOVER_PREVIEW = 3;
 
@@ -62,16 +71,8 @@ export default function HomeScreen() {
   const otherCourses = (courses.data?.courses ?? []).filter((c) => c.course.id !== featured?.course.id);
 
   return (
-    <Screen>
+    <Screen header={<AppBar streak={streak} />}>
       <View style={styles.hero}>
-        <View style={styles.heroTop}>
-          <Text style={styles.brand}>Indy</Text>
-          {streak > 0 ? (
-            <View style={styles.chip} accessibilityLabel={`${streak} day streak`}>
-              <Text style={styles.chipText}>🔥 {streak}</Text>
-            </View>
-          ) : null}
-        </View>
         <View style={styles.speech}>
           <Companion theme={featured ? featured.course.companion : BASE_COMPANION} mood={featured ? 'happy' : 'curious'} size={88} />
           <View style={styles.bubble}>
@@ -82,7 +83,7 @@ export default function HomeScreen() {
                   : featured.nextNodeTitle
                     ? `Welcome back! “${featured.nextNodeTitle}” is ready when you are.`
                     : `Welcome back! Your course is ready.`
-                : 'Hi, I’m Pip! What do you want to learn?'}
+                : 'Hi, I’m Poko! What do you want to learn?'}
             </Text>
           </View>
         </View>
@@ -188,6 +189,19 @@ export default function HomeScreen() {
           ) : null}
         </View>
       ) : null}
+      <View style={styles.resetRow}>
+        {resetArmed ? (
+          <>
+            <Text style={styles.resetText}>Start over as a brand-new learner? Your courses stay on the server but leave this device.</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <ChunkyButton label="Yes, start over" variant="outline" onPress={() => void resetAsNewLearner()} style={{ flex: 1 }} />
+              <ChunkyButton label="Keep" variant="ghost" onPress={() => setResetArmed(false)} style={{ flex: 1 }} />
+            </View>
+          </>
+        ) : (
+          <ChunkyButton label="Start over as a new learner" variant="ghost" onPress={() => setResetArmed(true)} accessibilityHint="Forgets this device's progress so the app looks new" />
+        )}
+      </View>
       {__DEV__ ? <Text style={styles.foot}>{api.baseUrl}</Text> : null}
     </Screen>
   );
@@ -199,10 +213,6 @@ const styles = StyleSheet.create({
   continueCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 22, backgroundColor: colors.coralTint },
   continueTitle: { fontFamily: fonts.black, fontSize: 18, lineHeight: 22, color: colors.ink },
   continueMeta: { fontFamily: fonts.bold, fontSize: 13, color: colors.muted },
-  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  brand: { fontFamily: fonts.black, fontSize: 24, color: '#FFFFFF' },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.yellow },
-  chipText: { fontFamily: fonts.black, fontSize: 14, color: colors.ink },
   speech: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   bubble: { flex: 1, backgroundColor: colors.bg, padding: 14, borderRadius: 20, borderBottomLeftRadius: 6 },
   bubbleText: { fontFamily: fonts.extraBold, fontSize: 17, lineHeight: 23, color: colors.ink },
@@ -217,5 +227,7 @@ const styles = StyleSheet.create({
   courseMeta: { fontFamily: fonts.bold, fontSize: 13, color: colors.muted },
   bar: { height: 10, borderRadius: 5, backgroundColor: colors.line, overflow: 'hidden', marginTop: 4 },
   barFill: { height: '100%', backgroundColor: colors.coral, borderRadius: 5 },
+  resetRow: { gap: 10, marginTop: 12 },
+  resetText: { fontFamily: fonts.bold, fontSize: 13, lineHeight: 18, color: colors.muted, textAlign: 'center' },
   foot: { fontFamily: fonts.bold, fontSize: 11, color: '#B8AED6', textAlign: 'center' },
 });

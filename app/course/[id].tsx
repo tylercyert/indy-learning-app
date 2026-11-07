@@ -8,7 +8,7 @@ import { ProgressGlass } from '../../src/features/ui/ProgressGlass';
 import { colors, fonts } from '../../src/features/theme';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
 import { BranchIcon, CheckIcon, LockIcon, StarIcon } from '../../src/features/ui/icons';
-import { BackButton, ErrorBox, Eyebrow, Loading, Screen } from '../../src/features/ui/Screen';
+import { AppBar, ErrorBox, Eyebrow, Loading, Screen } from '../../src/features/ui/Screen';
 import { useAsync } from '../../src/features/ui/useAsync';
 import { api } from '../../src/services/api';
 
@@ -93,16 +93,7 @@ export default function CourseScreen() {
   };
 
   return (
-    <Screen>
-      <View style={styles.header}>
-        <BackButton label="Back to home" onPress={() => router.replace('/')} />
-        {data && data.streak.count > 0 ? (
-          <View style={styles.streak} accessibilityLabel={`${data.streak.count} day streak`}>
-            <Text style={styles.streakText}>🔥 {data.streak.count}</Text>
-          </View>
-        ) : null}
-      </View>
-
+    <Screen header={<AppBar back={{ label: 'Back to home', onPress: () => router.replace('/') }} streak={data?.streak.count ?? 0} />}>
       {view.loading && !data ? <Loading message="Loading your course…" /> : null}
       {view.error ? <ErrorBox message={view.error} onRetry={view.reload} /> : null}
 
@@ -386,9 +377,6 @@ function PathNode({
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  streak: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.coralTint },
-  streakText: { fontFamily: fonts.black, fontSize: 14, color: colors.ink },
   hero: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 22, backgroundColor: colors.coralTint },
   pencil: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   pencilIcon: { fontFamily: fonts.black, fontSize: 20, color: colors.coralDeep },

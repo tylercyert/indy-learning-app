@@ -1,4 +1,4 @@
-# Indy Learning
+# Poko: Learn Anything
 
 An adaptive learning platform: a learner says what they want to learn, a conversation gathers context, and the platform generates a personalized course they progress through as a skill tree of reusable lessons. Content is generated on demand and validated before it is shown; progress and learning evidence persist across courses.
 
