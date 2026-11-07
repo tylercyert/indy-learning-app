@@ -52,17 +52,48 @@ export function Screen({
   );
 }
 
-export function BackButton({ label = 'Back', onPress }: { label?: string; onPress?: () => void }) {
+/**
+ * The one back control. The glyph is drawn with two rotated bars (no font, no SVG) so it renders the
+ * same on web, iOS and Android. `icon="close"` draws an X for screens that dismiss rather than go
+ * back (the lesson header); it is inferred from a label that starts with "Close".
+ */
+export function BackButton({ label = 'Back', onPress, icon }: { label?: string; onPress?: () => void; icon?: 'back' | 'close' }) {
   const router = useRouter();
+  const kind = icon ?? (/^close/i.test(label) ? 'close' : 'back');
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityHint={kind === 'close' ? 'Leaves this screen' : 'Goes to the previous screen'}
+      hitSlop={6}
       onPress={onPress ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))}
-      style={styles.back}
+      style={({ pressed }) => [styles.back, pressed && styles.backPressed]}
     >
-      <Text style={styles.backText}>‹</Text>
+      {kind === 'close' ? <CloseGlyph /> : <ChevronGlyph />}
     </Pressable>
+  );
+}
+
+const GLYPH_STROKE = 3.5;
+
+/** Left-pointing chevron: two 3.5px bars with round caps meeting at the point, 20px tall. */
+function ChevronGlyph() {
+  const arm = 13;
+  return (
+    <View style={styles.glyphBox} aria-hidden>
+      <View style={[styles.glyphBar, { width: arm, transform: [{ translateX: -1 }, { translateY: -4 }, { rotate: '-45deg' }] }]} />
+      <View style={[styles.glyphBar, { width: arm, transform: [{ translateX: -1 }, { translateY: 4 }, { rotate: '45deg' }] }]} />
+    </View>
+  );
+}
+
+/** X: two 3.5px bars with round caps crossing at the center, 18px across. */
+function CloseGlyph() {
+  return (
+    <View style={styles.glyphBox} aria-hidden>
+      <View style={[styles.glyphBar, { width: 20, transform: [{ rotate: '45deg' }] }]} />
+      <View style={[styles.glyphBar, { width: 20, transform: [{ rotate: '-45deg' }] }]} />
+    </View>
   );
 }
 
@@ -105,7 +136,9 @@ const styles = StyleSheet.create({
   footer: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.bg },
   footerColumn: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', padding: 20, paddingTop: 10, gap: 10 },
   back: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' },
-  backText: { fontFamily: fonts.black, fontSize: 28, lineHeight: 32, color: colors.ink, marginTop: -4 },
+  backPressed: { backgroundColor: colors.line, transform: [{ scale: 0.94 }] },
+  glyphBox: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  glyphBar: { position: 'absolute', height: GLYPH_STROKE, borderRadius: GLYPH_STROKE / 2, backgroundColor: colors.ink },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 },
   loadingText: { fontFamily: fonts.extraBold, fontSize: 15, color: colors.muted, textAlign: 'center' },
   error: { padding: 16, borderRadius: 20, backgroundColor: colors.coralTint, gap: 10 },
