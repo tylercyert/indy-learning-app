@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  GoalScreeningV1Schema,
   BASE_COMPANION,
   CALLOUT_MAX_BLOCKS,
   CALLOUT_MAX_CHARS,
@@ -319,5 +320,17 @@ describe('LearnerContextV1 and IntakeTurnV1', () => {
   it('accepts an ask turn and a ready turn', () => {
     expect(IntakeTurnV1Schema.safeParse({ kind: 'ask', question: 'Do you own a shaker?', suggestedAnswers: ['Yes', 'No'] }).success).toBe(true);
     expect(IntakeTurnV1Schema.safeParse({ kind: 'ready', context, summary: 'Got it: a party Saturday, one non-drinker.' }).success).toBe(true);
+  });
+});
+
+describe('GoalScreeningV1', () => {
+  it('ties the category and message to the decision', () => {
+    const allow = { decision: 'allow', category: 'none', rationale: 'Ordinary cooking goal.', learnerMessage: '' };
+    expect(GoalScreeningV1Schema.safeParse(allow).success).toBe(true);
+    expect(GoalScreeningV1Schema.safeParse({ ...allow, category: 'illegal-activity' }).success).toBe(false);
+    const refuse = { decision: 'refuse', category: 'dangerous-substances', rationale: 'Drug synthesis.', learnerMessage: 'That one I cannot teach. Curious about how chemistry labs stay safe instead?' };
+    expect(GoalScreeningV1Schema.safeParse(refuse).success).toBe(true);
+    expect(GoalScreeningV1Schema.safeParse({ ...refuse, category: 'none' }).success).toBe(false);
+    expect(GoalScreeningV1Schema.safeParse({ ...refuse, learnerMessage: '' }).success).toBe(false);
   });
 });

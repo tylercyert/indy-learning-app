@@ -50,6 +50,8 @@ export interface StructuredRequest<S extends z.ZodType> {
   schema: S;
   /** Use fast mode when available (default true). Intake turns are short and stay on standard speed. */
   fast?: boolean;
+  /** Model override for small classification tasks; defaults to MODEL. Fast mode applies only to MODEL. */
+  model?: string;
   /** Stable instructions: cached across calls. Keep volatile content in `messages`. */
   system: string;
   messages: Anthropic.MessageParam[];
@@ -98,7 +100,7 @@ export async function generateStructured<S extends z.ZodType>(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     let message: AnyMessage;
-    const useFast = fastModeAvailable && (req.fast ?? true);
+    const useFast = fastModeAvailable && (req.fast ?? true) && (req.model ?? MODEL) === MODEL;
     try {
       message = await callOnce(anthropic, req, messages, mode, maxTokens, useFast);
     } catch (error) {
@@ -195,7 +197,7 @@ async function callOnce<S extends z.ZodType>(
   if (fast) {
     // Fast mode lives on the beta endpoint and needs the beta flag plus a top-level speed parameter.
     const stream = anthropic.beta.messages.stream({
-      model: MODEL,
+      model: req.model ?? MODEL,
       max_tokens: maxTokens,
       thinking: { type: 'adaptive' },
       output_config,
@@ -207,7 +209,7 @@ async function callOnce<S extends z.ZodType>(
     return stream.finalMessage();
   }
   const stream = anthropic.messages.stream({
-    model: MODEL,
+    model: req.model ?? MODEL,
     max_tokens: maxTokens,
     thinking: { type: 'adaptive' },
     output_config,

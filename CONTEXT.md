@@ -74,6 +74,10 @@ _Avoid_: Prompt, request, intent
 The conversation after a learner states a goal, in which the platform asks only what it needs to plan a course.
 _Avoid_: Discovery (ambiguous with course discovery), onboarding, questionnaire
 
+**Goal Screening**:
+The check that decides whether a learner goal may become a course at all: refused when the course would mainly teach something illegal, against Anthropic's usage policy, or unacceptable under app-store content rules. Runs on the stated goal before intake and again on the completed learner context before planning. A refusal is spoken by the companion and never stored as a course.
+_Avoid_: moderation (implies reviewing learner speech), filter, ban
+
 **Learner Context**:
 The structured, validated record of a learner's goal, existing knowledge, constraints and preferences, produced by intake and updated by learning history. Self-reported; never evidence of mastery on its own.
 _Avoid_: Preferences, profile, context payload
