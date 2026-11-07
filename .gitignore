@@ -44,9 +44,6 @@ yarn-error.*
 .env
 .env.*
 !.env.example
-# Linear mirror credentials (see docs/linear.md); only the example is committed
-.env.linear
-!.env.linear.example
 coverage/
 .worktrees/
 .handoff/

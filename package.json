@@ -62,8 +62,7 @@
     "db:studio": "drizzle-kit studio --config server/drizzle.config.ts",
     "qa:journey": "tsx qa/journey.ts",
     "smoke": "tsx server/scripts/smoke.ts",
-    "qa:slides": "tsx qa/render-slide.ts",
-    "linear:sync": "tsx scripts/linear/sync.ts"
+    "qa:slides": "tsx qa/render-slide.ts"
   },
   "private": true,
   "engines": {
