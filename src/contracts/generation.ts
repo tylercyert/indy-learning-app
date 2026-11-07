@@ -29,6 +29,45 @@ export const IntakeTurnV1Schema = z.discriminatedUnion('kind', [
 ]);
 export type IntakeTurnV1 = z.infer<typeof IntakeTurnV1Schema>;
 
+/** Why a goal was refused. `none` only accompanies `allow`. */
+export const ScreeningCategorySchema = z.enum([
+  'none',
+  'illegal-activity',
+  'violence-or-weapons',
+  'dangerous-substances',
+  'sexual-content',
+  'hate-or-harassment',
+  'self-harm',
+  'fraud-or-deception',
+  'privacy-or-surveillance',
+  'minors-safety',
+  'policy-other',
+]);
+export type ScreeningCategory = z.infer<typeof ScreeningCategorySchema>;
+
+/**
+ * Goal Screening: the classifier's verdict on a learner goal before any planning happens.
+ * The server refuses to plan when decision is "refuse"; the learner sees only `learnerMessage`.
+ */
+export const GoalScreeningV1Schema = z
+  .strictObject({
+    decision: z.enum(['allow', 'refuse']),
+    category: ScreeningCategorySchema,
+    /** Internal, logged: one sentence on why. */
+    rationale: z.string().trim().min(1).max(240),
+    /** Spoken by the companion when refused: warm, brief, offers a legitimate nearby direction. Empty when allowed. */
+    learnerMessage: z.string().trim().max(240),
+  })
+  .superRefine((v, ctx) => {
+    if (v.decision === 'allow' && v.category !== 'none') {
+      ctx.addIssue({ code: 'custom', message: 'an allowed goal has category "none"', path: ['category'] });
+    }
+    if (v.decision === 'refuse' && (v.category === 'none' || v.learnerMessage.length === 0)) {
+      ctx.addIssue({ code: 'custom', message: 'a refused goal needs a category and a learnerMessage', path: ['decision'] });
+    }
+  });
+export type GoalScreeningV1 = z.infer<typeof GoalScreeningV1Schema>;
+
 /** A node in a plan: either reuses an existing lesson by id or defines a new one. */
 export const PlannedLessonSchema = z.discriminatedUnion('source', [
   z.strictObject({ source: z.literal('reuse'), lessonId: EntityIdSchema }),

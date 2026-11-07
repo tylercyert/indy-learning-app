@@ -6,6 +6,7 @@ import { INTAKE_SYSTEM, intakeUserMessage } from '../ai/prompts';
 import { db } from '../db/client';
 import { intakeSessions, type IntakeMessage } from '../db/schema';
 import { NotFoundError } from './repo';
+import { screenGoal } from './screening';
 
 /** Hard cap on companion questions; the model is told when it must return "ready". */
 export const MAX_INTAKE_QUESTIONS = 4;
@@ -84,6 +85,8 @@ function applyTurn(row: Row, turn: IntakeTurnV1, now: string): { transcript: Int
 }
 
 export async function startIntake(learnerId: string, goal: string, courseId?: string): Promise<IntakeSessionView> {
+  // Goal Screening before anything is stored or asked. Throws GoalRefusedError.
+  await screenGoal(goal);
   const now = new Date().toISOString();
   const id = randomUUID();
   const transcript: IntakeMessage[] = [{ role: 'learner', text: goal, at: now }];
@@ -92,6 +95,7 @@ export async function startIntake(learnerId: string, goal: string, courseId?: st
     .run();
   const row = loadRow(learnerId, id);
   const turn = await nextTurn(transcript);
+  if (turn.kind === 'ready') await screenGoal(goal, turn.context);
   const next = applyTurn(row, turn, new Date().toISOString());
   db.update(intakeSessions)
     .set({ transcript: next.transcript, status: next.status, context: next.context, updatedAt: new Date().toISOString() })
@@ -106,6 +110,8 @@ export async function replyIntake(learnerId: string, id: string, answer: string)
   const now = new Date().toISOString();
   const transcript: IntakeMessage[] = [...row.transcript, { role: 'learner', text: answer, at: now }];
   const turn = await nextTurn(transcript);
+  // The goal passed screening, but answers can steer it; screen the full context before it can be planned.
+  if (turn.kind === 'ready') await screenGoal(row.transcript[0]?.text ?? '', turn.context);
   const next = applyTurn({ ...row, transcript }, turn, new Date().toISOString());
   db.update(intakeSessions)
     .set({ transcript: next.transcript, status: next.status, context: next.context, updatedAt: new Date().toISOString() })

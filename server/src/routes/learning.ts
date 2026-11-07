@@ -17,6 +17,7 @@ import { aiEnabled } from '../env';
 import type { AppEnv } from '../app';
 import { requireLearner } from '../auth';
 import { assertExperienceOpenable, getOrGenerateExperience, NodeLockedError } from '../services/experiences';
+import { GoalRefusedError } from '../services/screening';
 import { getIntake, readyContext, replyIntake, startIntake } from '../services/intake';
 import { createCourseFromIntake } from '../services/planning';
 import { courseList, courseView, experienceView, recordEvent } from '../services/progress';
@@ -122,6 +123,7 @@ learning.onError((err, c) => {
   if (err instanceof BadRequest) return c.json({ error: err.message }, 400);
   if (err instanceof repo.NotFoundError) return c.json({ error: err.message }, 404);
   if (err instanceof NodeLockedError) return c.json({ error: err.message }, 409);
+  if (err instanceof GoalRefusedError) return c.json({ error: err.message, kind: 'refused', category: err.category }, 422);
   if (err instanceof GenerationError) {
     const status = err.kind === 'disabled' ? 503 : err.kind === 'refused' ? 422 : 502;
     console.error(`[generation:${err.kind}] ${err.message}`, err.detail ?? '');
