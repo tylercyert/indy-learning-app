@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Indy Learning App",
+    "name": "Poko: Learn Anything",
     "slug": "indy-learning-app",
     "scheme": "indylearning",
     "version": "0.1.0",
@@ -20,7 +20,17 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "Poko: Learn Anything",
+      "shortName": "Poko",
+      "lang": "en",
+      "description": "Learn anything, for a real reason. Poko turns your goal into a skill path of short interactive lessons.",
+      "themeColor": "#6D28D9",
+      "backgroundColor": "#FFFFFF",
+      "display": "standalone",
+      "orientation": "portrait",
+      "barStyle": "black-translucent",
+      "bundler": "metro"
     },
     "plugins": [
       "expo-router",
