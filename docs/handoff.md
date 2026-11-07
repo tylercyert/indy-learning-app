@@ -2,7 +2,15 @@
 
 ## State on 2026-11-07
 
-Slice 1 (foundation) is on branch `agent/claude/1-foundation`: contracts, domain rules with 51 tests, SQLite schema and migration, API server skeleton with anonymous learner auth, Claude client with structured output, Expo Router shell. `npm run verify` and `npm run export:all` pass. The server was smoke-tested against a scratch database (health, learner bootstrap, bearer auth, 401/404). No screen beyond the shell exists yet; slice 2 builds the first complete loop. See `docs/implementation-plan.md`.
+Slice 1 (foundation) is merged to `main` (`41d745b`, issue #1). Slice 2 (first complete loop, issue #2) is on branch `agent/claude/2-first-loop`: intake, planning, on-demand experience generation, events with deterministic scoring and completion, and the client screens (home, intake chat, course, lesson player with all six components, celebration). `npm run verify` (62 tests) and `npm run export:all` pass.
+
+**Live end-to-end verified** with the real API via `server/scripts/smoke.ts`: goal → 3 intake questions → 5-node plan with companion → 6-slide orientation lesson (diagram, two multiple-choice checks, checklist) → wrong answers teach, right answers score → completion → streak 1 → next node unlocked. About 60 seconds wall clock. Device QA on phones is issue #9 and has not been done.
+
+Work tracking lives in GitHub Issues (#1–#12, milestone "First complete learning loop"). Update the issue when a slice lands; this document is a snapshot, not the tracker.
+
+## Structured outputs: what the live API taught us (issue #7)
+
+The API compiles output schemas to a grammar with limits: no `oneOf`, at most 24 optional and 16 union-typed properties, no `$defs` under `anyOf`, and a size cap the slide schema exceeds. `server/src/ai/output-format.ts` reshapes schemas (oneOf→anyOf, every property required, constraints stripped), and `server/src/ai/claude.ts` falls back to prompt-guided JSON when the API rejects a schema, remembering the mode per schema. Full Zod validation and one issue-fed retry run in both modes. Today planning uses grammar mode; intake and slides use prompt mode.
 
 The mockup that drives the UI is a Design artifact (link in the owners' session; ask Tyler). It shows home, intake, skill path, slides, correction, application question, celebration and the companion system.
 

@@ -21,18 +21,17 @@ describe('RichTextV1', () => {
       blocks: [
         { type: 'heading', level: 2, inlines: [{ text: 'Why acid' }] },
         { type: 'bulletList', items: [[{ text: 'cuts sweet', marks: ['bold'] }], [{ text: 'adds brightness' }]] },
-        { type: 'paragraph', inlines: [{ text: 'Read more', href: 'https://example.com/acid' }] },
+        { type: 'link', label: 'Read more', href: 'https://example.com/acid' },
       ],
     });
     expect(richTextToPlain(doc)).toBe('Why acid\ncuts sweet\nadds brightness\nRead more');
   });
-  it.each([
-    { href: 'http://example.com' },
-    { href: 'javascript:alert(1)' },
-    { href: 'https://' },
-  ])('rejects non-https links %j', (inline) => {
-    const result = RichTextV1Schema.safeParse({ blocks: [{ type: 'paragraph', inlines: [{ text: 'x', ...inline }] }] });
+  it.each(['http://example.com', 'javascript:alert(1)', 'https://'])('rejects non-https link %s', (href) => {
+    const result = RichTextV1Schema.safeParse({ blocks: [{ type: 'link', label: 'x', href }] });
     expect(result.success).toBe(false);
+  });
+  it('rejects links hidden on inlines (links are their own block)', () => {
+    expect(RichTextV1Schema.safeParse({ blocks: [{ type: 'paragraph', inlines: [{ text: 'x', href: 'https://example.com' }] }] }).success).toBe(false);
   });
   it('rejects unknown block types and raw html fields', () => {
     expect(RichTextV1Schema.safeParse({ blocks: [{ type: 'html', html: '<b>x</b>' }] }).success).toBe(false);

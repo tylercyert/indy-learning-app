@@ -10,12 +10,12 @@ import { EntityIdSchema, LocalIdSchema, MediumTextSchema, ShortTextSchema, asser
  */
 export const ProgressionRuleV1Schema = z
   .strictObject({
-    allOf: z.array(LocalIdSchema).min(1).max(8).optional(),
-    anyOf: z.array(LocalIdSchema).min(2).max(8).optional(),
+    allOf: z.array(LocalIdSchema).min(1).max(8).nullish(),
+    anyOf: z.array(LocalIdSchema).min(2).max(8).nullish(),
     atLeast: z
       .strictObject({ count: z.int().min(1).max(8), of: z.array(LocalIdSchema).min(2).max(8) })
       .refine((v) => v.count <= v.of.length, { message: 'count cannot exceed the number of options' })
-      .optional(),
+      .nullish(),
   })
   .superRefine((rule, ctx) => {
     for (const key of ['allOf', 'anyOf'] as const) {

@@ -66,13 +66,15 @@ export const DiagramNodeSchema = z.strictObject({
   /** Position on a 0-100 grid; the renderer scales to the slide. */
   x: z.int().min(0).max(100),
   y: z.int().min(0).max(100),
+  /** Optional for authored content; generation always supplies it (output schema requires every property). */
   color: z.enum(['primary', 'secondary', 'accent', 'neutral', 'highlight']).optional(),
 });
 
 export const DiagramEdgeSchema = z.strictObject({
   from: LocalIdSchema,
   to: LocalIdSchema,
-  label: ShortTextSchema.max(30).optional(),
+  /** Empty string means no label; keeps the field union-free for generation. */
+  label: z.string().trim().max(30).optional(),
   style: z.enum(['arrow', 'line', 'dashed']).optional(),
 });
 
@@ -80,7 +82,8 @@ export const DiagramComponentSchema = z
   .strictObject({
     ...Base,
     type: z.literal('diagram'),
-    title: ShortTextSchema.optional(),
+    /** Empty string means no title. */
+    title: z.string().trim().max(120).optional(),
     nodes: z.array(DiagramNodeSchema).min(1).max(12),
     edges: z.array(DiagramEdgeSchema).max(20),
     altText: MediumTextSchema,
@@ -133,8 +136,6 @@ export const MultipleChoiceComponentSchema = z
     prompt: MediumTextSchema,
     options: z.array(ChoiceOptionSchema).min(2).max(5),
     correctOptionId: LocalIdSchema,
-    /** The learning objective id this question evidences (a lesson's objective id). */
-    objectiveId: LocalIdSchema.optional(),
   })
   .superRefine((value, ctx) => {
     assertUniqueLocalIds(value.options, ctx, 'option');
