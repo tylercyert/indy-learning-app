@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ComponentRef, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, fonts } from '../theme';
@@ -70,6 +70,18 @@ export function Screen({
  * player puts its progress bar there); `streak` renders the streak chip on the right when > 0, and
  * `right` can replace it with any node.
  */
+/**
+ * Extra room above the bar's content when the web app runs from the iOS Home Screen (#61). iOS draws
+ * a soft blur under its status bar that fades a little way into the page; without this the blur ran
+ * into the Poko wordmark on a real iPhone. Browser tabs and native builds get no extra room.
+ */
+const STANDALONE_TOP_CLEARANCE = (() => {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return 0;
+  const nav = window.navigator as Navigator & { standalone?: boolean };
+  const standalone = nav.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches === true;
+  return standalone ? 20 : 0;
+})();
+
 export function AppBar({
   back,
   streak = 0,
@@ -83,7 +95,7 @@ export function AppBar({
 }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.appBar, { paddingTop: insets.top }]} accessibilityRole="header">
+    <View style={[styles.appBar, { paddingTop: insets.top + STANDALONE_TOP_CLEARANCE }]} accessibilityRole="header">
       <View style={styles.appBarRow}>
         {back ? (
           <BackButton label={back.label} onPress={back.onPress} tone="light" />

@@ -102,7 +102,7 @@ export default function HomeScreen() {
         ) : null}
         {featured ? (
           <ChunkyButton
-            label={featured.course.status === 'completed' ? 'Open course' : `Continue · ${featured.nextNodeTitle ?? 'your course'}`}
+            label={featured.course.status === 'completed' ? 'Open course' : 'Continue'}
             onPress={() => router.push({ pathname: '/course/[id]', params: { id: featured.course.id } })}
           />
         ) : null}

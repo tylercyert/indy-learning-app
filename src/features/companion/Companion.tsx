@@ -14,12 +14,11 @@ import { colors } from '../theme';
  * never fall below 1.5 device-independent pixels so the character still reads at 44.
  *
  * Layers, back to front: headphone band · feet · body (head, shoulders, belly as one outlined
- * silhouette) · rim shadow · belly patch · highlight · face · headpiece · arms · hands.
+ * silhouette) · rim shadow · belly patch · highlight · face · headpiece. No arms or hands (owner decision).
  */
 export function Companion({ theme, mood = 'happy', size = 96 }: { theme: CompanionThemeV1; mood?: CompanionMood; size?: number }) {
   const s = size / 96;
   const pal = derivePalette(theme);
-  const pose = POSES[mood];
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={describeCompanion(theme, mood)} style={{ width: size, height: size * 1.08 }}>
       {theme.headpiece === 'headphones' && <HeadphoneBand s={s} accent={theme.accentColor} />}
@@ -34,11 +33,27 @@ export function Companion({ theme, mood = 'happy', size = 96 }: { theme: Compani
 
       <Face s={s} mood={mood} theme={theme} />
       <Headpiece kind={theme.headpiece} s={s} accent={theme.accentColor} pal={pal} />
+      {/* No arms or hands (owner decision 2026-11-07, #61): the body, face and headpiece carry the character. */}
+    </View>
+  );
+}
 
-      <Outlined s={s} fill={theme.bodyColor} parts={[limb(SHOULDER.l, pose.left, ARM_W)]} />
-      <Outlined s={s} fill={theme.bodyColor} parts={[limb(SHOULDER.r, pose.right, ARM_W)]} />
-      <Outlined s={s} fill={theme.bodyColor} parts={[disc(pose.left, HAND_D)]} />
-      <Outlined s={s} fill={theme.bodyColor} parts={[disc(pose.right, HAND_D)]} />
+/**
+ * Just the head and face, cropped to a square: the app icon (#61). Same geometry and palette as
+ * the full character, so the Home Screen icon is the Poko the learner meets inside.
+ */
+export function CompanionFace({ theme, mood = 'happy', size = 96 }: { theme: CompanionThemeV1; mood?: CompanionMood; size?: number }) {
+  // The head spans x 18..78, y 16..76; a 3-unit margin keeps the outline inside the crop.
+  const span = HEAD.r * 2 + 6;
+  const s = size / span;
+  const pal = derivePalette(theme);
+  return (
+    <View accessible accessibilityRole="image" accessibilityLabel={`${theme.name}, ${mood}`} style={{ width: size, height: size, overflow: 'hidden' }}>
+      <View style={{ position: 'absolute', left: -(HEAD.cx - HEAD.r - 3) * s, top: -(HEAD.cy - HEAD.r - 3) * s, width: 96 * s, height: 104 * s }}>
+        <Outlined s={s} fill={theme.bodyColor} parts={[BODY_PARTS[0]!]} />
+        <Rect p={HIGHLIGHT} s={s} color={pal.bodyLight} />
+        <Face s={s} mood={mood} theme={theme} />
+      </View>
     </View>
   );
 }
@@ -95,27 +110,6 @@ const BELLY_PATCH: Part = { x: 31, y: 68, w: 34, h: 20, r: 10 };
 const HIGHLIGHT: Part = { x: 26, y: 23, w: 13, h: 7, r: 3.5, rotate: -35 };
 
 const EYE = { lx: 36, rx: 60, y: 44, d: 20, iris: 11 } as const;
-const ARM_W = 11;
-const HAND_D = 12;
-const SHOULDER = { l: { x: 21, y: 62 }, r: { x: 75, y: 62 } } as const;
-const POSES: Record<CompanionMood, { left: Pt; right: Pt }> = {
-  happy: { left: { x: 12, y: 80 }, right: { x: 84, y: 80 } },
-  curious: { left: { x: 12, y: 80 }, right: { x: 84, y: 80 } },
-  // Hand to chin.
-  thinking: { left: { x: 33, y: 72 }, right: { x: 84, y: 80 } },
-  // Both arms up.
-  cheering: { left: { x: 10, y: 44 }, right: { x: 86, y: 44 } },
-};
-
-/** A capsule from one point to another, round ends reaching w / 2 past each point. */
-function limb(from: Pt, to: Pt, w: number): Part {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const len = Math.hypot(dx, dy);
-  const h = len + w;
-  return { x: (from.x + to.x) / 2 - w / 2, y: (from.y + to.y) / 2 - h / 2, w, h, r: w / 2, rotate: (Math.atan2(-dx, dy) * 180) / Math.PI };
-}
-
 function disc(center: Pt, d: number, color?: string): Part {
   return { x: center.x - d / 2, y: center.y - d / 2, w: d, h: d, r: d / 2, color };
 }
