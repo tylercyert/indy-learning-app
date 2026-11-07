@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BASE_COMPANION, SlideV1Schema, type ComponentResultV1 } from '../../src/contracts';
+import { scoreFillBlank } from '../../src/domain/scoring';
+import type { FillBlankFeedback } from '../../src/features/components/FillBlank';
 import type { ChoiceFeedback } from '../../src/features/components/MultipleChoice';
 import { SlideView } from '../../src/features/components/SlideView';
 import { colors, fonts } from '../../src/features/theme';
@@ -21,6 +23,7 @@ export default function DevSlideScreen() {
   const doc = params.doc ?? hashDoc;
   const [results, setResults] = useState<ComponentResultV1[]>([]);
   const [feedback, setFeedback] = useState<Record<string, ChoiceFeedback | undefined>>({});
+  const [fillBlankFeedback, setFillBlankFeedback] = useState<Record<string, FillBlankFeedback | undefined>>({});
 
   const parsed = useMemo(() => {
     if (!doc) return { ok: false as const, error: 'Missing ?doc= parameter' };
@@ -61,6 +64,23 @@ export default function DevSlideScreen() {
               },
               onChecklist: (componentId, checkedItemIds, confirmed) =>
                 setResults((r) => [...r.filter((x) => x.componentId !== componentId), { type: 'checklist', componentId, checkedItemIds, confirmed }]),
+              fillBlankFeedback,
+              // Local scoring through the same pure domain function the server will use.
+              onFillBlank: (componentId, answers) => {
+                const component = parsed.slide.components.find((c) => c.id === componentId);
+                if (!component || component.type !== 'fillBlank') return;
+                const attempt = (results.filter((r) => r.componentId === componentId).length ?? 0) + 1;
+                const scored = scoreFillBlank(component, answers, attempt);
+                setResults((r) => [...r.filter((x) => x.componentId !== componentId), scored.result]);
+                setFillBlankFeedback((f) => ({
+                  ...f,
+                  [componentId]: {
+                    correct: scored.result.correct,
+                    attempt,
+                    gaps: scored.result.answers.map((a) => ({ gapId: a.gapId, correct: a.correct, explanation: scored.explanations.find((e) => e.gapId === a.gapId)?.explanation ?? '' })),
+                  },
+                }));
+              },
             }}
           />
         ) : (

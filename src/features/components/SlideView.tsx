@@ -4,7 +4,9 @@ import type { ComponentResultV1, ComponentV1, CompanionThemeV1, SlideV1 } from '
 import { Companion } from '../companion/Companion';
 import { colors, fonts, palette } from '../theme';
 import { Checklist } from './Checklist';
+import { CodeBlock } from './CodeBlock';
 import { Diagram } from './Diagram';
+import { FillBlank, type FillBlankFeedback } from './FillBlank';
 import { MultipleChoice, type ChoiceFeedback } from './MultipleChoice';
 import { RichText } from './RichText';
 
@@ -14,6 +16,9 @@ export interface SlideInteractions {
   busyComponentId: string | null;
   onAnswer: (componentId: string, optionId: string) => void;
   onChecklist: (componentId: string, checkedItemIds: string[], confirmed: boolean) => void;
+  /** Optional until the server scores fillBlank; without a handler the component renders with Check disabled. */
+  fillBlankFeedback?: Record<string, FillBlankFeedback | undefined>;
+  onFillBlank?: (componentId: string, answers: { gapId: string; value: string }[]) => void;
 }
 
 /** Renders one slide: each component through its renderer, in order. Unknown types cannot occur: the contract is closed. */
@@ -76,6 +81,21 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
           feedback={interactions.feedback[component.id]}
           busy={interactions.busyComponentId === component.id}
           onSubmit={(optionId) => interactions.onAnswer(component.id, optionId)}
+        />
+      );
+    }
+    case 'codeBlock':
+      return <CodeBlock component={component} />;
+    case 'fillBlank': {
+      const result = interactions.results.find((r) => r.componentId === component.id && r.type === 'fillBlank');
+      const onFillBlank = interactions.onFillBlank;
+      return (
+        <FillBlank
+          component={component}
+          result={result?.type === 'fillBlank' ? result : undefined}
+          feedback={interactions.fillBlankFeedback?.[component.id]}
+          busy={interactions.busyComponentId === component.id}
+          onSubmit={onFillBlank ? (answers) => onFillBlank(component.id, answers) : undefined}
         />
       );
     }

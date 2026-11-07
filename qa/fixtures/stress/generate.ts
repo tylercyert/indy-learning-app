@@ -11,7 +11,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { CALLOUT_MAX_CHARS, SlideV1Schema, type SlideV1 } from '../../../src/contracts';
+import { CALLOUT_MAX_CHARS, CODE_BLOCK_MAX_COLS, CODE_BLOCK_MAX_LINES, SlideV1Schema, type SlideV1 } from '../../../src/contracts';
 
 const SENTENCE = 'Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. ';
 const LONG_WORD = 'Supercalifragilisticexpialidocious';
@@ -317,32 +317,33 @@ const fixtures: Record<string, SlideV1> = {
 
   'ratio-six': {
     id: 'ratio-six',
-    title: 'Ratio bars: six segments, 12:1, six equal parts',
+    title: 'Ratio bars: six segments, 6:1, six equal parts',
     purpose: 'teach',
     components: [
       {
+        // Six segments at the ratio bounds: lowest terms, total ≤ 16, largest ≤ 6 × smallest.
         id: 'ratio',
         type: 'ratioBar',
         title: filler(60),
         segments: [
-          { label: 'Base spirit or cold tea!', parts: 12, color: 'primary' },
+          { label: 'Base spirit or cold tea!', parts: 6, color: 'primary' },
           { label: 'Fresh citrus acid juice.', parts: 1, color: 'accent' },
           { label: 'Simple syrup sweeteners.', parts: 3, color: 'secondary' },
-          { label: 'Dilution from ice & stir', parts: 6, color: 'neutral' },
+          { label: 'Dilution from ice & stir', parts: 4, color: 'neutral' },
           { label: 'Aromatic bitters dash-ed', parts: 1, color: 'highlight' },
-          { label: 'Garnish and salt rim too', parts: 2, color: 'primary' },
+          { label: 'Garnish and salt rim too', parts: 1, color: 'primary' },
         ],
         altText: filler(600),
       },
       {
         id: 'ratio-two-extreme',
         type: 'ratioBar',
-        title: 'Two segments, 12 : 1',
+        title: 'Two segments, 6 : 1 (the widest spread allowed)',
         segments: [
-          { label: nospace(24), parts: 12, color: 'highlight' },
+          { label: nospace(24), parts: 6, color: 'highlight' },
           { label: 'one', parts: 1, color: 'secondary' },
         ],
-        altText: 'Twelve parts to one part.',
+        altText: 'Six parts to one part.',
       },
       {
         id: 'ratio-equal-six',
@@ -424,6 +425,60 @@ const fixtures: Record<string, SlideV1> = {
             { type: 'link', label: 'Last block', href: 'https://example.com/end' },
           ],
         },
+      },
+    ],
+  },
+
+  'code-max': {
+    id: 'code-max',
+    title: 'Code blocks: 16 × 80, deep indentation, blank lines',
+    purpose: 'teach',
+    components: [
+      {
+        id: 'wide',
+        type: 'codeBlock',
+        language: 'typescript',
+        // Every line is exactly CODE_BLOCK_MAX_COLS wide; indentation deepens so the scroll is needed.
+        lines: Array.from({ length: CODE_BLOCK_MAX_LINES }, (_, i) => {
+          const indent = ' '.repeat(Math.min(i, 8) * 2);
+          const body = `const step${i + 1} = balance({ base: ${i + 1}, sour: 1, sweet: 1 }); // `;
+          return (indent + body).padEnd(CODE_BLOCK_MAX_COLS, 'x').slice(0, CODE_BLOCK_MAX_COLS);
+        }),
+        caption: filler(80),
+      },
+      {
+        id: 'python',
+        type: 'codeBlock',
+        language: 'python',
+        lines: ['def mix(base, sour, sweet):', '    """Return the ratio as parts."""', '', '    total = base + sour + sweet', '    return base / total, sour / total, sweet / total', '', 'print(mix(2, 1, 1))'],
+        caption: 'Blank lines keep their height; indentation is four spaces.',
+      },
+      { id: 'one', type: 'codeBlock', language: 'bash', lines: ['npm run verify'], caption: '' },
+      { id: 'nospace', type: 'codeBlock', language: 'plain', lines: [nospace(CODE_BLOCK_MAX_COLS)], caption: nospace(80) },
+    ],
+  },
+
+  'fillblank-max': {
+    id: 'fillblank-max',
+    title: 'Fill the gap: two gaps, long accepted lists',
+    purpose: 'practice',
+    components: [
+      {
+        id: 'snippet',
+        type: 'codeBlock',
+        language: 'sql',
+        lines: ['SELECT name, parts', 'FROM ingredients', 'WHERE parts > 1', 'ORDER BY parts DESC;'],
+        caption: 'The clause that sorts is the one the gap asks for.',
+      },
+      {
+        id: 'q',
+        type: 'fillBlank',
+        prompt: filler(160),
+        text: `${filler(100)} ___ ${filler(100)} ___ ${filler(30)}`,
+        gaps: [
+          { id: 'g1', accepted: ['ORDER BY', 'order by clause', 'the ORDER BY clause', nospace(30), 'orderby', 'order-by'], explanation: filler(200) },
+          { id: 'g2', accepted: ['acid'], explanation: filler(200) },
+        ],
       },
     ],
   },

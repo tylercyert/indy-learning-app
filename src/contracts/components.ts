@@ -160,6 +160,29 @@ export function diagramCollisions(nodes: readonly { id: string; x: number; y: nu
   return out;
 }
 
+/**
+ * Code shown to the learner, never run and never interpreted as markup. Lines are an array so the
+ * model cannot smuggle markdown fences or a 400-column line; each line keeps its own indentation
+ * (no trim). 16 × 80 is the most a phone card can carry with a horizontal scroll.
+ */
+export const CODE_BLOCK_MAX_LINES = 16;
+export const CODE_BLOCK_MAX_COLS = 80;
+export const CodeLanguageSchema = z.enum(['plain', 'javascript', 'typescript', 'python', 'html', 'css', 'json', 'bash', 'sql']);
+export type CodeLanguage = z.infer<typeof CodeLanguageSchema>;
+
+export const CodeBlockComponentSchema = z.strictObject({
+  ...Base,
+  type: z.literal('codeBlock'),
+  language: CodeLanguageSchema,
+  /** Blank lines are allowed (''); tabs count as one column. */
+  lines: z
+    .array(z.string().max(CODE_BLOCK_MAX_COLS).refine((l) => !/[\r\n]/.test(l), 'one line per array entry, no line breaks inside'))
+    .min(1)
+    .max(CODE_BLOCK_MAX_LINES),
+  /** What to notice. Empty string means no caption. */
+  caption: z.string().trim().max(80),
+});
+
 // ---------- interactive ----------
 
 export const ChecklistItemSchema = z.strictObject({ id: LocalIdSchema, text: ShortTextSchema.max(90) });
@@ -214,8 +237,66 @@ export const MultipleChoiceResultSchema = z.strictObject({
   attempt: z.int().min(1),
 });
 
+/**
+ * Fill in the blank: `text` carries one `___` marker per gap, in gap order (the nth marker is
+ * gaps[n]). Scoring is deterministic and lives in src/domain/scoring.ts (`scoreFillBlank`):
+ * an answer is correct when normalizeAnswer(answer) equals normalizeAnswer(a) for some accepted a,
+ * where normalizeAnswer = NFKC, trim, lowercase, collapse internal whitespace. Wrong gaps show
+ * their explanation; the learner may retry.
+ */
+export const FILL_BLANK_MARKER = '___';
+export const FILL_BLANK_MAX_GAPS = 2;
+
+export const FillBlankGapSchema = z.strictObject({
+  id: LocalIdSchema,
+  /** Every spelling, abbreviation or unit form that counts. Compared after normalization. */
+  accepted: z.array(ShortTextSchema.max(30)).min(1).max(6),
+  /** Shown when THIS gap is wrong. Must teach, not just mark. */
+  explanation: MediumTextSchema.max(200),
+});
+
+export const FillBlankComponentSchema = z
+  .strictObject({
+    ...Base,
+    type: z.literal('fillBlank'),
+    /** The instruction, e.g. "Complete the rule." */
+    prompt: MediumTextSchema.max(160),
+    /** The sentence with one ___ per gap. */
+    text: z.string().trim().min(1).max(240),
+    gaps: z.array(FillBlankGapSchema).min(1).max(FILL_BLANK_MAX_GAPS),
+  })
+  .superRefine((value, ctx) => {
+    assertUniqueLocalIds(value.gaps, ctx, 'gap');
+    const markers = value.text.split(FILL_BLANK_MARKER).length - 1;
+    if (markers !== value.gaps.length) {
+      ctx.addIssue({ code: 'custom', message: `text has ${markers} "${FILL_BLANK_MARKER}" marker(s) but ${value.gaps.length} gap(s); use exactly one marker per gap`, path: ['text'] });
+    }
+    if (/_{4,}/.test(value.text)) {
+      ctx.addIssue({ code: 'custom', message: `a gap marker is exactly three underscores (${FILL_BLANK_MARKER})`, path: ['text'] });
+    }
+  });
+
+/**
+ * One learner attempt at a fillBlank. `answers` holds every gap in component order with the raw
+ * value typed and whether it matched; `correct` is true only when every gap matched.
+ * Server request shape to score one (main lane, src/contracts/api.ts ExperienceEventRequest):
+ *   { type: 'fillBlank', slideId, componentId, answers: [{ gapId, value }] }
+ * The server runs scoreFillBlank and stores this result; it returns the wrong gaps' explanations.
+ */
+export const FillBlankResultSchema = z.strictObject({
+  type: z.literal('fillBlank'),
+  componentId: LocalIdSchema,
+  answers: z
+    .array(z.strictObject({ gapId: LocalIdSchema, value: z.string().max(60), correct: z.boolean() }))
+    .min(1)
+    .max(FILL_BLANK_MAX_GAPS),
+  correct: z.boolean(),
+  attempt: z.int().min(1),
+});
+
 // ---------- unions and manifests ----------
 
+/** Order is part of the generation schema; append new members, never reorder. */
 export const ComponentV1Schema = z.discriminatedUnion('type', [
   TextComponentSchema,
   CalloutComponentSchema,
@@ -223,6 +304,8 @@ export const ComponentV1Schema = z.discriminatedUnion('type', [
   DiagramComponentSchema,
   ChecklistComponentSchema,
   MultipleChoiceComponentSchema,
+  CodeBlockComponentSchema,
+  FillBlankComponentSchema,
 ]);
 export type ComponentV1 = z.infer<typeof ComponentV1Schema>;
 export type ComponentType = ComponentV1['type'];
@@ -230,6 +313,7 @@ export type ComponentType = ComponentV1['type'];
 export const ComponentResultV1Schema = z.discriminatedUnion('type', [
   ChecklistResultSchema,
   MultipleChoiceResultSchema,
+  FillBlankResultSchema,
 ]);
 export type ComponentResultV1 = z.infer<typeof ComponentResultV1Schema>;
 
@@ -270,6 +354,16 @@ export const COMPONENT_MANIFESTS: Readonly<Record<ComponentType, ComponentManife
     type: 'multipleChoice',
     role: 'assessable',
     whenToUse: 'Check understanding with one correct answer and a teaching explanation per option.',
+  },
+  codeBlock: {
+    type: 'codeBlock',
+    role: 'presentational',
+    whenToUse: 'Show code or a command as the learner would type it: up to 16 lines of 80 columns, never inside a paragraph.',
+  },
+  fillBlank: {
+    type: 'fillBlank',
+    role: 'assessable',
+    whenToUse: 'Check recall of one exact word, number or symbol: a sentence with one or two ___ gaps and every accepted spelling.',
   },
 };
 

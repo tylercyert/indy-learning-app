@@ -1,0 +1,46 @@
+{
+  "id": "fillblank-max",
+  "title": "Fill the gap: two gaps, long accepted lists",
+  "purpose": "practice",
+  "components": [
+    {
+      "id": "snippet",
+      "type": "codeBlock",
+      "language": "sql",
+      "lines": [
+        "SELECT name, parts",
+        "FROM ingredients",
+        "WHERE parts > 1",
+        "ORDER BY parts DESC;"
+      ],
+      "caption": "The clause that sorts is the one the gap asks for."
+    },
+    {
+      "id": "q",
+      "type": "fillBlank",
+      "prompt": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is t",
+      "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilutionx ___ Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilutionx ___ Balance is the whole game: bas",
+      "gaps": [
+        {
+          "id": "g1",
+          "accepted": [
+            "ORDER BY",
+            "order by clause",
+            "the ORDER BY clause",
+            "Supercalifragilisticexpialidoc",
+            "orderby",
+            "order-by"
+          ],
+          "explanation": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid bri"
+        },
+        {
+          "id": "g2",
+          "accepted": [
+            "acid"
+          ],
+          "explanation": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid bri"
+        }
+      ]
+    }
+  ]
+}

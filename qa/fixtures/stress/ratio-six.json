@@ -1,6 +1,6 @@
 {
   "id": "ratio-six",
-  "title": "Ratio bars: six segments, 12:1, six equal parts",
+  "title": "Ratio bars: six segments, 6:1, six equal parts",
   "purpose": "teach",
   "components": [
     {
@@ -10,7 +10,7 @@
       "segments": [
         {
           "label": "Base spirit or cold tea!",
-          "parts": 12,
+          "parts": 6,
           "color": "primary"
         },
         {
@@ -25,7 +25,7 @@
         },
         {
           "label": "Dilution from ice & stir",
-          "parts": 6,
+          "parts": 4,
           "color": "neutral"
         },
         {
@@ -35,7 +35,7 @@
         },
         {
           "label": "Garnish and salt rim too",
-          "parts": 2,
+          "parts": 1,
           "color": "primary"
         }
       ],
@@ -44,11 +44,11 @@
     {
       "id": "ratio-two-extreme",
       "type": "ratioBar",
-      "title": "Two segments, 12 : 1",
+      "title": "Two segments, 6 : 1 (the widest spread allowed)",
       "segments": [
         {
           "label": "Supercalifragilisticexpi",
-          "parts": 12,
+          "parts": 6,
           "color": "highlight"
         },
         {
@@ -57,7 +57,7 @@
           "color": "secondary"
         }
       ],
-      "altText": "Twelve parts to one part."
+      "altText": "Six parts to one part."
     },
     {
       "id": "ratio-equal-six",

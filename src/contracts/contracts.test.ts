@@ -5,7 +5,10 @@ import {
   BASE_COMPANION,
   CALLOUT_MAX_BLOCKS,
   CALLOUT_MAX_CHARS,
+  CODE_BLOCK_MAX_COLS,
+  CODE_BLOCK_MAX_LINES,
   CompanionThemeV1Schema,
+  ComponentResultV1Schema,
   ComponentV1Schema,
   CoursePlanV1Schema,
   GeneratedSlidesV1Schema,
@@ -102,6 +105,52 @@ describe('diagram component', () => {
   it('rejects nodes closer than the grid minimum unless separated on the other axis', () => {
     expect(ComponentV1Schema.safeParse(diagram([node('a', 0, 0), node('b', 49, 33)])).success).toBe(false);
     expect(ComponentV1Schema.safeParse(diagram([node('a', 0, 0), node('b', 0, 34)])).success).toBe(true);
+  });
+});
+
+describe('codeBlock component', () => {
+  const block = (lines: string[], extra: Record<string, unknown> = {}) => ({ id: 'c', type: 'codeBlock', language: 'python', caption: '', lines, ...extra });
+  it('accepts 16 lines of 80 columns with blank lines and untrimmed indentation', () => {
+    const lines = Array.from({ length: CODE_BLOCK_MAX_LINES }, (_, i) => (i % 5 === 0 ? '' : '    ' + 'x'.repeat(CODE_BLOCK_MAX_COLS - 4)));
+    const parsed = ComponentV1Schema.parse(block(lines));
+    expect(parsed.type === 'codeBlock' && parsed.lines[1]!.startsWith('    ')).toBe(true);
+  });
+  it('rejects a 17th line, an 81st column and a line break inside a line', () => {
+    expect(ComponentV1Schema.safeParse(block(Array.from({ length: CODE_BLOCK_MAX_LINES + 1 }, () => 'x'))).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(block(['x'.repeat(CODE_BLOCK_MAX_COLS + 1)])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(block(['a\nb'])).success).toBe(false);
+  });
+  it('rejects an unknown language and a caption over 80 characters', () => {
+    expect(ComponentV1Schema.safeParse(block(['x'], { language: 'cobol' })).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(block(['x'], { caption: 'c'.repeat(81) })).success).toBe(false);
+  });
+});
+
+describe('fillBlank component', () => {
+  const gap = (id: string, accepted: string[] = ['acid']) => ({ id, accepted, explanation: 'Acid is the lever that cuts sweetness.' });
+  const fill = (text: string, gaps: unknown[]) => ({ id: 'f', type: 'fillBlank', prompt: 'Complete the rule.', text, gaps });
+  it('accepts one marker per gap, in order, up to two gaps', () => {
+    expect(ComponentV1Schema.safeParse(fill('Add ___ to cut sweetness.', [gap('g1')])).success).toBe(true);
+    expect(ComponentV1Schema.safeParse(fill('Add ___ to cut ___.', [gap('g1'), gap('g2', ['sweetness', 'sugar'])])).success).toBe(true);
+  });
+  it('rejects a marker count that differs from the gap count', () => {
+    expect(ComponentV1Schema.safeParse(fill('Add ___ to cut ___.', [gap('g1')])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(fill('No marker here.', [gap('g1')])).success).toBe(false);
+  });
+  it('rejects three gaps, a run of four underscores and duplicate gap ids', () => {
+    expect(ComponentV1Schema.safeParse(fill('___ ___ ___', [gap('g1'), gap('g2'), gap('g3')])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(fill('Add ____ now.', [gap('g1')])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(fill('___ and ___', [gap('g1'), gap('g1')])).success).toBe(false);
+  });
+  it('accepts a result with every gap and rejects a result with three answers', () => {
+    const ok = { type: 'fillBlank', componentId: 'f', answers: [{ gapId: 'g1', value: 'Acid', correct: true }], correct: true, attempt: 1 };
+    expect(ComponentResultV1Schema.safeParse(ok).success).toBe(true);
+    const three = { ...ok, answers: [ok.answers[0], { gapId: 'g2', value: '', correct: false }, { gapId: 'g3', value: '', correct: false }] };
+    expect(ComponentResultV1Schema.safeParse(three).success).toBe(false);
+  });
+  it('counts as the one assessable component on a slide', () => {
+    const slide = { id: 's', title: 'T', purpose: 'practice', components: [fill('___', [gap('g1')]), exampleSlides.slides[1]!.components[0]] };
+    expect(SlideV1Schema.safeParse(slide).success).toBe(false);
   });
 });
 
