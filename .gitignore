@@ -48,3 +48,9 @@ coverage/
 .worktrees/
 .handoff/
 .claude/settings.local.json
+
+# local databases
+data/
+server/data/
+*.sqlite
+*.sqlite-*

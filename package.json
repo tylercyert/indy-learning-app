@@ -1,21 +1,37 @@
 {
   "name": "indy-learning-app",
   "version": "0.1.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
     "@expo/metro-runtime": "~58.0.17",
+    "@hono/node-server": "^2.1.6",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "better-sqlite3": "^13.0.3",
+    "dotenv": "^18.0.9",
+    "drizzle-orm": "^0.45.4",
     "expo": "~58.0.23",
+    "expo-constants": "~58.0.15",
+    "expo-linking": "~58.0.16",
+    "expo-router": "~58.0.30",
     "expo-status-bar": "~58.0.4",
+    "hono": "^4.13.17",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
+    "react-native-safe-area-context": "~5.11.1",
+    "react-native-screens": "~4.30.1",
     "react-native-web": "^0.21.4",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.6",
     "@types/react": "~19.3.0",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9.39.5",
     "eslint-config-expo": "^58.0.4",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "vitest": "^4.1.12"
   },
@@ -29,7 +45,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify": "npm run typecheck && npm run lint && npm test",
-    "export:all": "expo export --platform all"
+    "export:all": "expo export --platform all",
+    "server:dev": "tsx watch server/src/index.ts",
+    "server:start": "tsx server/src/index.ts",
+    "db:generate": "drizzle-kit generate --config server/drizzle.config.ts",
+    "db:studio": "drizzle-kit studio --config server/drizzle.config.ts"
   },
   "private": true,
   "engines": {

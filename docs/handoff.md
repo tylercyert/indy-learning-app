@@ -1,40 +1,32 @@
 # Current handoff
 
-## What exists
+## State on 2026-11-07
 
-The public repo is https://github.com/tylercyert/indy-learning-app. The source of truth is its `main` branch. The main Noir checkout is `~/projects/indy-learning-app`; Sergio has a separate worktree at `~/projects/indy-learning-app-sergio` on `agent/sergio/setup`. Keep feature agents in separate worktrees/branches. Do not move back to the old planning factory; it is not this app.
+Slice 1 (foundation) is on branch `agent/claude/1-foundation`: contracts, domain rules with 51 tests, SQLite schema and migration, API server skeleton with anonymous learner auth, Claude client with structured output, Expo Router shell. `npm run verify` and `npm run export:all` pass. The server was smoke-tested against a scratch database (health, learner bootstrap, bearer auth, 401/404). No screen beyond the shell exists yet; slice 2 builds the first complete loop. See `docs/implementation-plan.md`.
 
-Bootstrap commit `4548ff7` provides Expo 58, React Native 0.88, strict TypeScript, a lockfile, local checks, an initial Zod preferences schema, 11 tests, issue/PR templates and these docs. The starter screen is not the finished learning journey.
+The mockup that drives the UI is a Design artifact (link in the owners' session; ask Tyler). It shows home, intake, skill path, slides, correction, application question, celebration and the companion system.
 
-## What is verified
-
-On Noir with Node 24: `npm ci`, `npm run verify` (typecheck, lint, 11 tests) and `npm run export:all` (iOS, Android, web) passed. An independent read-only review found no blocking source/setup issue. There has been no native-device, simulator or interactive browser QA. No live provider or saved-progress implementation exists yet.
-
-Noir's available default Node is 26.9.0. The project standard is Node 24, available without replacing the system runtime:
+## Run on Noir
 
 ```sh
 export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH
-npm exec --yes --package=node@24 -- npm run verify
-npm exec --yes --package=node@24 -- npm start -- --port 8082
+alias n24='npm exec --yes --package=node@24 --'
+cd ~/projects/indy-learning-app
+n24 npm ci
+cp server/.env.example server/.env            # then set ANTHROPIC_API_KEY
+printf 'EXPO_PUBLIC_API_URL=http://%s:8787\n' "$(tailscale ip -4)" > .env.local
+n24 npm run server:dev
+n24 npm start -- --port 8081
 ```
 
-Use `npm ci` inside that same Node 24 wrapper after lockfile changes. If Node 24 is already selected by a version manager, use the ordinary commands instead. Use a unique Metro port per workspace.
+Use a unique Metro port per workspace. `ALLOW_NO_AI=1` runs the server without a key for non-generation work.
 
-## What is not configured
+## What is deliberately not configured
 
-- No autonomous agents, queue, CI runner, GitHub Actions, required checks or branch protections.
-- No collaborator invitation, account provisioning, shared credentials or new access grants.
-- No backend, provider secret, analytics, deployment, app-store signing or distribution.
-- GitHub issue templates, labels and the first milestone exist. Starter issues have not yet been published. `docs/roadmap.md` is an unassigned work breakdown until then, not a claim of active work.
+No Supabase, EAS, hosting, CI runners, branch protections, analytics or store signing. The only spend is the Anthropic API key, which lives in `server/.env` and nowhere else. Social features are pending.
 
-## First action for a coding session
+## Open items
 
-Agree the next task and owned paths with Tyler/Sergio. Name one owner for shared lesson/tree/assessment/progress schemas before parallel UI and data work. The existing preferences seed does not yet express all agreed placement and time-horizon choices; finish that contract before building consumers. Implement one complete learning loop before widening scope.
-
-## Open decisions and risks
-
-- Exact name/brand and gamification mechanics are undecided.
-- Live generation requires a safe credential boundary; fixture mode first, clearly labeled.
-- PR/main automation needs a runner/cost/access decision; local verification is available now.
-- `npm audit` at bootstrap reported 12 moderate advisories, no high/critical. They trace to glob/minimatch through Expo tooling and TypeScript ESLint tooling. Assess actual exposure and compatible patches; do not blindly force-downgrade Expo. See `docs/quality.md`.
-- The starter's MIT notice is preserved. Clarify the original app's license and notice scope with the owner before wider distribution.
+- `npm audit`: 12 moderate advisories via Expo/ESLint tooling (glob/minimatch). Assess exposure; do not force-downgrade Expo.
+- Licensing of the application code is undecided; the starter's MIT notice is preserved.
+- Structured-output JSON-schema support for every Zod constraint we use is to be confirmed against the live API in slice 2; the server validates with the full Zod schema regardless.

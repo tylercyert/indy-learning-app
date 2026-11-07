@@ -2,40 +2,35 @@
 
 ## Promise
 
-Help someone learn a transferable skill for a real situation. Initial demonstration: someone hosting a party learns mixology principles (base, acidity, sweetness and dilution), including a non-alcoholic option, rather than memorizing one drink recipe. This is the lead scenario, not a restriction on future subjects.
+Learn anything, for a real reason. A learner says what they want to learn, a short conversation gathers only the context that matters, and the platform generates a personalized course: a skill tree of reusable lessons, each delivered as slides built from interactive components, with an assessment that teaches when the learner is wrong. The lead demonstration subject is mixology for a party host (base, acidity, sweetness, dilution, with a non-alcoholic option), but the platform is topic-agnostic and the demo exercises several subjects.
 
-The core loop is: goal and starting experience → short lesson panes → assessment → explanation/correction → learner choice about the proposed adaptation → fresh application question. A wrong answer must teach the correct principle, not merely mark a mistake.
+The core loop: goal → intake → course plan → orientation lesson → slides → assessment with teaching feedback → completion → next available node. The skill tree guides; it never traps. A hard assessment gives feedback and more attempts, not a locked door.
 
-## First usable slice
+## What the learner sees
 
-- Onboarding asks the goal and a few placement questions. Offer “Get me started” for beginners and “Take me further” for someone with some experience. Offer “I need this tonight” for a focused quick win and “I want to get really good” for a deeper journey. Time horizon is separate from difficulty; never label a short session as mastery.
-- A generated, video-game-like skill tree makes principles, prerequisites and the next step understandable. The learner chooses which branch to explore. For the hackathon show one beginner path, one level-up path and a simple pace toggle.
-- Informational, assessment and activity panes share a typed content contract.
-- Objective text-based assessments use deterministic scoring. Free-text feedback acknowledges uncertainty. Voice scoring is deferred.
-- Progress and multiple courses live on the device. Feedback and success history can inform the next section after the learner explicitly chooses it.
-- Demonstrate one complete loop, one useful visual and a second topic once the main loop is reliable.
-- Keep a labeled fixture/backup demonstration when live generation is unavailable.
+- **Home:** one input, "What do you want to learn?", plus discoverable courses, plus the courses they already have with one obvious Continue.
+- **Intake:** the companion asks a few questions as a chat, suggests quick answers, and stops as soon as it has enough.
+- **Skill tree:** a winding path of nodes: done, available, locked; optional branches to the side; a companion standing at the next one.
+- **Lesson:** slides with text, callouts, ratio bars, diagrams, multiple choice and real-world checklists. Progress bar on top. Wrong answers teach.
+- **Completion:** a brief celebration, the next node unlocked, the streak acknowledged.
+- **Exploration:** at any point, "I want to learn something different / deeper" goes back through intake and reshapes the course without erasing progress.
 
-## Fun and motivation
+## Feel
 
-The app should feel inviting to open during an idle moment, not like homework. Take cues from Duolingo: short challenges, satisfying feedback, small incentives and a skill tree that visibly grows. Gamification is a deliberate part of the concept, alongside learner-controlled adaptation. Exact mechanics (XP, streaks, celebrations or rewards) have not been selected; choose a small, coherent set before implementing them. Reward useful practice, not just screen time. A friendly mascot is a possible polish element, not a settled design.
+Inviting to open in an idle moment, not homework. Bright color, rounded shapes, chunky buttons, a companion with a few fixed moods and a generated costume per course. Reference neighborhood: Duolingo's obvious next action and celebration, Waterllama's one dominant action and a progress object that fills, Habitica's sense of ownership. Incentives are deliberately small: a streak and celebrations. No points economy, lives, leaderboards or penalties.
 
-## Custom paths
+## Companion
 
-A learner can follow generated branches or discuss creating a custom branch at any point. Preserve that direction in the architecture even if the first demo uses a small fixed tree. A future backend could learn from successful branch structures across learners; the demo does not collect/share that data or require a backend.
+One base character. Each course gets a generated name and costume (validated theme tokens; parts are app assets). Learners can rename and re-roll. Moods are fixed and chosen by the UI.
 
-## Platforms
+## Decided (2026-11-07)
 
-Use Expo + TypeScript. iPhone and iPad need thoughtful layouts, touch targets, larger-text support and portrait/landscape behavior where relevant. Web is the fastest shared smoke-test surface, not proof that native UI is verified. Noir is the shared development host; Apple simulator/signing/device work requires an appropriate Mac lane later.
+Full platform during the hackathon with live generation; typed JSON slides from a component catalog; lessons reusable across courses with completion recognized everywhere; flexible progression rules; completion as the only lesson status, mastery as a derived concept; plan early, generate experiences on demand; rich text, structured; zero paid infrastructure beyond the API key.
 
-## Future direction, not promises for the first slice
+## Pending
 
-Custom skill-tree branches, experience-based placement, level-up routes, adjustable lesson size and pacing, richer generated visuals, cross-device sync, accounts and a backend. Distinguish learner-stated preferences from evidence of mastery. Do not infer a permanent learning style from a single response.
-
-## Non-goals today
-
-A generalized agent platform, five always-on roles, social feeds, voice assessment, full profile dashboards, payments, store distribution or a large backend. The separate agent-memory idea is outside this repository.
+Social features (owners' brief to come). Voice input. Component catalog growth beyond the initial six. Hosting.
 
 ## Production-grade means evidence
 
-Versioned persisted data, runtime validation, deterministic core rules, error recovery, accessibility, tests and safe key handling. The initial scaffold establishes these boundaries; it does not make the app production-ready.
+Validated contracts at every boundary, deterministic scoring, versioned stored documents, recovery from failed generation without losing context, accessibility, tests, and a key that never leaves the server.

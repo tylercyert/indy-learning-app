@@ -1,25 +1,42 @@
 # Architecture and ownership
 
-## Small modules, explicit boundaries
+Vocabulary lives in `CONTEXT.md`. Decisions live in `docs/decisions/`. Phases live in `docs/implementation-plan.md`.
 
-Expo/React Native is the presentation layer. Shared Zod contracts live in `src/contracts`; pure scoring/progression rules belong in `src/domain`; feature UI in `src/features`; device storage and AI generation behind adapters in `src/services`. Start as one app package. Extract packages only when there is a real second consumer.
+## Shape
 
-The initial `LearningPreferencesV1Schema` is a narrow contract seed for onboarding. It is not a completed curriculum, lesson, progress or assessment schema. The contracts issue must define those shapes before feature work consumes them. Use schema-inferred types rather than manually maintained copies.
+One npm package, two runtimes:
 
-## Contracts owner
+- **Expo app** (`app/`, `src/features`, `src/services`): presentation and the API client. Holds no secrets and no business rules.
+- **API server** (`server/`): Hono on Node 24. The only process that talks to the model or the database. Holds `ANTHROPIC_API_KEY` in `server/.env`.
+- **Shared** (`src/contracts`, `src/domain`): Zod contracts and pure rules imported by both sides. Types are inferred from schemas, never hand-copied.
 
-Assign exactly one owner to the shared-contract issue. That person/agent owns `src/contracts/**` for that issue, publishes examples, versioning/migration expectations and validation tests, and gets consumer review. Until assignment, Tyler is the integration decision-maker, not an assumed active implementer. Sergio's role is chosen during onboarding; it is not preassigned.
+## Contracts
 
-A consumer needing a changed shape comments on the contract issue. The owner lands the compatible change first. Breaking changes need a schema version and migration strategy. Code owners and GitHub enforcement are not configured yet.
+`src/contracts` is owned by the shared owners' session. Every document a model returns (intake turn, course plan, slides, companion theme) is requested as structured output against a contract and validated by that same contract before anything else sees it. Every stored document carries `schemaVersion`; readers validate on load. Breaking changes get a new version and a migration.
 
-## Data and generation
+Hierarchy: Course → Skill Tree → Node → Lesson → Learning Experience → Slide → Component.
 
-Keep local persistence separate from business rules. Every stored document has a schema version. Plan migrations, restart/resume, corrupt-data recovery and a deliberate reset flow before calling persistence complete. Do not log raw learner content unnecessarily.
+- Lessons have identity independent of courses. Nodes place lessons in trees. The same lesson can appear in many trees.
+- Completion is per learner per lesson and is recognized in every tree that contains the lesson.
+- Node state (locked / available / completed) is derived from completions and progression rules on every read. It is never stored.
+- Progression rules are `allOf` / `anyOf` / `atLeast {count, of}` over node ids; every present clause must hold.
 
-AI is a content provider, not the source of truth for scoring or mastery. Treat every model response as untrusted. Validate shape and content constraints, limit retries, support timeout/cancel and use clear fallback states. Never execute generated scripts or unsanitized markup.
+## Content and generation
 
-The demo is local-first, not automatically offline: live AI requires a network and a safe credential boundary. No shared secret may ship in the client. Start fixture-first. Before live generation, approve a minimal local/server proxy or another safe provider approach; no backend or key handling is provisioned now.
+Slides are typed JSON: an ordered list of components from a closed catalog (`src/contracts/components.ts`). Rich text is a structured block/inline document, https links only. No generated HTML, scripts or markup exist anywhere in the system.
+
+Planning and generation are separate: a course plan is produced at creation; each learning experience is generated when its node is opened, so it can use what the learner has done since. Generation context is assembled per task (learner context, plan, learning summary, component manifests, contract examples); full history is never sent.
+
+The model is `claude-opus-5-5` with adaptive thinking; effort is set per task. One retry with validation issues fed back, then a clear error. Scoring and progression never involve the model.
+
+## Data
+
+SQLite via Drizzle (`server/src/db/schema.ts`), documents as validated JSON next to the columns we query by. Migrations are generated SQL in `server/drizzle` and applied at startup. Moving to Postgres is a driver change. Learning history is append-only events; course progress is a view over them.
 
 ## Navigation and visuals
 
-The seed is a single screen. Add Expo Router in the journey issue once routes are known. Keep lesson state independent of route files. Prefer accessible native controls and predictable back/close behavior. Generated visuals need a nonvisual explanation and clear purpose.
+Expo Router with file routes under `app/`. Lesson state lives in features and services, not in route files. Companion visuals are app-owned SVG parts selected by validated theme tokens. Every visual component carries a required nonvisual explanation.
+
+## Not configured, by decision
+
+No paid services: no Supabase, EAS, hosting or CI runners. Phones reach the server over Tailscale/LAN during the hackathon. Social features are pending an owners' brief; the data model carries stable ids and no relationship assumptions.

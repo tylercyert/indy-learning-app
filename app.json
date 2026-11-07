@@ -2,6 +2,7 @@
   "expo": {
     "name": "Indy Learning App",
     "slug": "indy-learning-app",
+    "scheme": "indylearning",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,6 +21,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }
