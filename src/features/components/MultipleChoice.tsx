@@ -105,7 +105,8 @@ const styles = StyleSheet.create({
   optionSelected: { borderColor: colors.purple, backgroundColor: colors.soft },
   optionCorrect: { borderColor: colors.green, backgroundColor: colors.greenTint },
   optionWrong: { borderColor: colors.orangeLine, backgroundColor: colors.coralTint },
-  letter: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' },
+  // Minimum, not fixed: the badge grows with large accessibility text instead of clipping the letter.
+  letter: { minWidth: 30, minHeight: 30, paddingHorizontal: 6, borderRadius: 9, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' },
   letterSelected: { backgroundColor: colors.purple },
   letterCorrect: { backgroundColor: colors.mintDeep },
   letterText: { fontFamily: fonts.black, fontSize: 13, color: colors.muted },

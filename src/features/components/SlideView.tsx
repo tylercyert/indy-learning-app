@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { ComponentResultV1, ComponentV1, CompanionThemeV1, SlideV1 } from '../../contracts';
 import { Companion } from '../companion/Companion';
@@ -51,38 +52,8 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
         </View>
       );
     }
-    case 'ratioBar': {
-      const total = component.segments.reduce((sum, s) => sum + s.parts, 0);
-      return (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{component.title}</Text>
-          <View style={styles.ratioRow} role="img" aria-label={component.altText}>
-            {component.segments.map((seg) => {
-              const p = palette[seg.color];
-              const share = seg.parts / total;
-              // Narrow segments show only the number; the legend below carries every label.
-              return (
-                <View key={seg.label} style={[styles.ratioSeg, { flex: seg.parts, backgroundColor: p.fill, borderBottomColor: p.shadow }]}>
-                  <Text style={[styles.ratioText, { color: p.text }]} numberOfLines={1}>
-                    {share >= 0.3 ? `${seg.parts} ${seg.label}` : String(seg.parts)}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-          <View style={styles.legend}>
-            {component.segments.map((seg) => (
-              <View key={seg.label} style={styles.legendItem}>
-                <View style={[styles.swatch, { backgroundColor: palette[seg.color].fill }]} />
-                <Text style={styles.legendText}>
-                  {seg.label} · {seg.parts}/{total}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      );
-    }
+    case 'ratioBar':
+      return <RatioBar component={component} />;
     case 'diagram':
       return <Diagram component={component} />;
     case 'checklist': {
@@ -111,19 +82,74 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
   }
 }
 
+const RATIO_GAP = 6;
+const RATIO_FONT = 14;
+/** Average advance of the segment font at RATIO_FONT; the segment has 4px padding each side. */
+const RATIO_CHAR_W = 8.6;
+
+/**
+ * Proportional segments whose widths follow `parts` exactly (they may shrink below their text), so
+ * the picture stays honest. What a segment says depends on its measured pixel width: the number and
+ * label when both fit, the number alone when that fits, nothing when even that would overflow.
+ * The legend underneath always carries every label and fraction.
+ */
+function RatioBar({ component }: { component: Extract<ComponentV1, { type: 'ratioBar' }> }) {
+  const [rowWidth, setRowWidth] = useState(0);
+  const total = component.segments.reduce((sum, s) => sum + s.parts, 0);
+  const usable = Math.max(0, rowWidth - RATIO_GAP * (component.segments.length - 1));
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{component.title}</Text>
+      <View style={styles.ratioRow} role="img" aria-label={component.altText} onLayout={(e) => setRowWidth(e.nativeEvent.layout.width)}>
+        {component.segments.map((seg) => {
+          const p = palette[seg.color];
+          const px = (usable * seg.parts) / total;
+          const full = `${seg.parts} ${seg.label}`;
+          const text = rowWidth === 0 ? '' : fitsRatio(full, px) ? full : fitsRatio(String(seg.parts), px) ? String(seg.parts) : '';
+          return (
+            <View key={seg.label} style={[styles.ratioSeg, { flexGrow: seg.parts, backgroundColor: p.fill, borderBottomColor: p.shadow }]}>
+              {text ? (
+                <Text style={[styles.ratioText, { color: p.text }]} numberOfLines={1}>
+                  {text}
+                </Text>
+              ) : null}
+            </View>
+          );
+        })}
+      </View>
+      <View style={styles.legend}>
+        {component.segments.map((seg) => (
+          <View key={seg.label} style={styles.legendItem}>
+            <View style={[styles.swatch, { backgroundColor: palette[seg.color].fill }]} />
+            <Text style={styles.legendText}>
+              {seg.label} · {seg.parts}/{total}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function fitsRatio(text: string, px: number): boolean {
+  return text.length * RATIO_CHAR_W + 8 <= px;
+}
+
 const styles = StyleSheet.create({
   slide: { gap: 18 },
   title: { fontFamily: fonts.black, fontSize: 26, lineHeight: 31, color: colors.ink },
   speech: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  bubble: { flex: 1, padding: 14, borderRadius: 20, borderBottomLeftRadius: 6 },
+  // The tail points at the companion, which sits at the top of tall bubbles.
+  bubble: { flex: 1, minWidth: 0, padding: 14, borderRadius: 20, borderTopLeftRadius: 6 },
   plainCallout: { padding: 14, borderRadius: 20 },
   card: { padding: 16, borderRadius: 24, backgroundColor: colors.coralTint, gap: 12 },
   cardTitle: { fontFamily: fonts.black, fontSize: 13, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.coralDeep },
-  ratioRow: { flexDirection: 'row', gap: 6, minHeight: 56 },
-  ratioSeg: { minHeight: 56, borderRadius: 16, borderBottomWidth: 5, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  ratioText: { fontFamily: fonts.black, fontSize: 14, textAlign: 'center' },
+  ratioRow: { flexDirection: 'row', gap: RATIO_GAP, minHeight: 56 },
+  ratioSeg: { flexBasis: 0, minWidth: 0, overflow: 'hidden', minHeight: 56, borderRadius: 16, borderBottomWidth: 5, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  ratioText: { fontFamily: fonts.black, fontSize: RATIO_FONT, textAlign: 'center' },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' },
   swatch: { width: 12, height: 12, borderRadius: 4 },
-  legendText: { fontFamily: fonts.extraBold, fontSize: 13, color: colors.ink },
+  // Shrinkable so long labels or large text wrap inside the card instead of running off it.
+  legendText: { flexShrink: 1, minWidth: 0, fontFamily: fonts.extraBold, fontSize: 13, color: colors.ink },
 });

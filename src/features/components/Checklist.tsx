@@ -71,7 +71,8 @@ const styles = StyleSheet.create({
   items: { gap: 8 },
   item: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, padding: 12, borderRadius: 16, borderWidth: 3, borderColor: colors.line, backgroundColor: colors.bg },
   itemOn: { borderColor: colors.mint, backgroundColor: colors.mintTint },
-  box: { width: 26, height: 26, borderRadius: 8, borderWidth: 3, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  // Minimum, not fixed: the box grows with large accessibility text so the tick is never clipped.
+  box: { minWidth: 26, minHeight: 26, paddingHorizontal: 3, borderRadius: 8, borderWidth: 3, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   boxOn: { borderColor: colors.mintDeep, backgroundColor: colors.mintDeep },
   tick: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 15 },
   itemText: { flex: 1, minWidth: 0, flexShrink: 1, fontFamily: fonts.extraBold, fontSize: 15, color: colors.ink },

@@ -1,24 +1,46 @@
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { PixelRatio, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import type { ComponentV1 } from '../../contracts/components';
 import { colors, fonts, palette } from '../theme';
+import { LABEL_FONT, LABEL_LINE_H, edgeInset, fitLabel, labelWidth, nodeWidthFor, overlaps, type Rect } from './diagram-layout';
 
 type DiagramComponent = Extract<ComponentV1, { type: 'diagram' }>;
 
+/** Default node height until the real one is measured (labels wrap to up to 3 lines; text may be scaled). */
 const NODE_H = 48;
 const PAD = 8;
-const ROW_PITCH = 92;
+/** Vertical space between rows: room for an arrow and a label beside it. */
+const ROW_GAP = 44;
+/** Columns can never sit closer than this, so a horizontal edge always has a visible shaft. */
+const MIN_COL_GAP = 28;
 const MAX_COLS_PHONE = 3;
+/**
+ * A node taller than this means its label no longer fits three lines at the default text size
+ * (3 × 14px + padding = 54px): the learner has large text on, and a spatial canvas would only clip.
+ */
+const CRAMPED_NODE_H = NODE_H * 1.6;
+const CRAMPED_FONT_SCALE = 1.5;
 
 /**
  * Boxes joined by straight lines, laid out ORDINALLY: the model's x/y values only decide which
  * column and row a node sits in; columns and rows are then spaced evenly for the real width, so
- * nodes can never overlap whatever the grid numbers were. Edge labels sit at a third of the edge,
- * alternate above/below, and only draw when the edge is long enough to carry them.
- * The required altText is the accessible content; it is shown visibly only when short.
+ * nodes can never overlap whatever the grid numbers were. Row pitch follows the measured node
+ * height, so 3-line labels and large accessibility text sizes push rows apart instead of colliding.
+ *
+ * Edge labels: an estimated text width decides whether a label fits on one line, two lines, or
+ * not at all; candidate spots sit along the edge and are offset perpendicular to it, and a spot is
+ * rejected when it touches a node or an already placed label. A label that finds no spot is never
+ * dropped: it moves to the legend under the canvas, which also takes over entirely when more
+ * than four edges carry labels. The required altText is the accessible content and is shown
+ * visibly only when short.
+ *
+ * Large text: when the OS text scale is high, or the measured nodes show that labels no longer fit
+ * three lines, the canvas gives way to a list: every node as a full-width chip and every edge as a
+ * legend line. Nothing is clipped and the same information is conveyed, only without geometry.
  */
 export function Diagram({ component }: { component: DiagramComponent }) {
   const [width, setWidth] = useState(0);
+  const [nodeHeights, setNodeHeights] = useState<Record<string, number>>({});
 
   const layout = useMemo(() => {
     const xs = [...new Set(component.nodes.map((n) => n.x))].sort((a, b) => a - b);
@@ -33,49 +55,141 @@ export function Diagram({ component }: { component: DiagramComponent }) {
     return { nodes, cols: Math.min(maxCols, ordered.length), rows: Math.ceil(ordered.length / maxCols) };
   }, [component.nodes, width]);
 
-  const gap = 10;
-  const nodeW = width > 0 ? Math.max(72, Math.min(120, (width - PAD * 2 - gap * (layout.cols - 1)) / layout.cols)) : 100;
-  const height = PAD * 2 + NODE_H + (layout.rows - 1) * ROW_PITCH;
+  const nodeW = width > 0 ? nodeWidthFor(width, layout.cols, PAD, MIN_COL_GAP) : 100;
+  const nodeH = (id: string) => nodeHeights[id] ?? NODE_H;
+  const rowH = Math.max(NODE_H, ...layout.nodes.map((n) => nodeH(n.id)));
+  const rowPitch = rowH + ROW_GAP;
+  const height = PAD * 2 + rowH + (layout.rows - 1) * rowPitch;
   const colX = (col: number) => (layout.cols === 1 ? width / 2 : PAD + nodeW / 2 + col * ((width - PAD * 2 - nodeW) / (layout.cols - 1)));
-  const rowY = (row: number) => PAD + NODE_H / 2 + row * ROW_PITCH;
+  const rowY = (row: number) => PAD + rowH / 2 + row * rowPitch;
   const byId = new Map(layout.nodes.map((n) => [n.id, n] as const));
   const showAlt = component.altText.length <= 160;
-  // Many labeled edges cannot be read on a phone canvas; list them underneath instead.
-  const labeledEdges = component.edges.filter((e) => !!e.label);
-  const inlineLabels = labeledEdges.length <= 4;
-  const nodeRects = layout.nodes.map((n) => ({ x: colX(n.col) - nodeW / 2, y: rowY(n.row) - NODE_H / 2, w: nodeW, h: NODE_H }));
-  const hitsNode = (x: number, y: number, w: number, h: number) =>
-    nodeRects.some((r) => x < r.x + r.w + 4 && x + w > r.x - 4 && y < r.y + r.h + 4 && y + h > r.y - 4);
+
+  const onNodeLayout = (id: string) => (e: LayoutChangeEvent) => {
+    const h = Math.round(e.nativeEvent.layout.height);
+    setNodeHeights((prev) => (prev[id] === h ? prev : { ...prev, [id]: h }));
+  };
+
+  const cramped = PixelRatio.getFontScale() >= CRAMPED_FONT_SCALE || layout.nodes.some((n) => nodeH(n.id) > CRAMPED_NODE_H);
+  if (cramped) {
+    const label = (id: string) => byId.get(id)?.label ?? id;
+    return (
+      <View style={styles.card}>
+        {component.title ? <Text style={styles.title}>{component.title}</Text> : null}
+        <View style={styles.chips}>
+          {layout.nodes.map((node) => {
+            const c = palette[node.color ?? 'neutral'];
+            return (
+              <View key={node.id} style={[styles.chip, { backgroundColor: c.fill, borderBottomColor: c.shadow }]}>
+                <Text style={[styles.chipText, { color: c.text }]}>{node.label}</Text>
+              </View>
+            );
+          })}
+        </View>
+        {component.edges.length > 0 ? (
+          <View style={styles.legend}>
+            {component.edges.map((edge, i) => (
+              <Text key={`g${i}`} style={styles.legendLine}>
+                {label(edge.from)} → {label(edge.to)}
+                {edge.label ? `: ${edge.label}` : ''}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+        {showAlt ? <Text style={styles.alt}>{component.altText}</Text> : null}
+      </View>
+    );
+  }
+
+  // Geometry per edge: centers, direction, and the shaft between box borders (not centers).
+  const edges = component.edges.flatMap((edge, index) => {
+    const a = byId.get(edge.from);
+    const b = byId.get(edge.to);
+    if (!a || !b) return [];
+    const p = { x: colX(a.col), y: rowY(a.row) };
+    const q = { x: colX(b.col), y: rowY(b.row) };
+    const dx = q.x - p.x;
+    const dy = q.y - p.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const startInset = edgeInset(dx, dy, nodeW, nodeH(a.id));
+    const endInset = edgeInset(dx, dy, nodeW, nodeH(b.id));
+    const drawn = Math.max(0, len - startInset - endInset);
+    // Midpoint of the visible shaft, not of the center-to-center line.
+    const mid = { x: p.x + (dx / len) * (startInset + drawn / 2), y: p.y + (dy / len) * (startInset + drawn / 2) };
+    return [{ edge, index, p, q, dx, dy, len, drawn, mid, ux: dx / len, uy: dy / len }];
+  });
+
+  const nodeRects = layout.nodes.map((n) => ({ x: colX(n.col) - nodeW / 2, y: rowY(n.row) - nodeH(n.id) / 2, w: nodeW, h: nodeH(n.id) }));
+  const placed: Rect[] = [];
+  const hits = (r: Rect) => nodeRects.some((n) => overlaps(r, n, 4)) || placed.some((l) => overlaps(r, l, 2));
+  const labeledEdges = edges.filter((e) => !!e.edge.label);
+  const inlineAllowed = width > 0 && labeledEdges.length <= 4;
+  const maxLabelW = Math.min(120, Math.max(72, width / 3));
+
+  const inline: { key: string; x: number; y: number; w: number; lines: string[] }[] = [];
+  const legend: typeof labeledEdges = [];
+  for (const e of labeledEdges) {
+    const label = e.edge.label!;
+    const lines = inlineAllowed ? fitLabel(label, maxLabelW) : null;
+    if (!lines) {
+      legend.push(e);
+      continue;
+    }
+    const w = Math.max(...lines.map(labelWidth));
+    const h = lines.length * LABEL_LINE_H;
+    // Perpendicular offset puts the label beside the shaft: above/below a horizontal edge, left/right of a
+    // vertical one. The clearance is the label's own extent along that normal, so it never covers the shaft.
+    // Sitting on the shaft (offset 0, the label has an opaque background) is the last resort before the legend.
+    const nx = -e.uy;
+    const ny = e.ux;
+    const extent = (Math.abs(nx) * w + Math.abs(ny) * h) / 2;
+    // On a diagonal the bounding box overstates the label, so the first try hugs the shaft (a corner of
+    // the label background may touch the line); axis-aligned edges get full clearance right away.
+    const axisAligned = Math.abs(e.ux) < 0.05 || Math.abs(e.uy) < 0.05;
+    const tight = axisAligned ? extent + 2 : extent * 0.55 + 4;
+    const side = e.index % 2 === 0 ? 1 : -1;
+    const along = [0, -0.12, 0.12].map((t) => e.drawn * t);
+    const offsets = [...[side, -side].flatMap((s) => [s * tight, s * (extent + 10)]), 0];
+    let spot: Rect | null = null;
+    for (const d of along) {
+      for (const off of offsets) {
+        const cx = e.mid.x + e.ux * d + nx * off;
+        const cy = e.mid.y + e.uy * d + ny * off;
+        const r = { x: cx - w / 2, y: cy - h / 2, w, h };
+        if (r.x < 0 || r.x + w > width) continue;
+        if (!hits(r)) {
+          spot = r;
+          break;
+        }
+      }
+      if (spot) break;
+    }
+    if (!spot) {
+      legend.push(e);
+      continue;
+    }
+    placed.push(spot);
+    inline.push({ key: `l${e.index}`, x: spot.x, y: spot.y, w, lines });
+  }
 
   return (
     <View style={styles.card}>
       {component.title ? <Text style={styles.title}>{component.title}</Text> : null}
       <View style={{ height }} role="img" aria-label={component.altText} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
         {width > 0 &&
-          component.edges.map((edge, i) => {
-            const a = byId.get(edge.from);
-            const b = byId.get(edge.to);
-            if (!a || !b) return null;
-            const p = { cx: colX(a.col), cy: rowY(a.row) };
-            const q = { cx: colX(b.col), cy: rowY(b.row) };
-            const dx = q.cx - p.cx;
-            const dy = q.cy - p.cy;
-            const len = Math.hypot(dx, dy);
-            const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-            // Trim so the line runs between box edges, not centers.
-            const trimA = edgeInset(dx, dy, nodeW, NODE_H);
-            const drawn = Math.max(0, len - trimA * 2);
+          edges.map((e) => {
+            const angle = (Math.atan2(e.dy, e.dx) * 180) / Math.PI;
             return (
               <View
-                key={`e${i}`}
+                key={`e${e.index}`}
                 aria-hidden
                 style={[
                   styles.edge,
-                  edge.style === 'dashed' && styles.edgeDashed,
-                  { width: drawn, left: (p.cx + q.cx) / 2 - drawn / 2, top: (p.cy + q.cy) / 2 - 1.5, transform: [{ rotate: `${angle}deg` }] },
+                  e.edge.style === 'dashed' && styles.edgeDashed,
+                  { width: e.drawn, left: e.mid.x - e.drawn / 2, top: e.mid.y - 1.5, transform: [{ rotate: `${angle}deg` }] },
                 ]}
               >
-                {edge.style !== 'line' && <View style={styles.arrowHead} />}
+                {e.edge.style !== 'line' && <View style={styles.arrowHead} />}
               </View>
             );
           })}
@@ -86,11 +200,12 @@ export function Diagram({ component }: { component: DiagramComponent }) {
               <View
                 key={node.id}
                 aria-hidden
+                onLayout={onNodeLayout(node.id)}
                 style={[
                   styles.node,
                   node.shape === 'circle' && { borderRadius: NODE_H / 2 },
                   node.shape === 'pill' && { borderRadius: 999 },
-                  { width: nodeW, left: colX(node.col) - nodeW / 2, top: rowY(node.row) - NODE_H / 2, backgroundColor: c.fill, borderBottomColor: c.shadow },
+                  { width: nodeW, left: colX(node.col) - nodeW / 2, top: rowY(node.row) - nodeH(node.id) / 2, backgroundColor: c.fill, borderBottomColor: c.shadow },
                 ]}
               >
                 <Text style={[styles.nodeText, { color: c.text, fontSize: nodeW < 90 ? 11 : 12 }]} numberOfLines={3}>
@@ -99,40 +214,21 @@ export function Diagram({ component }: { component: DiagramComponent }) {
               </View>
             );
           })}
-        {width > 0 &&
-          inlineLabels &&
-          component.edges.map((edge, i) => {
-            if (!edge.label) return null;
-            const a = byId.get(edge.from);
-            const b = byId.get(edge.to);
-            if (!a || !b) return null;
-            const p = { cx: colX(a.col), cy: rowY(a.row) };
-            const q = { cx: colX(b.col), cy: rowY(b.row) };
-            const len = Math.hypot(q.cx - p.cx, q.cy - p.cy);
-            const inset = edgeInset(q.cx - p.cx, q.cy - p.cy, nodeW, NODE_H);
-            if (len - inset * 2 < 56) return null;
-            // Try a few spots along the edge, alternating sides; skip the label if every spot hits a node.
-            const labelW = 84;
-            const labelH = 18;
-            const candidates = [0.5, 0.38, 0.62].flatMap((t) => [i % 2 === 0 ? -14 : 14, i % 2 === 0 ? 14 : -14].map((off) => ({ t, off })));
-            const spot = candidates
-              .map(({ t, off }) => ({ x: p.cx + (q.cx - p.cx) * t - labelW / 2, y: p.cy + (q.cy - p.cy) * t + off - labelH / 2 }))
-              .find((s) => !hitsNode(s.x, s.y, labelW, labelH));
-            if (!spot) return null;
-            return (
-              <View key={`l${i}`} aria-hidden style={[styles.edgeLabelWrap, { left: spot.x, top: spot.y, width: labelW }]}>
-                <Text style={styles.edgeLabel} numberOfLines={1}>
-                  {edge.label}
-                </Text>
-              </View>
-            );
-          })}
+        {inline.map((l) => (
+          <View key={l.key} aria-hidden style={[styles.edgeLabelWrap, { left: l.x, top: l.y, width: l.w }]}>
+            {l.lines.map((line, i) => (
+              <Text key={i} style={styles.edgeLabel} numberOfLines={1}>
+                {line}
+              </Text>
+            ))}
+          </View>
+        ))}
       </View>
-      {!inlineLabels && labeledEdges.length > 0 ? (
+      {legend.length > 0 ? (
         <View style={styles.legend}>
-          {labeledEdges.map((e, i) => (
-            <Text key={i} style={styles.legendLine}>
-              {byId.get(e.from)?.label ?? e.from} → {byId.get(e.to)?.label ?? e.to}: {e.label}
+          {legend.map((e) => (
+            <Text key={`g${e.index}`} style={styles.legendLine}>
+              {byId.get(e.edge.from)?.label ?? e.edge.from} → {byId.get(e.edge.to)?.label ?? e.edge.to}: {e.edge.label}
             </Text>
           ))}
         </View>
@@ -142,27 +238,20 @@ export function Diagram({ component }: { component: DiagramComponent }) {
   );
 }
 
-/** Distance from a box center to its border along a direction. */
-function edgeInset(dx: number, dy: number, w: number, h: number): number {
-  const len = Math.hypot(dx, dy) || 1;
-  const ux = Math.abs(dx / len);
-  const uy = Math.abs(dy / len);
-  const tx = ux > 0 ? w / 2 / ux : Infinity;
-  const ty = uy > 0 ? h / 2 / uy : Infinity;
-  return Math.min(tx, ty) + 4;
-}
-
 const styles = StyleSheet.create({
   card: { padding: 16, borderRadius: 24, backgroundColor: colors.soft, gap: 10 },
   title: { fontFamily: fonts.black, fontSize: 13, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.purple },
   edge: { position: 'absolute', height: 3, backgroundColor: '#A99DD1', borderRadius: 2, justifyContent: 'center' },
   edgeDashed: { opacity: 0.55 },
   arrowHead: { position: 'absolute', right: -1, top: -4, width: 10, height: 10, borderTopWidth: 3, borderRightWidth: 3, borderColor: '#A99DD1', transform: [{ rotate: '45deg' }] },
-  edgeLabelWrap: { position: 'absolute', alignItems: 'center' },
-  edgeLabel: { fontFamily: fonts.extraBold, fontSize: 11, color: '#4B4365', backgroundColor: colors.soft, paddingHorizontal: 5, borderRadius: 6 },
+  edgeLabelWrap: { position: 'absolute', alignItems: 'center', backgroundColor: colors.soft, borderRadius: 6 },
+  edgeLabel: { fontFamily: fonts.extraBold, fontSize: LABEL_FONT, lineHeight: LABEL_LINE_H, color: '#4B4365', paddingHorizontal: 5, textAlign: 'center' },
   node: { position: 'absolute', minHeight: NODE_H, borderRadius: 12, borderBottomWidth: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 6 },
   nodeText: { fontFamily: fonts.black, lineHeight: 14, textAlign: 'center' },
   alt: { fontFamily: fonts.bold, fontSize: 13, color: colors.muted },
   legend: { gap: 2 },
   legendLine: { fontFamily: fonts.bold, fontSize: 12, color: '#4B4365' },
+  chips: { gap: 8 },
+  chip: { borderRadius: 12, borderBottomWidth: 4, paddingHorizontal: 12, paddingVertical: 8 },
+  chipText: { fontFamily: fonts.black, fontSize: 14 },
 });
