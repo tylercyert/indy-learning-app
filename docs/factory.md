@@ -7,7 +7,7 @@
 - **Repository docs:** durable product decisions, architecture, setup and working rules.
 - **Git:** implementation history. Commit and publish authorized checkpoints rather than hiding a day's progress on one machine.
 
-GitHub Issues remain the record. Linear is a read-only mirror for task visibility: `npm run linear:sync` (or Linear's native GitHub integration) copies issues, status labels and priorities into a Linear team board; never create or edit work in Linear only. See `docs/linear.md`. No duplicate local ticket system, custom daemon or mandatory factory-core installation.
+GitHub Issues are the record for all work; there is no second tracker. A Linear mirror was tried on 2026-11-07 and removed the same day as friction without benefit (#24). No duplicate local ticket system, custom daemon or mandatory factory-core installation.
 
 ## Lifecycle
 
