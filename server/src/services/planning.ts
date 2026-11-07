@@ -3,6 +3,7 @@ import {
   BASE_COMPANION,
   CompanionThemeV1Schema,
   CoursePlanV1Schema,
+  activeClauses,
   type CourseV1,
   type LearnerContextV1,
   type LessonV1,
@@ -18,13 +19,9 @@ import { buildLearningSummary, describeSummary } from './history';
 import * as repo from './repo';
 import { markPlanned, readyContext } from './intake';
 
-/** Drops null/undefined clauses so stored rules only carry what they mean. */
+/** Drops null, undefined and empty clauses so stored rules only carry what they mean. */
 export function normalizeRule(rule: ProgressionRuleV1): ProgressionRuleV1 {
-  const out: ProgressionRuleV1 = {};
-  if (rule.allOf) out.allOf = rule.allOf;
-  if (rule.anyOf) out.anyOf = rule.anyOf;
-  if (rule.atLeast) out.atLeast = rule.atLeast;
-  return out;
+  return activeClauses(rule);
 }
 
 /**

@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { TreePlanV1Schema, type CourseV1, type LearnerContextV1, type LessonV1, type NodeV1, type SkillTreeV1 } from '../../../src/contracts';
+import { TreePlanV1Schema, ruleReferences, type CourseV1, type LearnerContextV1, type LessonV1, type NodeV1, type SkillTreeV1 } from '../../../src/contracts';
 import { generateStructured, GenerationError } from '../ai/claude';
 import { TREE_SYSTEM, treeUserMessage } from '../ai/prompts';
 import { db } from '../db/client';
-import { prefetchAvailable } from './experiences';
+import { getOrGenerateExperience, prefetchAvailable } from './experiences';
 import { buildLearningSummary } from './history';
 import { normalizeRule } from './planning';
 import * as repo from './repo';
@@ -88,6 +88,18 @@ export async function addSkillTree(
     repo.saveCourse(reopened);
   });
   console.log(`[tree] course ${courseId} +tree ${tree.sequence} "${tree.title}" ${nodes.length} nodes (${newLessons.length} new) by ${model}`);
-  prefetchAvailable(learnerId, courseId);
+
+  // Same rule as course creation: the learner should be able to start immediately, so the first
+  // available required lesson of the new tree is written before we return.
+  const completedNow = repo.completedLessonIds(learnerId);
+  const first = tree.nodes.find((n) => n.required && !completedNow.has(n.lessonId) && ruleReferences(n.rule).length === 0);
+  if (first) {
+    await getOrGenerateExperience(learnerId, courseId, first.id).catch((e: unknown) => {
+      console.warn(`[tree] first lesson not pre-written: ${e instanceof Error ? e.message : String(e)}`);
+      prefetchAvailable(learnerId, courseId);
+    });
+  } else {
+    prefetchAvailable(learnerId, courseId);
+  }
   return tree;
 }

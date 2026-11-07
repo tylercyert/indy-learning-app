@@ -7,7 +7,7 @@
 - **Repository docs:** durable product decisions, architecture, setup and working rules.
 - **Git:** implementation history. Commit and publish authorized checkpoints rather than hiding a day's progress on one machine.
 
-No Linear dependency, duplicate local ticket system, custom daemon or mandatory factory-core installation. A GitHub Project board can be added later; issue labels and the milestone are enough today.
+GitHub Issues are the record for all work; there is no second tracker. A Linear mirror was tried on 2026-11-07 and removed the same day as friction without benefit (#24). No duplicate local ticket system, custom daemon or mandatory factory-core installation.
 
 ## Lifecycle
 
