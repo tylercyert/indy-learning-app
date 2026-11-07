@@ -152,6 +152,13 @@ export const ExperienceEventRequestSchema = z.discriminatedUnion('type', [
     checkedItemIds: z.array(LocalIdSchema).max(8),
     confirmed: z.boolean(),
   }),
+  z.strictObject({
+    type: z.literal('fillBlank'),
+    slideId: LocalIdSchema,
+    componentId: LocalIdSchema,
+    /** One entry per gap the learner filled; missing gaps score as empty. */
+    answers: z.array(z.strictObject({ gapId: LocalIdSchema, value: z.string().max(60) })).min(1).max(2),
+  }),
 ]).and(
   z.object({
     /** The learner's local calendar day, for the streak. Server date if absent. */
@@ -168,6 +175,14 @@ export const ExperienceEventResponseSchema = z.strictObject({
       explanation: MediumTextSchema,
       correctOptionId: LocalIdSchema,
       attempt: z.int(),
+    })
+    .nullable(),
+  /** Present for fillBlank answers: every gap in component order; wrong gaps carry their explanation, right ones "". */
+  scoredFillBlank: z
+    .strictObject({
+      correct: z.boolean(),
+      attempt: z.int(),
+      gaps: z.array(z.strictObject({ gapId: LocalIdSchema, correct: z.boolean(), explanation: z.string().max(200) })).min(1).max(2),
     })
     .nullable(),
   /** True the first time this event completes the lesson. */

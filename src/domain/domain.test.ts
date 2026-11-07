@@ -9,7 +9,9 @@ import {
   isTreeComplete,
   nextNode,
   recordActivity,
+  normalizeAnswer,
   remainingAssessables,
+  scoreFillBlank,
   scoreMultipleChoice,
   treeProgress,
 } from './index';
@@ -85,6 +87,51 @@ describe('scoreMultipleChoice', () => {
   });
   it('throws on an option that is not on the component', () => {
     expect(() => scoreMultipleChoice(q, 'zz', 1)).toThrow(/not on component/);
+  });
+});
+
+describe('scoreFillBlank', () => {
+  const q = {
+    id: 'f1',
+    type: 'fillBlank' as const,
+    prompt: 'Complete the rule.',
+    text: 'Add ___ to cut ___.',
+    gaps: [
+      { id: 'g1', accepted: ['acid', 'citrus juice', 'Lime  Juice'], explanation: 'Acid is the lever that cuts sweetness.' },
+      { id: 'g2', accepted: ['sweetness', 'sugar'], explanation: 'Sweetness is what tastes syrupy.' },
+    ],
+  };
+  it('normalizes case, surrounding and inner whitespace, and compatibility forms', () => {
+    expect(normalizeAnswer('  Lime   Juice ')).toBe('lime juice');
+    expect(normalizeAnswer('ＡＣＩＤ')).toBe('acid');
+  });
+  it('marks every gap and is correct only when all match', () => {
+    const scored = scoreFillBlank(q, [{ gapId: 'g1', value: ' ACID' }, { gapId: 'g2', value: 'Sugar' }], 1);
+    expect(scored.result).toEqual({
+      type: 'fillBlank',
+      componentId: 'f1',
+      answers: [
+        { gapId: 'g1', value: ' ACID', correct: true },
+        { gapId: 'g2', value: 'Sugar', correct: true },
+      ],
+      correct: true,
+      attempt: 1,
+    });
+    expect(scored.explanations).toEqual([]);
+  });
+  it('returns the explanation for each wrong gap only, in component order', () => {
+    const scored = scoreFillBlank(q, [{ gapId: 'g1', value: 'lime juice' }, { gapId: 'g2', value: 'dilution' }], 2);
+    expect(scored.result.correct).toBe(false);
+    expect(scored.result.answers.map((a) => a.correct)).toEqual([true, false]);
+    expect(scored.explanations).toEqual([{ gapId: 'g2', explanation: 'Sweetness is what tastes syrupy.' }]);
+  });
+  it('treats a missing or blank gap as wrong, never as a match for an empty string', () => {
+    const scored = scoreFillBlank(q, [{ gapId: 'g1', value: '   ' }], 1);
+    expect(scored.result.answers.map((a) => a.correct)).toEqual([false, false]);
+    expect(scored.explanations).toHaveLength(2);
+  });
+  it('throws on an answer for a gap that is not on the component', () => {
+    expect(() => scoreFillBlank(q, [{ gapId: 'zz', value: 'x' }], 1)).toThrow(/not on component/);
   });
 });
 

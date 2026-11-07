@@ -1,6 +1,6 @@
 {
   "id": "text-max-prose",
-  "title": "Text block: headings, 2000-char paragraph, 60 inlines, callouts",
+  "title": "Text block: 20 blocks, 600-char paragraphs, 60 inlines",
   "purpose": "teach",
   "components": [
     {
@@ -13,7 +13,7 @@
             "level": 1,
             "inlines": [
               {
-                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx"
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the"
               }
             ]
           },
@@ -22,7 +22,7 @@
             "level": 2,
             "inlines": [
               {
-                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx"
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the"
               }
             ]
           },
@@ -31,7 +31,7 @@
             "level": 3,
             "inlines": [
               {
-                "text": "SupercalifragilisticexpialidociousSupercalifragilisticexpial"
+                "text": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifra"
               }
             ]
           },
@@ -39,7 +39,7 @@
             "type": "paragraph",
             "inlines": [
               {
-                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds"
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balancex"
               }
             ]
           },
@@ -439,12 +439,114 @@
             "type": "paragraph",
             "inlines": [
               {
-                "text": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidoc",
+                "text": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticex",
                 "marks": [
                   "code"
                 ]
               }
             ]
+          },
+          {
+            "type": "heading",
+            "level": 2,
+            "inlines": [
+              {
+                "text": "Eleven more blocks to reach the cap of twenty"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx"
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "items": [
+              [
+                {
+                  "text": "Balance is the whole game: base gives bo"
+                }
+              ],
+              [
+                {
+                  "text": "Balance is the whole game: base gives bo"
+                }
+              ]
+            ]
+          },
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "level": 3,
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives bo"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx"
+              }
+            ]
+          },
+          {
+            "type": "numberedList",
+            "items": [
+              [
+                {
+                  "text": "Balance is the whole game: base gives bo"
+                }
+              ],
+              [
+                {
+                  "text": "Balance is the whole game: base gives bo"
+                }
+              ]
+            ]
+          },
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx"
+              }
+            ]
+          },
+          {
+            "type": "callout",
+            "tone": "note",
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx"
+              }
+            ]
+          },
+          {
+            "type": "link",
+            "label": "Last block",
+            "href": "https://example.com/end"
           }
         ]
       }

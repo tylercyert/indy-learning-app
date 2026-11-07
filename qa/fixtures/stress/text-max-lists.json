@@ -1,6 +1,6 @@
 {
   "id": "text-max-lists",
-  "title": "Text block: 12-item lists and 120-char links",
+  "title": "Text block: 12-item lists and 60-char links",
   "purpose": "teach",
   "components": [
     {
@@ -13,62 +13,62 @@
             "items": [
               [
                 {
-                  "text": "1: Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens ever"
+                  "text": "1: Balance is the whole game: base gives body, aci"
                 }
               ],
               [
                 {
-                  "text": "2: Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens ever"
+                  "text": "2: Balance is the whole game: base gives body, aci"
                 }
               ],
               [
                 {
-                  "text": "3: Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens ever"
+                  "text": "3: Balance is the whole game: base gives body, aci"
                 }
               ],
               [
                 {
-                  "text": "4: Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens ever"
+                  "text": "4: Balance is the whole game: base gives body, aci"
                 }
               ],
               [
                 {
-                  "text": "5: Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens ever"
+                  "text": "5: Balance is the whole game: base gives body, aci"
                 }
               ],
               [
                 {
-                  "text": "6: Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens ever"
+                  "text": "6: Balance is the whole game: base gives body, aci"
                 }
               ],
               [
                 {
-                  "text": "7: Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens ever"
+                  "text": "7: Balance is the whole game: base gives body, aci"
                 }
               ],
               [
                 {
-                  "text": "8: Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens ever"
+                  "text": "8: Balance is the whole game: base gives body, aci"
                 }
               ],
               [
                 {
-                  "text": "9: Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens ever"
+                  "text": "9: Balance is the whole game: base gives body, aci"
                 }
               ],
               [
                 {
-                  "text": "10: Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens ever"
+                  "text": "10: Balance is the whole game: base gives body, ac"
                 }
               ],
               [
                 {
-                  "text": "11: Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens ever"
+                  "text": "11: Balance is the whole game: base gives body, ac"
                 }
               ],
               [
                 {
-                  "text": "12: Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens ever"
+                  "text": "12: Balance is the whole game: base gives body, ac"
                 }
               ]
             ]
@@ -76,6 +76,26 @@
           {
             "type": "numberedList",
             "items": [
+              [
+                {
+                  "text": "Balance is",
+                  "marks": [
+                    "bold"
+                  ]
+                }
+              ],
+              [
+                {
+                  "text": "Balance is the whole",
+                  "marks": []
+                }
+              ],
+              [
+                {
+                  "text": "Balance is the whole game: bas",
+                  "marks": []
+                }
+              ],
               [
                 {
                   "text": "Balance is the whole game: base gives bo",
@@ -86,19 +106,19 @@
               ],
               [
                 {
-                  "text": "Balance is the whole game: base gives body, acid bri",
+                  "text": "Balance is the whole game: base gives body, acid b",
                   "marks": []
                 }
               ],
               [
                 {
-                  "text": "Balance is the whole game: base gives body, acid brightens, swee",
+                  "text": "Balance is the whole game: base gives body, acid brightens,x",
                   "marks": []
                 }
               ],
               [
                 {
-                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds",
+                  "text": "Balance is the whole game: base gives body, acid brightens, sweetnessx",
                   "marks": [
                     "bold"
                   ]
@@ -106,19 +126,19 @@
               ],
               [
                 {
-                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges a",
+                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the",
                   "marks": []
                 }
               ],
               [
                 {
-                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilutionx",
+                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and",
                   "marks": []
                 }
               ],
               [
                 {
-                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everyt",
+                  "text": "Balance is the whole game: base gives body, acid b",
                   "marks": [
                     "bold"
                   ]
@@ -126,46 +146,91 @@
               ],
               [
                 {
-                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so t",
+                  "text": "Balance is the whole game: base gives body, acid b",
                   "marks": []
                 }
               ],
               [
                 {
-                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors c",
-                  "marks": []
-                }
-              ],
-              [
-                {
-                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe.x",
-                  "marks": [
-                    "bold"
-                  ]
-                }
-              ],
-              [
-                {
-                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is t",
-                  "marks": []
-                }
-              ],
-              [
-                {
-                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole gam",
+                  "text": "Balance is the whole game: base gives body, acid b",
                   "marks": []
                 }
               ]
             ]
           },
           {
-            "type": "link",
-            "label": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx",
-            "href": "https://example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            "type": "numberedList",
+            "items": [
+              [
+                {
+                  "text": "Step"
+                }
+              ],
+              [
+                {
+                  "text": "Step"
+                }
+              ],
+              [
+                {
+                  "text": "Step"
+                }
+              ],
+              [
+                {
+                  "text": "Step"
+                }
+              ],
+              [
+                {
+                  "text": "Step"
+                }
+              ],
+              [
+                {
+                  "text": "Step"
+                }
+              ],
+              [
+                {
+                  "text": "Step"
+                }
+              ],
+              [
+                {
+                  "text": "Step"
+                }
+              ],
+              [
+                {
+                  "text": "Step"
+                }
+              ],
+              [
+                {
+                  "text": "Step"
+                }
+              ],
+              [
+                {
+                  "text": "Step"
+                }
+              ],
+              [
+                {
+                  "text": "Step"
+                }
+              ]
+            ]
           },
           {
             "type": "link",
-            "label": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilist",
+            "label": "Balance is the whole game: base gives body, acid brightens,x",
+            "href": "https://example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "type": "link",
+            "label": "SupercalifragilisticexpialidociousSupercalifragilisticexpial",
             "href": "https://example.com/x"
           }
         ]

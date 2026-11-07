@@ -1,0 +1,113 @@
+{
+  "id": "diagram-dense-6",
+  "title": "Dense diagram: six nodes, eight labeled edges",
+  "purpose": "teach",
+  "components": [
+    {
+      "id": "d",
+      "type": "diagram",
+      "title": "Balance is the whole game: base gives body, acid brightens,x",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "Supercalifragi listicexpial!",
+          "shape": "box",
+          "x": 0,
+          "y": 0,
+          "color": "primary"
+        },
+        {
+          "id": "n2",
+          "label": "Fresh squeezed citrus acid!!",
+          "shape": "circle",
+          "x": 50,
+          "y": 0,
+          "color": "secondary"
+        },
+        {
+          "id": "n3",
+          "label": "Simple syrup or honey water!",
+          "shape": "pill",
+          "x": 100,
+          "y": 0,
+          "color": "accent"
+        },
+        {
+          "id": "n4",
+          "label": "Dilution: ice, shake, stir..",
+          "shape": "box",
+          "x": 0,
+          "y": 50,
+          "color": "neutral"
+        },
+        {
+          "id": "n5",
+          "label": "Aromatics, bitters, herbs...",
+          "shape": "circle",
+          "x": 50,
+          "y": 50,
+          "color": "highlight"
+        },
+        {
+          "id": "n6",
+          "label": "Temperature and glassware...",
+          "shape": "pill",
+          "x": 100,
+          "y": 50,
+          "color": "primary"
+        }
+      ],
+      "edges": [
+        {
+          "from": "n1",
+          "to": "n2",
+          "label": "balances against x",
+          "style": "arrow"
+        },
+        {
+          "from": "n2",
+          "to": "n3",
+          "label": "cuts sweetness fas",
+          "style": "line"
+        },
+        {
+          "from": "n4",
+          "to": "n5",
+          "label": "softens the acid!!",
+          "style": "dashed"
+        },
+        {
+          "from": "n5",
+          "to": "n6",
+          "label": "opens up aroma....",
+          "style": "arrow"
+        },
+        {
+          "from": "n1",
+          "to": "n4",
+          "label": "chills and dilutes",
+          "style": "arrow"
+        },
+        {
+          "from": "n2",
+          "to": "n5",
+          "label": "needs a cold glass",
+          "style": "line"
+        },
+        {
+          "from": "n3",
+          "to": "n6",
+          "label": "finishes the drink",
+          "style": "dashed"
+        },
+        {
+          "from": "n1",
+          "to": "n6",
+          "label": "supports the base.",
+          "style": "arrow"
+        }
+      ],
+      "altText": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and d"
+    }
+  ]
+}

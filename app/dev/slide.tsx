@@ -3,9 +3,12 @@ import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BASE_COMPANION, SlideV1Schema, type ComponentResultV1 } from '../../src/contracts';
+import { scoreFillBlank } from '../../src/domain/scoring';
+import type { FillBlankFeedback } from '../../src/features/components/FillBlank';
 import type { ChoiceFeedback } from '../../src/features/components/MultipleChoice';
 import { SlideView } from '../../src/features/components/SlideView';
 import { colors, fonts } from '../../src/features/theme';
+import { CONTENT_MAX_WIDTH } from '../../src/features/ui/Screen';
 
 /**
  * QA harness: renders one slide from JSON in the URL, with no server and no model.
@@ -20,6 +23,7 @@ export default function DevSlideScreen() {
   const doc = params.doc ?? hashDoc;
   const [results, setResults] = useState<ComponentResultV1[]>([]);
   const [feedback, setFeedback] = useState<Record<string, ChoiceFeedback | undefined>>({});
+  const [fillBlankFeedback, setFillBlankFeedback] = useState<Record<string, FillBlankFeedback | undefined>>({});
 
   const parsed = useMemo(() => {
     if (!doc) return { ok: false as const, error: 'Missing ?doc= parameter' };
@@ -60,6 +64,23 @@ export default function DevSlideScreen() {
               },
               onChecklist: (componentId, checkedItemIds, confirmed) =>
                 setResults((r) => [...r.filter((x) => x.componentId !== componentId), { type: 'checklist', componentId, checkedItemIds, confirmed }]),
+              fillBlankFeedback,
+              // Local scoring through the same pure domain function the server will use.
+              onFillBlank: (componentId, answers) => {
+                const component = parsed.slide.components.find((c) => c.id === componentId);
+                if (!component || component.type !== 'fillBlank') return;
+                const attempt = (results.filter((r) => r.componentId === componentId).length ?? 0) + 1;
+                const scored = scoreFillBlank(component, answers, attempt);
+                setResults((r) => [...r.filter((x) => x.componentId !== componentId), scored.result]);
+                setFillBlankFeedback((f) => ({
+                  ...f,
+                  [componentId]: {
+                    correct: scored.result.correct,
+                    attempt,
+                    gaps: scored.result.answers.map((a) => ({ gapId: a.gapId, correct: a.correct, explanation: scored.explanations.find((e) => e.gapId === a.gapId)?.explanation ?? '' })),
+                  },
+                }));
+              },
             }}
           />
         ) : (
@@ -77,7 +98,8 @@ const styles = StyleSheet.create({
   safe: { backgroundColor: colors.bg },
   banner: { backgroundColor: colors.yellowTint, paddingVertical: 6, alignItems: 'center' },
   bannerText: { fontFamily: fonts.black, fontSize: 11, letterSpacing: 1, color: '#92400E' },
-  content: { padding: 20, gap: 18, paddingBottom: 40 },
+  // Same centered column as the lesson screen, so tablet and desktop renders are representative.
+  content: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', padding: 20, gap: 18, paddingBottom: 40 },
   error: { padding: 16, borderRadius: 20, backgroundColor: colors.coralTint, gap: 8 },
   errorTitle: { fontFamily: fonts.black, fontSize: 16, color: colors.ink },
   errorText: { fontFamily: 'monospace', fontSize: 12, color: colors.ink },

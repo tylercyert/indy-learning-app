@@ -1,8 +1,10 @@
-import type { ComponentV1, MultipleChoiceResultSchema } from '../contracts/components';
+import type { ComponentV1, FillBlankResultSchema, MultipleChoiceResultSchema } from '../contracts/components';
 import type { z } from 'zod';
 
 type MultipleChoice = Extract<ComponentV1, { type: 'multipleChoice' }>;
 type MultipleChoiceResult = z.infer<typeof MultipleChoiceResultSchema>;
+type FillBlank = Extract<ComponentV1, { type: 'fillBlank' }>;
+type FillBlankResult = z.infer<typeof FillBlankResultSchema>;
 
 export interface ScoredChoice {
   result: MultipleChoiceResult;
@@ -27,5 +29,41 @@ export function scoreMultipleChoice(
     result: { type: 'multipleChoice', componentId: component.id, selectedOptionId, correct, attempt },
     explanation: option.explanation,
     correctOptionId: component.correctOptionId,
+  };
+}
+
+/** Typed answers compare after this: Unicode compatibility form, trimmed, case-folded, inner whitespace collapsed. */
+export function normalizeAnswer(value: string): string {
+  return value.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+export interface ScoredFillBlank {
+  result: FillBlankResult;
+  /** Explanations for the gaps that were wrong, in component order. Empty when every gap matched. */
+  explanations: { gapId: string; explanation: string }[];
+}
+
+/**
+ * Deterministic scoring for fillBlank. Every gap must be answered (a missing gap counts as the
+ * empty string, which never matches). Throws on an answer for a gap that is not on the component.
+ */
+export function scoreFillBlank(
+  component: FillBlank,
+  answers: readonly { gapId: string; value: string }[],
+  attempt: number,
+): ScoredFillBlank {
+  const known = new Set(component.gaps.map((g) => g.id));
+  for (const a of answers) {
+    if (!known.has(a.gapId)) throw new Error(`gap "${a.gapId}" is not on component "${component.id}"`);
+  }
+  const scored = component.gaps.map((gap) => {
+    const value = answers.find((a) => a.gapId === gap.id)?.value ?? '';
+    const normalized = normalizeAnswer(value);
+    const correct = normalized.length > 0 && gap.accepted.some((a) => normalizeAnswer(a) === normalized);
+    return { gapId: gap.id, value: value.slice(0, 60), correct };
+  });
+  return {
+    result: { type: 'fillBlank', componentId: component.id, answers: scored, correct: scored.every((s) => s.correct), attempt },
+    explanations: component.gaps.filter((_, i) => !scored[i]!.correct).map((g) => ({ gapId: g.id, explanation: g.explanation })),
   };
 }

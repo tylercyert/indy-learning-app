@@ -1,16 +1,16 @@
 {
   "id": "ratio-six",
-  "title": "Ratio bar with six segments",
+  "title": "Ratio bars: six segments, 6:1, six equal parts",
   "purpose": "teach",
   "components": [
     {
       "id": "ratio",
       "type": "ratioBar",
-      "title": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx",
+      "title": "Balance is the whole game: base gives body, acid brightens,x",
       "segments": [
         {
           "label": "Base spirit or cold tea!",
-          "parts": 12,
+          "parts": 6,
           "color": "primary"
         },
         {
@@ -25,7 +25,7 @@
         },
         {
           "label": "Dilution from ice & stir",
-          "parts": 6,
+          "parts": 4,
           "color": "neutral"
         },
         {
@@ -35,7 +35,7 @@
         },
         {
           "label": "Garnish and salt rim too",
-          "parts": 2,
+          "parts": 1,
           "color": "primary"
         }
       ],
@@ -44,11 +44,11 @@
     {
       "id": "ratio-two-extreme",
       "type": "ratioBar",
-      "title": "Two segments, 1 : 12",
+      "title": "Two segments, 6 : 1 (the widest spread allowed)",
       "segments": [
         {
           "label": "Supercalifragilisticexpi",
-          "parts": 12,
+          "parts": 6,
           "color": "highlight"
         },
         {
@@ -57,7 +57,45 @@
           "color": "secondary"
         }
       ],
-      "altText": "Twelve parts to one part."
+      "altText": "Six parts to one part."
+    },
+    {
+      "id": "ratio-equal-six",
+      "type": "ratioBar",
+      "title": "Six equal parts (fractions: 4 of 6 shaded)",
+      "segments": [
+        {
+          "label": "first sixth",
+          "parts": 1,
+          "color": "primary"
+        },
+        {
+          "label": "second sixth",
+          "parts": 1,
+          "color": "primary"
+        },
+        {
+          "label": "third sixth",
+          "parts": 1,
+          "color": "primary"
+        },
+        {
+          "label": "fourth sixth",
+          "parts": 1,
+          "color": "primary"
+        },
+        {
+          "label": "fifth sixth",
+          "parts": 1,
+          "color": "neutral"
+        },
+        {
+          "label": "sixth sixth",
+          "parts": 1,
+          "color": "neutral"
+        }
+      ],
+      "altText": "Six equal segments; the first four are shaded to show four sixths."
     }
   ]
 }

@@ -1,21 +1,33 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   GoalScreeningV1Schema,
   BASE_COMPANION,
+  CALLOUT_MAX_BLOCKS,
+  CALLOUT_MAX_CHARS,
+  CODE_BLOCK_MAX_COLS,
+  CODE_BLOCK_MAX_LINES,
   CompanionThemeV1Schema,
+  ComponentResultV1Schema,
   ComponentV1Schema,
   CoursePlanV1Schema,
   GeneratedSlidesV1Schema,
   IntakeTurnV1Schema,
   LearnerContextV1Schema,
   ProgressionRuleV1Schema,
+  RICH_TEXT_MAX_BLOCK_CHARS,
+  RICH_TEXT_MAX_HEADING_CHARS,
   RichTextV1Schema,
   SkillTreeV1Schema,
   SlideV1Schema,
+  richTextChars,
   richTextToPlain,
   ruleReferences,
 } from './index';
 import { examplePlan, exampleSlides, exampleTree } from './examples';
+
+const paragraph = (text: string) => ({ type: 'paragraph' as const, inlines: [{ text }] });
 
 describe('RichTextV1', () => {
   it('accepts headings, lists and marked inlines', () => {
@@ -38,6 +50,118 @@ describe('RichTextV1', () => {
   it('rejects unknown block types and raw html fields', () => {
     expect(RichTextV1Schema.safeParse({ blocks: [{ type: 'html', html: '<b>x</b>' }] }).success).toBe(false);
     expect(RichTextV1Schema.safeParse({ blocks: [{ type: 'paragraph', inlines: [{ text: 'x' }], html: '<b>' }] }).success).toBe(false);
+  });
+  it('caps a block at the phone-readable length and a heading shorter still', () => {
+    expect(RichTextV1Schema.safeParse({ blocks: [paragraph('x'.repeat(RICH_TEXT_MAX_BLOCK_CHARS))] }).success).toBe(true);
+    expect(RichTextV1Schema.safeParse({ blocks: [paragraph('x'.repeat(RICH_TEXT_MAX_BLOCK_CHARS + 1))] }).success).toBe(false);
+    const heading = (n: number) => ({ type: 'heading' as const, level: 2 as const, inlines: [{ text: 'x'.repeat(n) }] });
+    expect(RichTextV1Schema.safeParse({ blocks: [heading(RICH_TEXT_MAX_HEADING_CHARS)] }).success).toBe(true);
+    expect(RichTextV1Schema.safeParse({ blocks: [heading(RICH_TEXT_MAX_HEADING_CHARS + 1)] }).success).toBe(false);
+  });
+  it('counts list items together against one block limit', () => {
+    const items = Array.from({ length: 12 }, () => [{ text: 'x'.repeat(51) }]);
+    expect(RichTextV1Schema.safeParse({ blocks: [{ type: 'bulletList', items }] }).success).toBe(false);
+    expect(richTextChars({ blocks: [{ type: 'bulletList', items: items.slice(0, 2) }, paragraph('abc')] })).toBe(105);
+  });
+});
+
+describe('callout component', () => {
+  const callout = (blocks: unknown[]) => ({ id: 'c', type: 'callout', speaker: 'companion', tone: 'explain', content: { blocks } });
+  it('accepts a bubble at the character cap across several blocks', () => {
+    const ok = callout([paragraph('x'.repeat(200)), { type: 'bulletList', items: [[{ text: 'y'.repeat(100) }]] }, paragraph('z'.repeat(100))]);
+    expect(ComponentV1Schema.safeParse(ok).success).toBe(true);
+  });
+  it('rejects more than the character cap even when each block is legal on its own', () => {
+    const result = ComponentV1Schema.safeParse(callout([paragraph('x'.repeat(300)), paragraph('y'.repeat(CALLOUT_MAX_CHARS - 300 + 1))]));
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.some((i) => i.message.includes('speech bubble'))).toBe(true);
+  });
+  it('rejects headings inside a callout', () => {
+    const result = ComponentV1Schema.safeParse(callout([{ type: 'heading', level: 2, inlines: [{ text: 'Shout' }] }, paragraph('x')]));
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.some((i) => i.message.includes('headings'))).toBe(true);
+  });
+  it('rejects more blocks than a bubble holds', () => {
+    const tooMany = callout(Array.from({ length: CALLOUT_MAX_BLOCKS + 1 }, (_, i) => paragraph(`p${i}`)));
+    expect(ComponentV1Schema.safeParse(tooMany).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(callout(Array.from({ length: CALLOUT_MAX_BLOCKS }, (_, i) => paragraph(`p${i}`)))).success).toBe(true);
+  });
+});
+
+describe('diagram component', () => {
+  const node = (id: string, x: number, y: number, label = id) => ({ id, label, shape: 'box', x, y });
+  const diagram = (nodes: unknown[], edges: unknown[] = []) => ({ id: 'd', type: 'diagram', nodes, edges, altText: 'alt' });
+  it('needs at least two nodes', () => {
+    expect(ComponentV1Schema.safeParse(diagram([node('a', 0, 0)])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(diagram([node('a', 0, 0), node('b', 50, 0)])).success).toBe(true);
+  });
+  it('rejects a node label with a word longer than 14 characters', () => {
+    expect(ComponentV1Schema.safeParse(diagram([node('a', 0, 0, 'Supercalifragilistic'), node('b', 50, 0)])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(diagram([node('a', 0, 0, 'Supercalifragi listicexpial!'), node('b', 50, 0)])).success).toBe(true);
+  });
+  it('rejects two edges between the same pair, in either direction', () => {
+    const nodes = [node('a', 0, 0), node('b', 50, 0)];
+    expect(ComponentV1Schema.safeParse(diagram(nodes, [{ from: 'a', to: 'b' }, { from: 'b', to: 'a' }])).success).toBe(false);
+  });
+  it('rejects nodes closer than the grid minimum unless separated on the other axis', () => {
+    expect(ComponentV1Schema.safeParse(diagram([node('a', 0, 0), node('b', 49, 33)])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(diagram([node('a', 0, 0), node('b', 0, 34)])).success).toBe(true);
+  });
+});
+
+describe('codeBlock component', () => {
+  const block = (lines: string[], extra: Record<string, unknown> = {}) => ({ id: 'c', type: 'codeBlock', language: 'python', caption: '', lines, ...extra });
+  it('accepts 16 lines of 80 columns with blank lines and untrimmed indentation', () => {
+    const lines = Array.from({ length: CODE_BLOCK_MAX_LINES }, (_, i) => (i % 5 === 0 ? '' : '    ' + 'x'.repeat(CODE_BLOCK_MAX_COLS - 4)));
+    const parsed = ComponentV1Schema.parse(block(lines));
+    expect(parsed.type === 'codeBlock' && parsed.lines[1]!.startsWith('    ')).toBe(true);
+  });
+  it('rejects a 17th line, an 81st column and a line break inside a line', () => {
+    expect(ComponentV1Schema.safeParse(block(Array.from({ length: CODE_BLOCK_MAX_LINES + 1 }, () => 'x'))).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(block(['x'.repeat(CODE_BLOCK_MAX_COLS + 1)])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(block(['a\nb'])).success).toBe(false);
+  });
+  it('rejects an unknown language and a caption over 80 characters', () => {
+    expect(ComponentV1Schema.safeParse(block(['x'], { language: 'cobol' })).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(block(['x'], { caption: 'c'.repeat(81) })).success).toBe(false);
+  });
+});
+
+describe('fillBlank component', () => {
+  const gap = (id: string, accepted: string[] = ['acid']) => ({ id, accepted, explanation: 'Acid is the lever that cuts sweetness.' });
+  const fill = (text: string, gaps: unknown[]) => ({ id: 'f', type: 'fillBlank', prompt: 'Complete the rule.', text, gaps });
+  it('accepts one marker per gap, in order, up to two gaps', () => {
+    expect(ComponentV1Schema.safeParse(fill('Add ___ to cut sweetness.', [gap('g1')])).success).toBe(true);
+    expect(ComponentV1Schema.safeParse(fill('Add ___ to cut ___.', [gap('g1'), gap('g2', ['sweetness', 'sugar'])])).success).toBe(true);
+  });
+  it('rejects a marker count that differs from the gap count', () => {
+    expect(ComponentV1Schema.safeParse(fill('Add ___ to cut ___.', [gap('g1')])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(fill('No marker here.', [gap('g1')])).success).toBe(false);
+  });
+  it('rejects three gaps, a run of four underscores and duplicate gap ids', () => {
+    expect(ComponentV1Schema.safeParse(fill('___ ___ ___', [gap('g1'), gap('g2'), gap('g3')])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(fill('Add ____ now.', [gap('g1')])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(fill('___ and ___', [gap('g1'), gap('g1')])).success).toBe(false);
+  });
+  it('accepts a result with every gap and rejects a result with three answers', () => {
+    const ok = { type: 'fillBlank', componentId: 'f', answers: [{ gapId: 'g1', value: 'Acid', correct: true }], correct: true, attempt: 1 };
+    expect(ComponentResultV1Schema.safeParse(ok).success).toBe(true);
+    const three = { ...ok, answers: [ok.answers[0], { gapId: 'g2', value: '', correct: false }, { gapId: 'g3', value: '', correct: false }] };
+    expect(ComponentResultV1Schema.safeParse(three).success).toBe(false);
+  });
+  it('counts as the one assessable component on a slide', () => {
+    const slide = { id: 's', title: 'T', purpose: 'practice', components: [fill('___', [gap('g1')]), exampleSlides.slides[1]!.components[0]] };
+    expect(SlideV1Schema.safeParse(slide).success).toBe(false);
+  });
+});
+
+describe('stress fixtures', () => {
+  // vitest runs from the repo root (see vitest.config.mts include globs).
+  const dir = path.resolve(process.cwd(), 'qa/fixtures/stress');
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json'));
+  it.each(files)('%s validates exactly when its name says so', (file) => {
+    const doc: unknown = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
+    expect(SlideV1Schema.safeParse(doc).success).toBe(!file.startsWith('invalid-'));
   });
 });
 

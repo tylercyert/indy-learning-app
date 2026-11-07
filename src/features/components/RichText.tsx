@@ -1,18 +1,21 @@
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, PixelRatio, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { InlineV1, RichTextV1 } from '../../contracts';
 import { colors, fonts } from '../theme';
 
 /** Renders the structured rich-text document. No markup is ever interpreted. */
 export function RichText({ doc, color = colors.ink, size = 16 }: { doc: RichTextV1; color?: string; size?: number }) {
+  // Layout widths that must track text size (list markers) follow the OS text scale like the glyphs do.
+  const fontScale = PixelRatio.getFontScale();
   return (
     <View style={styles.doc}>
       {doc.blocks.map((block, i) => {
         switch (block.type) {
           case 'heading': {
-            const fontSize = block.level === 1 ? size + 10 : block.level === 2 ? size + 6 : size + 2;
+            // The slide title is 26px; headings inside a block step down from it: 22 / 20 / 18 at the default size.
+            const fontSize = block.level === 1 ? size + 6 : block.level === 2 ? size + 4 : size + 2;
             return (
               // Slide titles are level 1, so rich-text headings start at level 2.
-              <Text key={i} accessibilityRole="header" aria-level={block.level + 1} style={[styles.heading, { color, fontSize }]}>
+              <Text key={i} accessibilityRole="header" aria-level={block.level + 1} style={[styles.heading, { color, fontSize, lineHeight: Math.round(fontSize * 1.25) }]}>
                 <Inlines inlines={block.inlines} color={color} />
               </Text>
             );
@@ -24,12 +27,15 @@ export function RichText({ doc, color = colors.ink, size = 16 }: { doc: RichText
               </Text>
             );
           case 'bulletList':
-          case 'numberedList':
+          case 'numberedList': {
+            // Hanging indent: one marker column for the whole list, wide enough for its largest marker
+            // ("12." needs more than "9." or "•"), so wrapped lines align under the first line.
+            const markerWidth = Math.round(size * fontScale * (block.type === 'bulletList' ? 1 : block.items.length >= 10 ? 2.1 : 1.6));
             return (
               <View key={i} style={styles.list} accessibilityRole="list">
                 {block.items.map((item, j) => (
                   <View key={j} style={styles.listItem} role="listitem">
-                    <Text style={[styles.bullet, { color, fontSize: size }]}>{block.type === 'bulletList' ? '•' : `${j + 1}.`}</Text>
+                    <Text style={[styles.bullet, { color, fontSize: size, lineHeight: size * 1.5, minWidth: markerWidth }]}>{block.type === 'bulletList' ? '•' : `${j + 1}.`}</Text>
                     <Text style={[styles.paragraph, styles.listText, { color, fontSize: size, lineHeight: size * 1.5 }]}>
                       <Inlines inlines={item} color={color} />
                     </Text>
@@ -37,6 +43,7 @@ export function RichText({ doc, color = colors.ink, size = 16 }: { doc: RichText
                 ))}
               </View>
             );
+          }
           case 'callout': {
             const tone = { tip: colors.mintTint, note: colors.soft, warning: colors.coralTint }[block.tone];
             return (
@@ -94,7 +101,7 @@ const styles = StyleSheet.create({
   paragraph: { fontFamily: fonts.bold },
   list: { gap: 8 },
   listItem: { flexDirection: 'row', gap: 10 },
-  bullet: { fontFamily: fonts.black, minWidth: 28 },
+  bullet: { fontFamily: fonts.black },
   listText: { flex: 1, minWidth: 0 },
   code: { fontFamily: 'monospace', backgroundColor: colors.soft, borderRadius: 4 },
   callout: { padding: 14, borderRadius: 16 },

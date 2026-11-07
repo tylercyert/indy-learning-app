@@ -1,0 +1,64 @@
+{
+  "id": "code-max",
+  "title": "Code blocks: 16 × 80, deep indentation, blank lines",
+  "purpose": "teach",
+  "components": [
+    {
+      "id": "wide",
+      "type": "codeBlock",
+      "language": "typescript",
+      "lines": [
+        "const step1 = balance({ base: 1, sour: 1, sweet: 1 }); // xxxxxxxxxxxxxxxxxxxxxx",
+        "  const step2 = balance({ base: 2, sour: 1, sweet: 1 }); // xxxxxxxxxxxxxxxxxxxx",
+        "    const step3 = balance({ base: 3, sour: 1, sweet: 1 }); // xxxxxxxxxxxxxxxxxx",
+        "      const step4 = balance({ base: 4, sour: 1, sweet: 1 }); // xxxxxxxxxxxxxxxx",
+        "        const step5 = balance({ base: 5, sour: 1, sweet: 1 }); // xxxxxxxxxxxxxx",
+        "          const step6 = balance({ base: 6, sour: 1, sweet: 1 }); // xxxxxxxxxxxx",
+        "            const step7 = balance({ base: 7, sour: 1, sweet: 1 }); // xxxxxxxxxx",
+        "              const step8 = balance({ base: 8, sour: 1, sweet: 1 }); // xxxxxxxx",
+        "                const step9 = balance({ base: 9, sour: 1, sweet: 1 }); // xxxxxx",
+        "                const step10 = balance({ base: 10, sour: 1, sweet: 1 }); // xxxx",
+        "                const step11 = balance({ base: 11, sour: 1, sweet: 1 }); // xxxx",
+        "                const step12 = balance({ base: 12, sour: 1, sweet: 1 }); // xxxx",
+        "                const step13 = balance({ base: 13, sour: 1, sweet: 1 }); // xxxx",
+        "                const step14 = balance({ base: 14, sour: 1, sweet: 1 }); // xxxx",
+        "                const step15 = balance({ base: 15, sour: 1, sweet: 1 }); // xxxx",
+        "                const step16 = balance({ base: 16, sour: 1, sweet: 1 }); // xxxx"
+      ],
+      "caption": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the"
+    },
+    {
+      "id": "python",
+      "type": "codeBlock",
+      "language": "python",
+      "lines": [
+        "def mix(base, sour, sweet):",
+        "    \"\"\"Return the ratio as parts.\"\"\"",
+        "",
+        "    total = base + sour + sweet",
+        "    return base / total, sour / total, sweet / total",
+        "",
+        "print(mix(2, 1, 1))"
+      ],
+      "caption": "Blank lines keep their height; indentation is four spaces."
+    },
+    {
+      "id": "one",
+      "type": "codeBlock",
+      "language": "bash",
+      "lines": [
+        "npm run verify"
+      ],
+      "caption": ""
+    },
+    {
+      "id": "nospace",
+      "type": "codeBlock",
+      "language": "plain",
+      "lines": [
+        "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifra"
+      ],
+      "caption": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifra"
+    }
+  ]
+}
