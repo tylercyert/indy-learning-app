@@ -36,7 +36,25 @@ async function shot(page: Page, name: string) {
 async function answerSlide(page: Page): Promise<'answered' | 'none'> {
   const radios = page.getByRole('radio');
   const boxes = page.getByRole('textbox');
-  if ((await radios.count()) === 0 && (await boxes.count()) === 0) return 'none';
+  const isMatch = (await page.getByText(/Tap a term, then tap where it belongs/i).count()) > 0;
+  if ((await radios.count()) === 0 && (await boxes.count()) === 0 && !isMatch) return 'none';
+  if (isMatch) {
+    // matchPairs: terms are radios, definition rows are buttons (not the footer's). A wrong set is a valid attempt.
+    const slots = page.getByRole('button').filter({ hasNotText: /^(check|check again|previous|continue|finish|skip for now|try again|close lesson)$/i });
+    const n = await radios.count();
+    for (let i = 0; i < n; i++) {
+      await radios.nth(i).click();
+      const free = slots.filter({ hasNotText: /holds/ });
+      if ((await free.count()) > 0) await free.first().click();
+    }
+    await page.getByRole('button', { name: /^check( again)?$/i }).first().click();
+    await page.getByText(/Nice!|Close!|Not quite/).first().waitFor({ timeout: 20_000 });
+    await shot(page, 'lesson-feedback-matchpairs');
+    const skip = page.getByRole('button', { name: /^skip for now/i });
+    if ((await skip.count()) > 0) await skip.first().click();
+    else await page.getByRole('button', { name: /^continue$/i }).first().click();
+    return 'answered';
+  }
   if ((await radios.count()) === 0) {
     // fillBlank: the journey does not know the accepted answers; it attempts, reads the teaching
     // text, and moves on with "Skip for now" (a legitimate learner path; attempts count as answered).

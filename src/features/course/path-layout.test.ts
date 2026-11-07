@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { NodeV1 } from '../../contracts';
-import { BRANCH_RADIUS, layerNodes, layoutPath, MAIN_RADIUS, MAX_PER_ROW, rowsFor } from './path-layout';
+import { anchorOf, BRANCH_RADIUS, layerNodes, layoutPath, MAIN_RADIUS, roadOrder } from './path-layout';
 
 const L = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 const node = (id: string, required: boolean, allOf: string[] = [], kind: NodeV1['kind'] = required ? 'core' : 'optional'): NodeV1 => ({
@@ -24,77 +24,69 @@ const tree: NodeV1[] = [
   node('party', true, ['sour', 'highball']),
 ];
 
-describe('path layout', () => {
+describe('path layout (winding road with side branches)', () => {
   it('layers nodes by longest prerequisite chain', () => {
     const layer = layerNodes(tree);
     expect(layer.get('orientation')).toBe(0);
     expect(layer.get('kit')).toBe(1);
-    expect(layer.get('syrup')).toBe(1);
     expect(layer.get('sour')).toBe(2);
-    expect(layer.get('highball')).toBe(2);
-    expect(layer.get('fix-by-taste')).toBe(3);
     expect(layer.get('party')).toBe(3);
   });
 
-  it('puts a fork side by side and the optional branch at the edge of its row', () => {
-    const rows = rowsFor(tree);
-    expect(rows.map((r) => r.map((n) => n.id))).toEqual([['orientation'], ['kit', 'syrup'], ['sour', 'highball'], ['party', 'fix-by-taste']]);
-    const layout = layoutPath(tree, 350);
+  it('orders the road by dependency, keeping the tree order inside a layer', () => {
+    expect(roadOrder(tree).map((n) => n.id)).toEqual(['orientation', 'kit', 'syrup', 'sour', 'highball', 'party']);
+  });
+
+  it('winds the road center, left, center, right and connects consecutive steps', () => {
+    const layout = layoutPath(tree, 400);
+    const road = layout.nodes.filter((p) => p.node.required);
+    expect(road.map((p) => p.cx)).toEqual([200, 96, 200, 304, 200, 96]);
+    expect(road.every((p) => p.labelMode === 'side' && p.r === MAIN_RADIUS)).toBe(true);
+    const roadEdges = layout.edges.filter((e) => !e.branch);
+    expect(roadEdges.map((e) => `${e.from}>${e.to}`)).toEqual(['orientation>kit', 'kit>syrup', 'syrup>sour', 'sour>highball', 'highball>party']);
+    // Rows are strictly increasing down the page.
+    const ys = layout.nodes.map((p) => p.cy);
+    expect([...ys].sort((a, b) => a - b)).toEqual(ys);
+  });
+
+  it('hangs an optional lesson off its anchor as a smaller side branch, away from the next step', () => {
+    const layout = layoutPath(tree, 400);
     const byId = new Map(layout.nodes.map((p) => [p.node.id, p]));
-    const party = byId.get('party')!;
     const branch = byId.get('fix-by-taste')!;
-    expect(party.row).toBe(branch.row);
-    expect(party.r).toBe(MAIN_RADIUS);
+    const sour = byId.get('sour')!;
+    const highball = byId.get('highball')!;
+    expect(anchorOf(tree[5]!, tree, roadOrder(tree))?.id).toBe('sour');
     expect(branch.r).toBe(BRANCH_RADIUS);
+    expect(branch.labelMode).toBe('below');
     expect(branch.deadEnd).toBe(true);
-    expect(party.deadEnd).toBe(true); // last node of the path
-    expect(byId.get('sour')!.deadEnd).toBe(false);
-    expect(party.labelMode).toBe('below');
-    expect(byId.get('orientation')!.labelMode).toBe('side');
-    // The branch and the main node never overlap horizontally.
-    expect(Math.abs(party.cx - branch.cx)).toBeGreaterThan(party.r + branch.r + 24);
+    expect(branch.cy).toBeGreaterThan(sour.cy);
+    expect(branch.cy).toBeLessThan(highball.cy);
+    // A branch sits well outside the road, at one of the two side columns.
+    expect(Math.min(branch.cx, 400 - branch.cx)).toBeLessThanOrEqual(0.16 * 400 + 1);
+    expect(layout.edges).toContainEqual({ from: 'sour', to: 'fix-by-taste', branch: true, long: false });
+    expect(layout.edges.filter((e) => e.from === 'fix-by-taste')).toHaveLength(0);
   });
 
-  it('draws one connector per prerequisite and marks branches', () => {
-    const { edges } = layoutPath(tree, 350);
-    expect(edges).toContainEqual({ from: 'kit', to: 'sour', branch: false, long: false });
-    expect(edges).toContainEqual({ from: 'syrup', to: 'sour', branch: false, long: false });
-    expect(edges).toContainEqual({ from: 'sour', to: 'fix-by-taste', branch: true, long: false });
-    expect(edges).toContainEqual({ from: 'kit', to: 'highball', branch: false, long: false });
-    expect(edges.filter((e) => e.from === 'fix-by-taste')).toHaveLength(0);
-  });
-
-  it('hangs a branch on the same side as its anchor and centers a join', () => {
-    const fork: NodeV1[] = [
-      node('root', true, [], 'orientation'),
-      node('left', true, ['root']),
-      node('right', true, ['root']),
-      node('join', true, ['left', 'right']),
-      node('twist', false, ['right']),
+  it('alternates branch sides when the road stays centered and follows optional chains back to the road', () => {
+    const t: NodeV1[] = [
+      node('a', true, [], 'orientation'),
+      node('x', false, ['a']),
+      node('y', false, ['a']),
+      node('z', false, ['y']), // optional off an optional: anchors to the road step "a"
     ];
-    const byId = new Map(layoutPath(fork, 400).nodes.map((p) => [p.node.id, p]));
-    expect(byId.get('left')!.cx).toBeLessThan(byId.get('right')!.cx);
-    expect(byId.get('twist')!.cx).toBeGreaterThan(byId.get('join')!.cx); // branch hangs under "right"
-    expect(byId.get('twist')!.row).toBe(byId.get('join')!.row);
+    const layout = layoutPath(t, 400);
+    const byId = new Map(layout.nodes.map((p) => [p.node.id, p]));
+    expect(byId.get('x')!.cx).not.toBe(byId.get('y')!.cx);
+    expect(anchorOf(t[3]!, t, roadOrder(t))?.id).toBe('a');
+    expect(layout.edges.filter((e) => e.branch)).toHaveLength(3);
+    expect(layout.height).toBeGreaterThan(byId.get('z')!.cy + BRANCH_RADIUS);
   });
 
-  it('keeps every circle inside the lane and never stacks more than three per row', () => {
+  it('keeps every circle inside the lane', () => {
     const wide: NodeV1[] = [node('root', true), ...[1, 2, 3, 4, 5].map((i) => node(`c${i}`, i % 2 === 1, ['root']))];
-    const layout = layoutPath(wide, 350);
-    for (const row of layout.rows) expect(row.length).toBeLessThanOrEqual(MAX_PER_ROW);
-    expect(layout.rows).toHaveLength(3); // root, then 5 children over two rows
-    for (const p of layout.nodes) {
+    for (const p of layoutPath(wide, 350).nodes) {
       expect(p.cx - p.r).toBeGreaterThanOrEqual(0);
       expect(p.cx + p.r).toBeLessThanOrEqual(350);
     }
-    expect(layout.height).toBeGreaterThan(layout.nodes[layout.nodes.length - 1]!.cy);
-  });
-
-  it('winds a plain chain left, center, right like the original path', () => {
-    const chain: NodeV1[] = [node('a', true, [], 'orientation'), node('b', true, ['a']), node('c', true, ['b']), node('d', true, ['c'])];
-    const xs = layoutPath(chain, 400).nodes.map((p) => p.cx);
-    expect(xs[0]).toBe(200);
-    expect(new Set(xs).size).toBeGreaterThan(1);
-    expect(layoutPath(chain, 400).nodes.every((p) => p.labelMode === 'side')).toBe(true);
   });
 });

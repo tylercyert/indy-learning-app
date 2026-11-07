@@ -58,9 +58,10 @@ export function FillBlank({
               {piece}
               {gap ? (
                 // Non-breaking padding keeps the slot one unit so it never splits across a line break.
-                <Text style={[styles.slot, state && (state.correct ? styles.slotRight : styles.slotWrong)]}>
+                // An empty gap is a plain blank line: no placeholder digit that could read as part of the answer.
+                <Text style={[styles.slot, !(values[gap.id] ?? '').trim() && styles.slotEmpty, state && (state.correct ? styles.slotRight : styles.slotWrong)]}>
                   {NBSP}
-                  {(values[gap.id] ?? '').trim().replace(/ /g, NBSP) || `${NBSP}${i + 1}${NBSP.repeat(4)}`}
+                  {(values[gap.id] ?? '').trim().replace(/ /g, NBSP) || NBSP.repeat(8)}
                   {NBSP}
                 </Text>
               ) : null}
@@ -123,6 +124,7 @@ const styles = StyleSheet.create({
   prompt: { fontFamily: fonts.black, fontSize: 20, lineHeight: 26, color: colors.ink },
   sentence: { fontFamily: fonts.bold, fontSize: 17, lineHeight: 30, color: colors.ink },
   slot: { fontFamily: fonts.black, backgroundColor: colors.soft, color: colors.purple, borderRadius: 6 },
+  slotEmpty: { borderBottomWidth: 3, borderBottomColor: '#C4B5FD', borderRadius: 0, backgroundColor: 'transparent' },
   slotRight: { backgroundColor: colors.greenTint, color: colors.mintDeep },
   slotWrong: { backgroundColor: colors.coralTint, color: colors.coralDeep },
   fields: { gap: 10 },

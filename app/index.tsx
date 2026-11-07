@@ -8,7 +8,7 @@ import { ChunkyButton } from '../src/features/ui/ChunkyButton';
 import { ProgressGlass } from '../src/features/ui/ProgressGlass';
 import { ErrorBox, Eyebrow, Screen } from '../src/features/ui/Screen';
 import { useAsync } from '../src/features/ui/useAsync';
-import { api } from '../src/services/api';
+import { api, resetLearner } from '../src/services/api';
 
 const EXAMPLES = ['Make great cocktails for a party', 'Learn Indonesian basics', 'Understand how engines work', 'Python for data analysis'];
 
@@ -21,6 +21,15 @@ export default function HomeScreen() {
   const discover = useAsync(() => api.discover(), []);
   const [startingDiscovered, setStartingDiscovered] = useState<string | null>(null);
   const [showAllDiscover, setShowAllDiscover] = useState(false);
+  const [resetArmed, setResetArmed] = useState(false);
+  const resetAsNewLearner = async () => {
+    await resetLearner();
+    setResetArmed(false);
+    setGoal('');
+    setShowAllDiscover(false);
+    courses.reload();
+    discover.reload();
+  };
   /** Home stays short: three recommended courses, the rest behind one tap. */
   const DISCOVER_PREVIEW = 3;
 
@@ -65,7 +74,7 @@ export default function HomeScreen() {
     <Screen>
       <View style={styles.hero}>
         <View style={styles.heroTop}>
-          <Text style={styles.brand}>Indy</Text>
+          <Text style={styles.brand}>Poko</Text>
           {streak > 0 ? (
             <View style={styles.chip} accessibilityLabel={`${streak} day streak`}>
               <Text style={styles.chipText}>🔥 {streak}</Text>
@@ -82,7 +91,7 @@ export default function HomeScreen() {
                   : featured.nextNodeTitle
                     ? `Welcome back! “${featured.nextNodeTitle}” is ready when you are.`
                     : `Welcome back! Your course is ready.`
-                : 'Hi, I’m Pip! What do you want to learn?'}
+                : 'Hi, I’m Poko! What do you want to learn?'}
             </Text>
           </View>
         </View>
@@ -188,6 +197,19 @@ export default function HomeScreen() {
           ) : null}
         </View>
       ) : null}
+      <View style={styles.resetRow}>
+        {resetArmed ? (
+          <>
+            <Text style={styles.resetText}>Start over as a brand-new learner? Your courses stay on the server but leave this device.</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <ChunkyButton label="Yes, start over" variant="outline" onPress={() => void resetAsNewLearner()} style={{ flex: 1 }} />
+              <ChunkyButton label="Keep" variant="ghost" onPress={() => setResetArmed(false)} style={{ flex: 1 }} />
+            </View>
+          </>
+        ) : (
+          <ChunkyButton label="Start over as a new learner" variant="ghost" onPress={() => setResetArmed(true)} accessibilityHint="Forgets this device's progress so the app looks new" />
+        )}
+      </View>
       {__DEV__ ? <Text style={styles.foot}>{api.baseUrl}</Text> : null}
     </Screen>
   );
@@ -217,5 +239,7 @@ const styles = StyleSheet.create({
   courseMeta: { fontFamily: fonts.bold, fontSize: 13, color: colors.muted },
   bar: { height: 10, borderRadius: 5, backgroundColor: colors.line, overflow: 'hidden', marginTop: 4 },
   barFill: { height: '100%', backgroundColor: colors.coral, borderRadius: 5 },
+  resetRow: { gap: 10, marginTop: 12 },
+  resetText: { fontFamily: fonts.bold, fontSize: 13, lineHeight: 18, color: colors.muted, textAlign: 'center' },
   foot: { fontFamily: fonts.bold, fontSize: 11, color: '#B8AED6', textAlign: 'center' },
 });

@@ -1,29 +1,25 @@
 import { ruleReferences, type NodeV1 } from '../../contracts';
 
 /**
- * Lays a skill tree out as a path that can fork and rejoin, the way the mockup draws it:
- * required nodes form the main path (two of them side by side when a node unlocks two
- * directions at once), optional nodes hang off their prerequisite as smaller side branches
- * that dead-end. Everything is derived from the nodes' progression rules; nothing is stored.
- *
- * Rows are longest-path layers (a node sits one row below the deepest prerequisite it
- * references). A row holds at most MAX_PER_ROW nodes; a fuller layer spills into extra rows.
- * Single-node rows wind left/center/right with the label beside the circle; shared rows put
- * labels under the circles so neither label collides with the other node.
+ * Lays a skill tree out as a winding road: required lessons follow one path that swings
+ * center → left → center → right, one per row, in dependency order. Optional lessons hang
+ * off the lesson that unlocks them as smaller side branches, alternating left and right of
+ * the road, and dead-end. Everything is derived from the nodes' rules; nothing is stored.
  */
 
 export const MAIN_RADIUS = 38;
 export const BRANCH_RADIUS = 30;
-export const MAX_PER_ROW = 3;
-/** Row heights: a shared row needs room for labels under the circles. */
+/** Row heights: a road step, and the shorter step a side branch adds after its anchor. */
 export const ROW_SINGLE = 116;
-export const ROW_SHARED = 150;
+export const ROW_BRANCH = 104;
 const TOP_PAD = 10;
 const BOTTOM_PAD = 20;
 
-/** Horizontal positions as fractions of the lane, by nodes in the row. */
+/** Road positions as fractions of the lane: center, left, center, right… */
 const WIND = [0.5, 0.24, 0.5, 0.76];
-const COLS_BY_COUNT: Record<number, number[]> = { 1: [0.5], 2: [0.26, 0.74], 3: [0.18, 0.5, 0.82] };
+/** Where a side branch sits, well clear of the road and of the next step's label. */
+const BRANCH_LEFT = 0.16;
+const BRANCH_RIGHT = 0.84;
 
 export interface PlacedNode {
   node: NodeV1;
@@ -31,21 +27,20 @@ export interface PlacedNode {
   cx: number;
   cy: number;
   r: number;
-  /** Where the title goes: beside the circle (single-node rows) or under it (shared rows). */
+  /** Where the title goes: beside the circle (road) or under it (branch). */
   labelMode: 'side' | 'below';
   labelSide: 'left' | 'right';
-  /** Horizontal room for a label under the circle. */
   labelWidth: number;
-  /** A lesson nothing else depends on: the end of a branch. */
+  /** A lesson nothing else depends on: the end of a branch (or the end of the road). */
   deadEnd: boolean;
 }
 
 export interface PlacedEdge {
   from: string;
   to: string;
-  /** Leads into an optional node: drawn as a side branch. */
+  /** Leads into an optional node: drawn as a teal side branch. */
   branch: boolean;
-  /** Spans more than one row: drawn lighter so it does not compete with the adjacent steps. */
+  /** Spans more than one row (never true for a winding road, kept for the renderer's API). */
   long: boolean;
 }
 
@@ -77,83 +72,110 @@ export function layerNodes(nodes: readonly NodeV1[]): Map<string, number> {
   return memo;
 }
 
-/**
- * Groups nodes into rows: by layer, in the tree's own order, required before optional so the
- * main path stays inside and branches sit at the edges; layers wider than MAX_PER_ROW spill.
- */
-export function rowsFor(nodes: readonly NodeV1[]): NodeV1[][] {
+/** The road: required nodes in dependency order (by layer, then the tree's own order). */
+export function roadOrder(nodes: readonly NodeV1[]): NodeV1[] {
   const layer = layerNodes(nodes);
-  const maxLayer = Math.max(0, ...nodes.map((n) => layer.get(n.id) ?? 0));
-  const rows: NodeV1[][] = [];
-  for (let l = 0; l <= maxLayer; l++) {
-    const inLayer = nodes.filter((n) => layer.get(n.id) === l);
-    const ordered = [...inLayer.filter((n) => n.required), ...inLayer.filter((n) => !n.required)];
-    for (let i = 0; i < ordered.length; i += MAX_PER_ROW) rows.push(ordered.slice(i, i + MAX_PER_ROW));
-  }
-  return rows;
+  return nodes
+    .map((node, i) => ({ node, i, l: layer.get(node.id) ?? 0 }))
+    .filter((x) => x.node.required)
+    .sort((a, b) => a.l - b.l || a.i - b.i)
+    .map((x) => x.node);
 }
 
 /**
- * Orders a shared row by the barycenter of each node's prerequisites (the classic layered-graph
- * heuristic): a node sits under the things it depends on, so a branch hangs on its anchor's side
- * and connectors rarely cross. Ties keep the tree's own order (required before optional).
+ * The road step an optional node hangs off: its latest prerequisite on the road (an optional
+ * prerequisite is followed back to the road). Falls back to the first step.
  */
-function arrangeRow(row: NodeV1[], xOf: (id: string) => number | undefined): { node: NodeV1; col: number }[] {
-  const cols = COLS_BY_COUNT[row.length] ?? COLS_BY_COUNT[MAX_PER_ROW]!;
-  const bary = (n: NodeV1): number => {
-    const xs = ruleReferences(n.rule).map(xOf).filter((x): x is number => x !== undefined);
-    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0.5;
+export function anchorOf(node: NodeV1, nodes: readonly NodeV1[], road: readonly NodeV1[]): NodeV1 | undefined {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const index = new Map(road.map((n, i) => [n.id, i]));
+  const seen = new Set<string>();
+  const resolve = (id: string): number => {
+    if (seen.has(id)) return -1;
+    seen.add(id);
+    const n = byId.get(id);
+    if (!n) return -1;
+    const own = index.get(id);
+    if (own !== undefined) return own;
+    return Math.max(-1, ...ruleReferences(n.rule).map(resolve));
   };
-  const sorted = row.map((node, i) => ({ node, i, b: bary(node) })).sort((p, q) => p.b - q.b || p.i - q.i);
-  return sorted.map(({ node }, k) => ({ node, col: cols[k]! }));
-}
-
-/** A single node leans toward its prerequisites when they sit clearly to one side; otherwise the path winds. */
-function singleCol(node: NodeV1, xOf: (id: string) => number | undefined, windIndex: number, isRoot: boolean): number {
-  if (isRoot) return 0.5;
-  const xs = ruleReferences(node.rule).map(xOf).filter((x): x is number => x !== undefined);
-  const b = xs.length ? xs.reduce((a, c) => a + c, 0) / xs.length : 0.5;
-  if (xs.length > 1) return 0.5; // a join sits between what it joins
-  if (b <= 0.4) return WIND[1]!;
-  if (b >= 0.6) return WIND[3]!;
-  return WIND[windIndex % WIND.length]!;
+  const best = Math.max(-1, ...ruleReferences(node.rule).map(resolve));
+  return best >= 0 ? road[best] : road[0];
 }
 
 export function layoutPath(nodes: readonly NodeV1[], laneWidth: number, offsetX = 0): PathLayout {
-  const rows = rowsFor(nodes);
+  const road = roadOrder(nodes);
+  const optional = nodes.filter((n) => !n.required);
   const dependedOn = new Set(nodes.flatMap((n) => ruleReferences(n.rule)));
-  const placed: PlacedNode[] = [];
-  const placedRows: PlacedNode[][] = [];
-  let y = TOP_PAD;
-  const colOf = new Map<string, number>();
-  let singleIndex = 0;
-  for (const [rowIndex, row] of rows.entries()) {
-    const shared = row.length > 1;
-    const rowH = shared ? ROW_SHARED : ROW_SINGLE;
-    const cy = y + MAIN_RADIUS;
-    const xOf = (id: string) => colOf.get(id);
-    const arranged = shared ? arrangeRow(row, xOf) : [{ node: row[0]!, col: singleCol(row[0]!, xOf, singleIndex++, rowIndex === 0) }];
-    for (const a of arranged) colOf.set(a.node.id, a.col);
-    const rowPlaced = arranged.map(({ node, col }) => ({
-      node,
-      row: rowIndex,
-      cx: offsetX + col * laneWidth,
-      cy,
-      r: node.required ? MAIN_RADIUS : BRANCH_RADIUS,
-      labelMode: shared ? ('below' as const) : ('side' as const),
-      labelSide: col > 0.5 ? ('left' as const) : ('right' as const),
-      labelWidth: shared ? Math.floor(laneWidth / row.length) - 16 : Math.min(190, laneWidth / 2 - MAIN_RADIUS - 24),
-      deadEnd: !dependedOn.has(node.id),
-    }));
-    placed.push(...rowPlaced);
-    placedRows.push(rowPlaced);
-    y += rowH;
+  const branchesByAnchor = new Map<string, NodeV1[]>();
+  for (const o of optional) {
+    const anchor = anchorOf(o, nodes, road);
+    const key = anchor?.id ?? '';
+    branchesByAnchor.set(key, [...(branchesByAnchor.get(key) ?? []), o]);
   }
-  const rowOf = new Map(placed.map((p) => [p.node.id, p.row]));
-  const edges: PlacedEdge[] = nodes.flatMap((n) =>
-    ruleReferences(n.rule)
-      .filter((from) => rowOf.has(from))
-      .map((from) => ({ from, to: n.id, branch: !n.required, long: (rowOf.get(n.id) ?? 0) - (rowOf.get(from) ?? 0) > 1 })),
-  );
-  return { nodes: placed, edges, height: y - TOP_PAD + TOP_PAD + BOTTOM_PAD, rows: placedRows };
+
+  const placed: PlacedNode[] = [];
+  const rows: PlacedNode[][] = [];
+  const edges: PlacedEdge[] = [];
+  let y = TOP_PAD;
+  let row = 0;
+  let branchSide: 'left' | 'right' = 'left';
+  const sideLabelWidth = Math.min(190, laneWidth / 2 - MAIN_RADIUS - 24);
+
+  const placeRoad = (node: NodeV1, i: number) => {
+    const col = i === 0 ? 0.5 : WIND[i % WIND.length]!;
+    const p: PlacedNode = {
+      node,
+      row,
+      cx: offsetX + col * laneWidth,
+      cy: y + MAIN_RADIUS,
+      r: MAIN_RADIUS,
+      labelMode: 'side',
+      labelSide: col > 0.5 ? 'left' : 'right',
+      labelWidth: sideLabelWidth,
+      deadEnd: !dependedOn.has(node.id),
+    };
+    placed.push(p);
+    rows.push([p]);
+    row++;
+    y += ROW_SINGLE;
+    return col;
+  };
+
+  const placeBranch = (node: NodeV1, anchorId: string, nextCol: number | undefined) => {
+    // Away from where the road goes next; alternate when the road stays centered.
+    const side: 'left' | 'right' = nextCol === undefined || nextCol === 0.5 ? (branchSide = branchSide === 'left' ? 'right' : 'left') : nextCol < 0.5 ? 'right' : 'left';
+    const col = side === 'left' ? BRANCH_LEFT : BRANCH_RIGHT;
+    const p: PlacedNode = {
+      node,
+      row,
+      cx: offsetX + col * laneWidth,
+      cy: y + BRANCH_RADIUS,
+      r: BRANCH_RADIUS,
+      labelMode: 'below',
+      labelSide: side,
+      labelWidth: Math.min(150, laneWidth * 0.34),
+      deadEnd: !dependedOn.has(node.id),
+    };
+    placed.push(p);
+    rows.push([p]);
+    edges.push({ from: anchorId, to: node.id, branch: true, long: false });
+    row++;
+    y += ROW_BRANCH;
+  };
+
+  if (road.length === 0 && optional.length > 0) {
+    // Degenerate tree with no required lessons: show the optional ones as the road.
+    optional.forEach((n, i) => placeRoad(n, i));
+  } else {
+    road.forEach((node, i) => {
+      placeRoad(node, i);
+      if (i > 0) edges.push({ from: road[i - 1]!.id, to: node.id, branch: false, long: false });
+      const nextCol = i + 1 < road.length ? WIND[(i + 1) % WIND.length]! : undefined;
+      for (const o of branchesByAnchor.get(node.id) ?? []) placeBranch(o, node.id, nextCol);
+    });
+    for (const o of branchesByAnchor.get('') ?? []) placeBranch(o, road[0]!.id, undefined);
+  }
+
+  return { nodes: placed, edges, height: y + BOTTOM_PAD, rows };
 }
