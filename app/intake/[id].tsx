@@ -6,7 +6,7 @@ import { Companion } from '../../src/features/companion/Companion';
 import { colors, fonts } from '../../src/features/theme';
 import { BeakerLoader } from '../../src/features/ui/BeakerLoader';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
-import { BackButton, ErrorBox, Screen } from '../../src/features/ui/Screen';
+import { AppBar, ErrorBox, Screen } from '../../src/features/ui/Screen';
 import { StatusTicker } from '../../src/features/ui/StatusTicker';
 import { PLANNING_LINES } from '../../src/features/ui/status-ticker';
 import { useAsync } from '../../src/features/ui/useAsync';
@@ -65,7 +65,7 @@ export default function IntakeScreen() {
   if (planning) {
     const addingTree = Boolean(view?.courseId);
     return (
-      <Screen scroll={false}>
+      <Screen scroll={false} header={<AppBar />}>
         <View style={styles.planning}>
           <BeakerLoader size={210} />
           <Text style={styles.planningTitle}>{addingTree ? 'Adding a new skill tree…' : 'Mixing up your course…'}</Text>
@@ -82,6 +82,15 @@ export default function IntakeScreen() {
   return (
     <Screen
       scrollToEndKey={`${view?.transcript.length ?? 0}-${sending}-${view?.status ?? ''}`}
+      header={
+        <AppBar
+          back={{
+            label: view?.courseId ? 'Back to course' : 'Back to home',
+            onPress: () => (view?.courseId ? router.replace({ pathname: '/course/[id]', params: { id: view.courseId } }) : router.replace('/')),
+          }}
+          right={<IntakePips asked={view?.questionsAsked ?? 0} settled={settled} />}
+        />
+      }
       footer={
         view && turn?.kind === 'ask' ? (
           <View style={styles.row}>
@@ -127,11 +136,6 @@ export default function IntakeScreen() {
         ) : null
       }
     >
-      <View style={styles.header}>
-        <BackButton label={view?.courseId ? 'Back to course' : 'Back to home'} onPress={() => (view?.courseId ? router.replace({ pathname: '/course/[id]', params: { id: view.courseId } }) : router.replace('/'))} />
-        <IntakePips asked={view?.questionsAsked ?? 0} settled={settled} />
-      </View>
-
       {session.loading && !view ? (
         // Warm first paint: the companion is already here and thinking, not a spinner.
         <View style={styles.companionRow} accessibilityLiveRegion="polite">
@@ -253,10 +257,10 @@ function SummaryList({ label, items }: { label: string; items: string[] }) {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  pips: { flex: 1, flexDirection: 'row', gap: 6, maxWidth: 240 },
-  pip: { flex: 1, height: 12, borderRadius: 999, backgroundColor: colors.line },
-  pipFilled: { backgroundColor: colors.purple },
+  // The pips sit in the purple app bar: translucent white track, yellow as asked, mint when settled.
+  pips: { flexDirection: 'row', gap: 6, width: 120 },
+  pip: { flex: 1, height: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.3)' },
+  pipFilled: { backgroundColor: colors.yellow },
   pipDone: { backgroundColor: colors.mint },
   learnerRow: { alignItems: 'flex-end' },
   learnerBubble: { maxWidth: '85%', backgroundColor: colors.purple, padding: 14, borderRadius: 20, borderBottomRightRadius: 6 },
