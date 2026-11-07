@@ -31,7 +31,7 @@ Also decided the same day: every learner goal passes Goal Screening (law, Anthro
 
 ## Pending
 
-Social features (owners' brief to come, #6). Voice input. Further component catalog growth (`matchPairs` is proposed on #23; the sub-agent folder contract is #8). Branching skill-path layout from the mockup (#35, in progress). Hosting beyond Tailscale (#12). Device QA on real phones and tablets (#9).
+Voice input. Further component catalog growth (`matchPairs` is proposed on #23; the sub-agent folder contract is #8). Branching skill-path layout from the mockup (#35, in progress). Hosting beyond Tailscale (#12). Device QA on real phones and tablets (#9).
 
 ## Production-grade means evidence
 

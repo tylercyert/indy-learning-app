@@ -9,7 +9,7 @@ Work is tracked in [GitHub Issues](https://github.com/tylercyert/indy-learning-a
 | 3 Skill tree | #3 | done (PR #19, #22, #26); branching layout continues as #35 | See the winding path, open nodes as they unlock, celebrate, keep a streak |
 | 4 History and reuse | #4 | done (PR #22) | Get lessons that know what they already did; rename or re-roll the companion; keep going after a course |
 | 5 Discovery and exploration | #5 | done (PR #22) | Start from an existing course; ask to go somewhere different mid-course |
-| 6 Social | #6 | blocked: owners' brief | Pending the owners' brief |
+| 6 Social | #6 | removed from scope (2026-11-07) | Owner decision; closed |
 
 Landed after the slices, same day: lock hardening, no pre-completed nodes on new courses, Anthropic fast mode and ratio-bar bounds (#29, PR #30); Goal Screening before intake and planning (#31, PR #32); component hardening with `codeBlock` and `fillBlank` (#23, #33, PR #34). A Linear mirror was tried and removed (#24, PR #25 then #27); GitHub Issues are the only tracker.
 
