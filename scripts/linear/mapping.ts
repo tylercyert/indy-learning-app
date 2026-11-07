@@ -5,6 +5,7 @@
  * dry-run plan is exactly what `--apply` would do. GitHub Issues remain the record; this
  * module only derives the Linear shape from a GitHub issue.
  */
+import { createHash } from 'node:crypto';
 
 export type GitHubIssue = {
   number: number;
@@ -36,10 +37,16 @@ export type LinearPriority = 0 | 1 | 2 | 3;
 export const BLOCKED_LABEL = 'blocked';
 export const MARKER_PREFIX = 'github:#';
 
-/** The idempotency key stored as its own line in the Linear description. */
-export const markerFor = (githubNumber: number): string => `${MARKER_PREFIX}${githubNumber}`;
+/**
+ * The idempotency key stored as its own line in the Linear description, e.g.
+ * `github:#12 sync:3f9a0c1b2d4e`. The `sync:` part is a fingerprint of the generated body: Linear
+ * re-serializes markdown (autolinks, `-`→`*` bullets, escaping), so the text itself cannot be
+ * compared, but the fingerprint survives untouched.
+ */
+export const markerFor = (githubNumber: number, syncHash?: string): string =>
+  `${MARKER_PREFIX}${githubNumber}${syncHash ? ` sync:${syncHash}` : ''}`;
 
-const MARKER_LINE = /^\s*`?github:#(\d+)`?\s*$/m;
+const MARKER_LINE = /^\s*`?github:#(\d+)(?:\s+sync:([0-9a-f]+))?`?\s*$/m;
 
 /** Finds the GitHub issue number encoded in a Linear description, or null when absent. */
 export function parseMarker(description: string | null | undefined): number | null {
@@ -49,6 +56,15 @@ export function parseMarker(description: string | null | undefined): number | nu
   const n = Number.parseInt(match[1], 10);
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 }
+
+/** The `sync:` fingerprint on the marker line, or null when absent (older mirrors, hand edits). */
+export function parseSyncHash(description: string | null | undefined): string | null {
+  if (!description) return null;
+  return MARKER_LINE.exec(description)?.[2] ?? null;
+}
+
+/** Short, stable fingerprint of mirrored content. */
+export const contentHash = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex').slice(0, 12);
 
 /**
  * Lifecycle order from docs/factory.md. When an issue carries several `status:*` labels (the
@@ -93,16 +109,14 @@ export function linearLabelsFor(labels: readonly string[], blocked: boolean): st
   return [...out].sort();
 }
 
-/** Linear description: marker line first, then provenance, then the GitHub body verbatim. */
+/** Linear description: marker line (with fingerprint) first, then provenance, then the GitHub body verbatim. */
 export function buildDescription(issue: GitHubIssue): string {
-  const lines = [
-    markerFor(issue.number),
-    `Mirrored from ${issue.url} — GitHub is the record; edit there, not here.`,
-  ];
+  const lines = [`Mirrored from ${issue.url} — GitHub is the record; edit there, not here.`];
   if (issue.milestone) lines.push(`Milestone: ${issue.milestone}`);
-  const body = issue.body.trim();
+  const body = issue.body.replace(/\r\n?/g, '\n').trim();
   if (body) lines.push('', '---', '', body);
-  return lines.join('\n');
+  const rest = lines.join('\n');
+  return `${markerFor(issue.number, contentHash(rest))}\n${rest}`;
 }
 
 export type DesiredIssue = {
@@ -161,7 +175,8 @@ const sameSet = (a: readonly string[], b: readonly string[]) =>
 export function diffIssue(desired: DesiredIssue, existing: ExistingLinearIssue): string[] {
   const changes: string[] = [];
   if (existing.title !== desired.title) changes.push(`title: ${JSON.stringify(existing.title)} → ${JSON.stringify(desired.title)}`);
-  if ((existing.description ?? '') !== desired.description) changes.push('description');
+  const existingHash = parseSyncHash(existing.description);
+  if (existingHash === null || existingHash !== parseSyncHash(desired.description)) changes.push('description');
   if (existing.stateName !== desired.stateName) changes.push(`state: ${existing.stateName} → ${desired.stateName}`);
   if (existing.priority !== desired.priority) changes.push(`priority: ${existing.priority} → ${desired.priority}`);
   if (!sameSet(existing.labels, desired.labels))

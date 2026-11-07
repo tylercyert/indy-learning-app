@@ -5,6 +5,7 @@ import {
   indexByMarker,
   linearLabelsFor,
   markerFor,
+  parseSyncHash,
   parseMarker,
   planChanges,
   priorityFromLabels,
@@ -97,8 +98,10 @@ describe('marker', () => {
     expect(parseMarker(null)).toBeNull();
     expect(parseMarker('')).toBeNull();
   });
-  it('markerFor is the first line of the description', () => {
-    expect(buildDescription(gh({ number: 3 })).split('\n')[0]).toBe(markerFor(3));
+  it('markerFor with the fingerprint is the first line of the description', () => {
+    const text = buildDescription(gh({ number: 3 }));
+    expect(text.split('\n')[0]).toBe(markerFor(3, parseSyncHash(text) ?? ''));
+    expect(markerFor(3)).toBe('github:#3');
   });
 });
 
@@ -111,6 +114,34 @@ describe('buildDescription', () => {
   });
   it('omits the body separator when the body is empty', () => {
     expect(buildDescription(gh({ body: '   ' }))).not.toContain('---');
+  });
+});
+
+describe('sync fingerprint', () => {
+  it('is on the marker line and parses back', () => {
+    const text = buildDescription(gh());
+    const first = text.split('\n')[0] ?? '';
+    expect(first).toMatch(/^github:#12 sync:[0-9a-f]{12}$/);
+    expect(parseSyncHash(text)).toBe(first.split('sync:')[1]);
+    expect(parseMarker(text)).toBe(12);
+  });
+  it('is stable for the same content and changes with body, milestone or CRLF-insensitive body', () => {
+    expect(buildDescription(gh())).toBe(buildDescription(gh()));
+    expect(parseSyncHash(buildDescription(gh({ body: 'other' })))).not.toBe(parseSyncHash(buildDescription(gh())));
+    expect(parseSyncHash(buildDescription(gh({ milestone: 'M' })))).not.toBe(parseSyncHash(buildDescription(gh())));
+    expect(parseSyncHash(buildDescription(gh({ body: 'a\r\nb' })))).toBe(parseSyncHash(buildDescription(gh({ body: 'a\nb' }))));
+  });
+  it('ignores how Linear re-serializes the stored markdown', () => {
+    const desired = toDesired(gh({ body: '- item ~1\n- item *2' }));
+    const stored = desired.description
+      .replace(gh().url, `[${gh().url}](<${gh().url}>)`)
+      .replace('- item ~1\n- item *2', '\n* item \\~1\n* item \\*2\n');
+    expect(diffIssue(desired, existing({ description: stored }))).toEqual([]);
+  });
+  it('treats a marker without a fingerprint as a description change', () => {
+    expect(diffIssue(toDesired(gh()), existing({ description: 'github:#12\nold mirror' }))).toEqual(['description']);
+    expect(parseSyncHash('github:#12\nold mirror')).toBeNull();
+    expect(parseSyncHash(null)).toBeNull();
   });
 });
 

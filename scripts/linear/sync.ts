@@ -4,7 +4,7 @@
  *
  *   npm run linear:sync                 # dry-run (offline plan if no key; live diff if key present)
  *   npm run linear:sync -- --apply      # create/update Linear issues (requires .env.linear)
- *   npm run linear:sync -- --repo owner/name
+ *   npm run linear:sync -- --repo owner/name --team KEY   # override repo / Linear team key
  *   LINEAR_ENV=/path/to/.env.linear npm run linear:sync   # read config from another checkout
  *
  * Config: .env.linear at the repo root (gitignored) with LINEAR_API_KEY and LINEAR_TEAM_KEY.
@@ -25,21 +25,27 @@ import {
   type PlanItem,
 } from './mapping';
 
-type Args = { apply: boolean; repo: string | null };
+type Args = { apply: boolean; repo: string | null; team: string | null };
 
 function parseArgs(argv: readonly string[]): Args {
-  const args: Args = { apply: false, repo: null };
+  const args: Args = { apply: false, repo: null, team: null };
+  const value = (i: number, flag: string): string => {
+    const v = argv[i + 1];
+    if (!v || v.startsWith('--')) throw new Error(`${flag} needs a value`);
+    return v;
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--apply') args.apply = true;
     else if (a === '--dry-run') args.apply = false;
     else if (a === '--repo') {
-      const v = argv[i + 1];
-      if (!v) throw new Error('--repo needs a value like owner/name');
-      args.repo = v;
+      args.repo = value(i, '--repo');
+      i += 1;
+    } else if (a === '--team') {
+      args.team = value(i, '--team');
       i += 1;
     } else if (a === '--help' || a === '-h') {
-      console.log('Usage: linear:sync [--dry-run | --apply] [--repo owner/name]');
+      console.log('Usage: linear:sync [--dry-run | --apply] [--repo owner/name] [--team KEY]');
       process.exit(0);
     } else throw new Error(`Unknown argument: ${a}`);
   }
@@ -62,7 +68,8 @@ const log = (line = '') => console.log(line);
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const { env, file } = loadEnv();
+  const { env: fileEnv, file } = loadEnv();
+  const env = { ...fileEnv, LINEAR_TEAM_KEY: args.team ?? fileEnv.LINEAR_TEAM_KEY };
   const repo = args.repo ?? detectRepo();
 
   log(`Config file: ${file}${env.LINEAR_API_KEY ? '' : ' (not found or no LINEAR_API_KEY)'}`);

@@ -94,8 +94,11 @@ the rule that work is created on GitHub.
      An open issue without a status label lands in Backlog.
    - `priority:p0/p1/p2` → Linear priority 1/2/3; none → 0.
    - `area:*` labels → Linear labels of the same name (created in the team when missing).
-   - Description = marker line `github:#<number>`, a "mirrored from" link, the milestone, then the
-     GitHub body. The marker is the idempotency key.
+   - Description = marker line `github:#<number> sync:<fingerprint>`, a "mirrored from" link, the
+     milestone, then the GitHub body. The number is the idempotency key; the fingerprint (first 12
+     hex chars of a SHA-256 over the generated text) is how a re-run detects body/milestone
+     changes, because Linear re-serializes stored markdown (autolinks, `*` bullets, escaping) and
+     the text itself never compares equal.
 3. Fetches the team's issues whose description contains `github:#`, indexes them by marker, and
    plans create / update / unchanged per GitHub issue. It never deletes a Linear issue and never
    writes to GitHub.
@@ -106,21 +109,24 @@ the rule that work is created on GitHub.
 
 Modes: dry-run is the default and is forced when `LINEAR_API_KEY` is missing (offline plan: every
 issue shows as a create because the Linear side is unknown). With a key, dry-run shows a live diff.
-`--apply` performs the writes.
+`--apply` performs the writes. Flags: `--repo owner/name` (default: the current repo via `gh`),
+`--team KEY` (overrides `LINEAR_TEAM_KEY`). `LINEAR_ENV=/path/to/.env.linear` reads the config
+from another checkout, read-only.
 
 ## Owner setup (two manual steps, Free plan)
 
 1. **Workspace and team.** Sign in at https://linear.app, create a workspace on the Free plan (no
    paid add-ons, no trial upgrade), invite collaborators, and create or pick one team for this
-   project. Note the team **key** shown in Settings → Teams (the prefix of issue identifiers, for
-   example `IND`). Optional but recommended: Team settings → Workflow → add a status named
-   `In Review` of type Started so the review column exists.
+   project. Note the team **key** shown in Settings → Teams (the prefix of issue identifiers; the
+   owners' workspace uses `YERB`, team "Yerba Mate"). Optional but recommended: Team settings →
+   Workflow → add a status named `In Review` of type Started so the review column exists (YERB
+   already has one).
 2. **Personal API key, saved locally only.** In Linear: Settings → Account → Security & access →
    Personal API keys → create a key (Write access, limited to that team is sufficient). Then, from
    the repo root, write it to the gitignored file in one step (replace the two values):
 
    ```sh
-   printf 'LINEAR_API_KEY=%s\nLINEAR_TEAM_KEY=%s\n' 'lin_api_...' 'IND' > .env.linear && chmod 600 .env.linear && git check-ignore -q .env.linear && echo ok
+   printf 'LINEAR_API_KEY=%s\nLINEAR_TEAM_KEY=%s\n' 'lin_api_...' 'YERB' > .env.linear && chmod 600 .env.linear && git check-ignore -q .env.linear && echo ok
    ```
 
    `ok` confirms the file is ignored. Never paste the key into an issue, PR, chat log or
@@ -138,9 +144,11 @@ Run it after changing labels or closing issues on GitHub, or on a schedule the o
 later (no CI runner exists; see `docs/factory.md`). The Free plan caps a workspace at 250 issues;
 the script mirrors closed issues too, so archive Done issues in Linear if the cap approaches.
 
-## Not yet verified
+## Verification status (2026-11-07)
 
-Nobody has run `--apply` against a real Linear workspace: the live queries and mutations were
-checked against the schema by introspection and the docs above, not executed. The first apply
-should be run by an owner on a dry-run first, then `--apply`, and the resulting board compared
-with `gh issue list`.
+`--apply` was run once against the owners' workspace (team `YERB`) from the #24 branch: 6 labels and
+22 issues (YERB-5 … YERB-26) were created, GitHub was not modified, and a read-only API check of six
+issues confirmed title, state, priority, labels, marker line and the GitHub attachment. A second
+apply rewrote descriptions once to add the `sync:` fingerprint; after that a dry-run reports every
+issue unchanged. Not verified: label *removal* on an existing Linear issue, title edits, and a run
+near the Free plan's 250-issue cap.
