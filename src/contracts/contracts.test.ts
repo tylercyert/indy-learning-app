@@ -155,6 +155,30 @@ describe('fillBlank component', () => {
   });
 });
 
+describe('matchPairs component', () => {
+  const pair = (id: string, left: string, right: string) => ({ id, left, right, explanation: `${left} goes with ${right}.` });
+  const mp = (pairs: unknown[]) => ({ id: 'm', type: 'matchPairs', prompt: 'Match each lever to what it does.', pairs });
+  const three = [pair('a', 'Acid', 'Cuts sweetness'), pair('b', 'Sugar', 'Adds body and weight'), pair('c', 'Ice', 'Chills and dilutes')];
+  it('accepts three to five distinct pairs', () => {
+    expect(ComponentV1Schema.safeParse(mp(three)).success).toBe(true);
+    expect(ComponentV1Schema.safeParse(mp([...three, pair('d', 'Bitters', 'Aroma'), pair('e', 'Salt', 'Suppresses bitterness')])).success).toBe(true);
+  });
+  it('rejects two pairs and six pairs', () => {
+    expect(ComponentV1Schema.safeParse(mp(three.slice(0, 2))).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(mp([...three, pair('d', 'D', 'd'), pair('e', 'E', 'e'), pair('f', 'F', 'f')])).success).toBe(false);
+  });
+  it('rejects duplicate left or right items regardless of case, and duplicate ids', () => {
+    expect(ComponentV1Schema.safeParse(mp([...three.slice(0, 2), pair('c', 'acid', 'Chills')])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(mp([...three.slice(0, 2), pair('c', 'Ice', 'cuts sweetness')])).success).toBe(false);
+    expect(ComponentV1Schema.safeParse(mp([...three.slice(0, 2), pair('a', 'Ice', 'Chills')])).success).toBe(false);
+  });
+  it('accepts a complete result and rejects one with too few matches', () => {
+    const matches = three.map((p) => ({ pairId: p.id, chosenPairId: p.id, correct: true }));
+    expect(ComponentResultV1Schema.safeParse({ type: 'matchPairs', componentId: 'm', matches, correctCount: 3, correct: true, attempt: 1 }).success).toBe(true);
+    expect(ComponentResultV1Schema.safeParse({ type: 'matchPairs', componentId: 'm', matches: matches.slice(0, 2), correctCount: 2, correct: false, attempt: 1 }).success).toBe(false);
+  });
+});
+
 describe('stress fixtures', () => {
   // vitest runs from the repo root (see vitest.config.mts include globs).
   const dir = path.resolve(process.cwd(), 'qa/fixtures/stress');

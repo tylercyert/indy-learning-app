@@ -1,0 +1,44 @@
+{
+  "id": "matchpairs-max",
+  "title": "Match pairs: five pairs at the length caps",
+  "purpose": "practice",
+  "components": [
+    {
+      "id": "m",
+      "type": "matchPairs",
+      "prompt": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is t",
+      "pairs": [
+        {
+          "id": "p1",
+          "left": "Balance is the whole game: base gives bo",
+          "right": "Balance is the whole game: base gives body, acid brightens,x",
+          "explanation": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is t"
+        },
+        {
+          "id": "p2",
+          "left": "SupercalifragilisticexpialidociousSuperc",
+          "right": "Balanced is the whole game: base gives body, acid brightens,",
+          "explanation": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is t"
+        },
+        {
+          "id": "p3",
+          "left": "Acid",
+          "right": "Cuts sweetness so the drink tastes bright, not syrupy.",
+          "explanation": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is t"
+        },
+        {
+          "id": "p4",
+          "left": "Dilution",
+          "right": "SupercalifragilisticexpialidociousSupercalifragilisticexpial",
+          "explanation": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is t"
+        },
+        {
+          "id": "p5",
+          "left": "Base",
+          "right": "Body and strength",
+          "explanation": "The base is the spirit or strong tea; it gives body."
+        }
+      ]
+    }
+  ]
+}
