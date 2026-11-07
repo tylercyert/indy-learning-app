@@ -80,6 +80,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
-  label: { fontFamily: fonts.black, fontSize: 17, letterSpacing: 0.6, textTransform: 'uppercase' },
+  label: { fontFamily: fonts.black, fontSize: 17, letterSpacing: 0.6, textTransform: 'uppercase', textAlign: 'center', flexShrink: 1 },
   ghostLabel: { textTransform: 'none', fontFamily: fonts.extraBold, fontSize: 15, letterSpacing: 0 },
 });

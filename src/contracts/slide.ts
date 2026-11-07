@@ -12,7 +12,8 @@ export type SlidePurpose = z.infer<typeof SlidePurposeSchema>;
 export const SlideV1Schema = z
   .strictObject({
     id: LocalIdSchema,
-    title: ShortTextSchema,
+    /** Short enough for two lines on a phone. */
+    title: ShortTextSchema.max(60),
     purpose: SlidePurposeSchema,
     components: z.array(ComponentV1Schema).min(1).max(5),
   })

@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   box: { width: 26, height: 26, borderRadius: 8, borderWidth: 3, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   boxOn: { borderColor: colors.mintDeep, backgroundColor: colors.mintDeep },
   tick: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 15 },
-  itemText: { flex: 1, fontFamily: fonts.extraBold, fontSize: 15, color: colors.ink },
+  itemText: { flex: 1, minWidth: 0, flexShrink: 1, fontFamily: fonts.extraBold, fontSize: 15, color: colors.ink },
   done: { fontFamily: fonts.extraBold, fontSize: 15, color: colors.mintDeep },
   note: { fontFamily: fonts.bold, fontSize: 12, color: colors.muted },
 });

@@ -94,10 +94,10 @@ const styles = StyleSheet.create({
   paragraph: { fontFamily: fonts.bold },
   list: { gap: 8 },
   listItem: { flexDirection: 'row', gap: 10 },
-  bullet: { fontFamily: fonts.black, width: 22 },
-  listText: { flex: 1 },
+  bullet: { fontFamily: fonts.black, minWidth: 28 },
+  listText: { flex: 1, minWidth: 0 },
   code: { fontFamily: 'monospace', backgroundColor: colors.soft, borderRadius: 4 },
   callout: { padding: 14, borderRadius: 16 },
-  link: { alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: colors.soft, minHeight: 44, justifyContent: 'center' },
+  link: { alignSelf: 'flex-start', maxWidth: '100%', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: colors.soft, minHeight: 44, justifyContent: 'center' },
   linkText: { fontFamily: fonts.black, color: colors.purple },
 });

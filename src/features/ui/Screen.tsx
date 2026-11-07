@@ -1,9 +1,8 @@
 import { useEffect, useRef, type ComponentRef, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, fonts } from '../theme';
-import { BeakerLoader } from './BeakerLoader';
 import { ChunkyButton } from './ChunkyButton';
 
 /**
@@ -67,10 +66,12 @@ export function BackButton({ label = 'Back', onPress }: { label?: string; onPres
   );
 }
 
-export function Loading({ message, size = 150 }: { message: string; size?: number }) {
+/** Plain, quiet loading state. The beaker animation is reserved for course creation. */
+export function Loading({ message }: { message: string }) {
   return (
-    <View style={styles.center} accessibilityLiveRegion="polite">
-      <BeakerLoader size={size} label={message} />
+    <View style={styles.center} accessibilityLiveRegion="polite" accessibilityRole="progressbar" aria-busy>
+      <ActivityIndicator size="large" color={colors.purple} />
+      <Text style={styles.loadingText}>{message}</Text>
     </View>
   );
 }
@@ -106,6 +107,7 @@ const styles = StyleSheet.create({
   back: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' },
   backText: { fontFamily: fonts.black, fontSize: 28, lineHeight: 32, color: colors.ink, marginTop: -4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 },
+  loadingText: { fontFamily: fonts.extraBold, fontSize: 15, color: colors.muted, textAlign: 'center' },
   error: { padding: 16, borderRadius: 20, backgroundColor: colors.coralTint, gap: 10 },
   errorTitle: { fontFamily: fonts.black, fontSize: 16, color: colors.ink },
   errorText: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink },

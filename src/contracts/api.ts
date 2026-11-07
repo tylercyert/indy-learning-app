@@ -93,9 +93,37 @@ export const CourseListSchema = z.strictObject({
 });
 export type CourseList = z.infer<typeof CourseListSchema>;
 
-export const UpdateCompanionRequestSchema = z.strictObject({
-  name: CompanionThemeV1Schema.shape.name.optional(),
-  reroll: z.boolean().optional(),
+export const UpdateCompanionRequestSchema = z.discriminatedUnion('action', [
+  z.strictObject({ action: z.literal('rename'), name: CompanionThemeV1Schema.shape.name }),
+  z.strictObject({ action: z.literal('reroll') }),
+]);
+export type UpdateCompanionRequest = z.infer<typeof UpdateCompanionRequestSchema>;
+
+/** Add a skill tree: continue after completion, or fold an exploration intake into the course. */
+export const AddTreeRequestSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('continue') }),
+  z.strictObject({ kind: z.literal('explore'), intakeId: EntityIdSchema }),
+]);
+export type AddTreeRequest = z.infer<typeof AddTreeRequestSchema>;
+
+// ---------- discovery ----------
+
+/** Public projection of a discoverable course. Never includes the owner's learner context. */
+export const DiscoverableCourseSchema = z.strictObject({
+  courseId: EntityIdSchema,
+  title: z.string(),
+  subject: z.string(),
+  summary: z.string(),
+  companion: CompanionThemeV1Schema,
+  lessonCount: z.int().min(1),
+  firstLessons: z.array(z.string()).max(4),
+});
+export type DiscoverableCourse = z.infer<typeof DiscoverableCourseSchema>;
+
+export const DiscoverListSchema = z.strictObject({ courses: z.array(DiscoverableCourseSchema) });
+
+export const StartFromDiscoveredRequestSchema = z.strictObject({
+  goal: z.string().trim().max(500).optional(),
 });
 
 // ---------- experiences and events ----------

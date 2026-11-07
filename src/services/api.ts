@@ -4,12 +4,15 @@ import type { z } from 'zod';
 import {
   CourseListSchema,
   CourseViewSchema,
+  DiscoverListSchema,
   ExperienceEventResponseSchema,
   ExperienceViewSchema,
   IntakeSessionViewSchema,
   LearnerV1Schema,
+  type AddTreeRequest,
   type ExperienceEventRequest,
   type LearnerV1,
+  type UpdateCompanionRequest,
 } from '../contracts';
 
 /**
@@ -121,6 +124,12 @@ export const api = {
   createCourse: (intakeId: string) => validated(CourseViewSchema, post('/courses', { intakeId })),
   listCourses: () => validated(CourseListSchema, get('/courses')),
   getCourse: (id: string) => validated(CourseViewSchema, get(`/courses/${id}`)),
+
+  updateCompanion: (courseId: string, req: UpdateCompanionRequest) =>
+    validated(CourseViewSchema, request<unknown>(`/courses/${courseId}/companion`, { method: 'PATCH', body: JSON.stringify(req) })),
+  addTree: (courseId: string, req: AddTreeRequest) => validated(CourseViewSchema, post(`/courses/${courseId}/trees`, req)),
+  discover: () => validated(DiscoverListSchema, get('/discover')),
+  startFromDiscovered: (courseId: string, goal?: string) => validated(CourseViewSchema, post(`/discover/${courseId}/start`, { goal })),
 
   openNode: (courseId: string, nodeId: string) => validated(ExperienceViewSchema, post(`/courses/${courseId}/nodes/${nodeId}/experience`, {})),
   getExperience: (id: string) => validated(ExperienceViewSchema, get(`/experiences/${id}`)),

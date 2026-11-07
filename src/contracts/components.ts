@@ -48,7 +48,7 @@ export const RatioBarComponentSchema = z
   .strictObject({
     ...Base,
     type: z.literal('ratioBar'),
-    title: ShortTextSchema,
+    title: ShortTextSchema.max(60),
     segments: z.array(RatioSegmentSchema).min(2).max(6),
     /** Required nonvisual explanation. */
     altText: MediumTextSchema,
@@ -60,14 +60,18 @@ export const RatioBarComponentSchema = z
     }
   });
 
-/** Minimum separation between diagram nodes on the 0-100 grid so labels never overlap. */
-export const DIAGRAM_MIN_DX = 30;
-export const DIAGRAM_MIN_DY = 24;
+/**
+ * Minimum separation between diagram nodes on the 0-100 grid. The renderer lays nodes out
+ * ordinally (distinct x → columns, distinct y → rows), so these bounds mainly keep the model
+ * from proposing more than 3 columns or 3 rows.
+ */
+export const DIAGRAM_MIN_DX = 50;
+export const DIAGRAM_MIN_DY = 34;
 
 export const DiagramNodeSchema = z.strictObject({
   id: LocalIdSchema,
-  /** Short: it must fit a small box on a phone. */
-  label: ShortTextSchema.max(28),
+  /** Short: it must fit a small box on a phone. No single word longer than 14 characters. */
+  label: ShortTextSchema.max(28).refine((s) => s.split(/\s+/).every((w) => w.length <= 14), 'no word longer than 14 characters'),
   shape: z.enum(['box', 'circle', 'pill']),
   /** Position on a 0-100 grid; the renderer scales to the slide. */
   x: z.int().min(0).max(100),
@@ -89,15 +93,22 @@ export const DiagramComponentSchema = z
     ...Base,
     type: z.literal('diagram'),
     /** Empty string means no title. */
-    title: z.string().trim().max(120).optional(),
-    nodes: z.array(DiagramNodeSchema).min(1).max(8),
-    edges: z.array(DiagramEdgeSchema).max(12),
-    altText: MediumTextSchema,
+    title: z.string().trim().max(60).optional(),
+    nodes: z.array(DiagramNodeSchema).min(2).max(6),
+    edges: z.array(DiagramEdgeSchema).max(8),
+    /** Spoken by screen readers and shown under the diagram when short. */
+    altText: MediumTextSchema.max(240),
   })
   .superRefine((value, ctx) => {
     assertUniqueLocalIds(value.nodes, ctx, 'diagram node');
     const ids = new Set(value.nodes.map((n) => n.id));
+    const pairs = new Set<string>();
     value.edges.forEach((edge, index) => {
+      const pair = [edge.from, edge.to].sort().join('|');
+      if (pairs.has(pair)) {
+        ctx.addIssue({ code: 'custom', message: 'only one edge between the same two nodes', path: ['edges', index] });
+      }
+      pairs.add(pair);
       if (!ids.has(edge.from) || !ids.has(edge.to)) {
         ctx.addIssue({ code: 'custom', message: 'edge references unknown node', path: ['edges', index] });
       }
@@ -129,16 +140,16 @@ export function diagramCollisions(nodes: readonly { id: string; x: number; y: nu
 
 // ---------- interactive ----------
 
-export const ChecklistItemSchema = z.strictObject({ id: LocalIdSchema, text: ShortTextSchema });
+export const ChecklistItemSchema = z.strictObject({ id: LocalIdSchema, text: ShortTextSchema.max(90) });
 
 export const ChecklistComponentSchema = z
   .strictObject({
     ...Base,
     type: z.literal('checklist'),
-    title: ShortTextSchema,
+    title: ShortTextSchema.max(80),
     /** Real-world steps the learner performs away from the screen. Self-reported, never scored. */
     items: z.array(ChecklistItemSchema).min(1).max(8),
-    confirmLabel: ShortTextSchema.max(30),
+    confirmLabel: ShortTextSchema.max(22),
   })
   .superRefine((value, ctx) => assertUniqueLocalIds(value.items, ctx, 'checklist item'));
 
@@ -153,16 +164,16 @@ export const ChecklistResultSchema = z.strictObject({
 
 export const ChoiceOptionSchema = z.strictObject({
   id: LocalIdSchema,
-  text: ShortTextSchema,
+  text: ShortTextSchema.max(90),
   /** Shown when THIS option is picked. Wrong options must teach, not just mark. */
-  explanation: MediumTextSchema,
+  explanation: MediumTextSchema.max(300),
 });
 
 export const MultipleChoiceComponentSchema = z
   .strictObject({
     ...Base,
     type: z.literal('multipleChoice'),
-    prompt: MediumTextSchema,
+    prompt: MediumTextSchema.max(240),
     options: z.array(ChoiceOptionSchema).min(2).max(5),
     correctOptionId: LocalIdSchema,
   })

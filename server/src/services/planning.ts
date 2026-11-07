@@ -13,7 +13,8 @@ import {
 import { generateStructured, GenerationError } from '../ai/claude';
 import { PLANNING_SYSTEM, planningUserMessage } from '../ai/prompts';
 import { db } from '../db/client';
-import { prefetchAvailable } from './experiences';
+import { getOrGenerateExperience, prefetchAvailable } from './experiences';
+import { buildLearningSummary, describeSummary } from './history';
 import * as repo from './repo';
 import { markPlanned, readyContext } from './intake';
 
@@ -41,11 +42,12 @@ export async function createCourseFromIntake(learnerId: string, intakeId: string
   }));
   const reusableIds = new Set(reusable.map((l) => l.id));
 
+  const history = describeSummary(buildLearningSummary(learnerId));
   const { data: plan, model } = await generateStructured({
     task: 'course-plan',
     schema: CoursePlanV1Schema,
     system: PLANNING_SYSTEM,
-    messages: [{ role: 'user', content: planningUserMessage(context, reusable) }],
+    messages: [{ role: 'user', content: planningUserMessage(context, reusable, history) }],
     effort: 'high',
     maxTokens: 16_000,
   });
@@ -118,7 +120,19 @@ export async function createCourseFromIntake(learnerId: string, intakeId: string
   });
 
   console.log(`[plan] course ${courseId} "${course.title}" ${nodes.length} nodes (${newLessons.length} new) by ${model}`);
-  // Start writing the orientation lesson now so it is ready by the time the learner taps it.
-  prefetchAvailable(learnerId, courseId);
+
+  // The learner should land on a course whose first lesson is already written: wait for the
+  // orientation experience here (one longer wait under the planning screen instead of two).
+  // Opening it later also pre-writes the lessons it unlocks. If generation fails, the course
+  // still exists and the node falls back to on-demand generation.
+  const orientation = nodes.find((n) => n.kind === 'orientation');
+  if (orientation) {
+    await getOrGenerateExperience(learnerId, courseId, orientation.id).catch((e: unknown) => {
+      console.warn(`[plan] orientation lesson not pre-written: ${e instanceof Error ? e.message : String(e)}`);
+      prefetchAvailable(learnerId, courseId);
+    });
+  } else {
+    prefetchAvailable(learnerId, courseId);
+  }
   return course;
 }
