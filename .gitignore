@@ -60,3 +60,4 @@ qa/out/
 
 # agent worktrees
 .claude/worktrees/
+dist-*/

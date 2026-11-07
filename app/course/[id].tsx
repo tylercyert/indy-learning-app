@@ -1,8 +1,9 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import type { NodeV1, TreeView } from '../../src/contracts';
+import type { CompanionThemeV1, TreeView } from '../../src/contracts';
 import { Companion } from '../../src/features/companion/Companion';
+import { layoutPath, type PlacedNode } from '../../src/features/course/path-layout';
 import { colors, fonts } from '../../src/features/theme';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
 import { BackButton, ErrorBox, Eyebrow, Loading, Screen } from '../../src/features/ui/Screen';
@@ -182,7 +183,7 @@ export default function CourseScreen() {
 
           {error ? <ErrorBox message={error} /> : null}
 
-          <SkillPath tree={current} openingNodeId={opening} onOpen={(nodeId) => void open(nodeId)} />
+          <SkillPath tree={current} companion={data.course.companion} openingNodeId={opening} onOpen={(nodeId) => void open(nodeId)} />
 
           <ChunkyButton
             label="Learn something different"
@@ -204,60 +205,71 @@ export default function CourseScreen() {
   );
 }
 
-const ROW_H = 116;
-const R = 38;
 /** The path winds inside a fixed-width lane so it reads the same on a phone and a laptop. */
 const LANE_MAX = 520;
-/** Horizontal positions (fraction of lane) for the winding path: center, left, center, right… */
-const COLS = [0.5, 0.24, 0.5, 0.76];
+const DOT_SPACING = 34;
 
-function SkillPath({ tree, openingNodeId, onOpen }: { tree: TreeView; openingNodeId: string | null; onOpen: (nodeId: string) => void }) {
+function SkillPath({
+  tree,
+  companion,
+  openingNodeId,
+  onOpen,
+}: {
+  tree: TreeView;
+  companion: CompanionThemeV1;
+  openingNodeId: string | null;
+  onOpen: (nodeId: string) => void;
+}) {
   const disabled = !!openingNodeId;
   const [width, setWidth] = useState(0);
-  const nodes = tree.tree.nodes;
   const lane = Math.min(width, LANE_MAX);
   const offset = (width - lane) / 2;
-  const center = (i: number) => ({ cx: offset + COLS[i % COLS.length]! * lane, cy: i * ROW_H + R + 10 });
+  const layout = useMemo(() => layoutPath(tree.tree.nodes, lane, offset), [tree.tree.nodes, lane, offset]);
+  const byId = useMemo(() => new Map(layout.nodes.map((p) => [p.node.id, p])), [layout]);
 
   return (
-    <View style={{ height: nodes.length * ROW_H + 20, width: '100%' }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+    <View style={{ height: layout.height, width: '100%' }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       {width > 0 &&
-        nodes.slice(1).map((_, i) => {
-          const a = center(i);
-          const b = center(i + 1);
+        layout.edges.map((edge) => {
+          const a = byId.get(edge.from);
+          const b = byId.get(edge.to);
+          if (!a || !b) return null;
           const dx = b.cx - a.cx;
           const dy = b.cy - a.cy;
           const len = Math.hypot(dx, dy);
-          const start = (R + 10) / len;
-          const end = 1 - (R + 10) / len;
-          const doneA = tree.nodeStates[nodes[i]!.id] === 'completed';
-          return [0, 0.5, 1].map((k) => {
-            const t = start + (end - start) * k;
+          // Connectors leave below a node's label when the label sits under the circle (shared rows).
+          const exit = a.labelMode === 'below' ? a.r + 60 : a.r + 10;
+          const start = Math.min(exit / len, 0.6);
+          const end = 1 - (b.r + 10) / len;
+          const count = Math.max(2, Math.round((len * (end - start)) / DOT_SPACING));
+          const fromDone = tree.nodeStates[edge.from] === 'completed';
+          // Branch connectors are teal; the main path is purple once its source is done, lilac before.
+          const color = edge.branch ? (fromDone ? colors.mint : '#99E6DB') : fromDone ? colors.purple : '#C4B5FD';
+          const size = edge.long ? 6 : 10;
+          return Array.from({ length: count + 1 }, (_, k) => {
+            const t = start + (end - start) * (k / count);
             return (
               <View
-                key={`${i}-${k}`}
+                key={`${edge.from}-${edge.to}-${k}`}
                 aria-hidden
-                style={[styles.dot, { left: a.cx + dx * t - 5, top: a.cy + dy * t - 5, backgroundColor: doneA ? colors.purple : '#C4B5FD' }]}
+                style={[styles.dot, { left: a.cx + dx * t - size / 2, top: a.cy + dy * t - size / 2, width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity: edge.long ? 0.7 : 1 }]}
               />
             );
           });
         })}
       {width > 0 &&
-        nodes.map((node, i) => (
+        layout.nodes.map((placed) => (
           <PathNode
-            key={node.id}
-            node={node}
-            cx={center(i).cx}
-            cy={center(i).cy}
-            labelSide={COLS[i % COLS.length]! > 0.5 ? 'left' : 'right'}
-            width={lane}
-            state={tree.nodeStates[node.id] ?? 'locked'}
-            isNext={tree.nextNodeId === node.id}
-            ready={tree.readyNodeIds.includes(node.id)}
-            generating={tree.generatingNodeIds.includes(node.id)}
-            opening={openingNodeId === node.id}
+            key={placed.node.id}
+            placed={placed}
+            companion={companion}
+            state={tree.nodeStates[placed.node.id] ?? 'locked'}
+            isNext={tree.nextNodeId === placed.node.id}
+            ready={tree.readyNodeIds.includes(placed.node.id)}
+            generating={tree.generatingNodeIds.includes(placed.node.id)}
+            opening={openingNodeId === placed.node.id}
             disabled={disabled}
-            onPress={() => onOpen(node.id)}
+            onPress={() => onOpen(placed.node.id)}
           />
         ))}
     </View>
@@ -265,11 +277,8 @@ function SkillPath({ tree, openingNodeId, onOpen }: { tree: TreeView; openingNod
 }
 
 function PathNode({
-  node,
-  cx,
-  cy,
-  labelSide,
-  width,
+  placed,
+  companion,
   state,
   isNext,
   ready,
@@ -278,11 +287,8 @@ function PathNode({
   disabled,
   onPress,
 }: {
-  node: NodeV1;
-  cx: number;
-  cy: number;
-  labelSide: 'left' | 'right';
-  width: number;
+  placed: PlacedNode;
+  companion: CompanionThemeV1;
   state: NodeStatus;
   isNext: boolean;
   ready: boolean;
@@ -292,42 +298,67 @@ function PathNode({
   disabled: boolean;
   onPress: () => void;
 }) {
+  const { node, cx, cy, r, labelMode, labelSide, labelWidth } = placed;
   const locked = state === 'locked';
   const done = state === 'completed';
+  const branch = !node.required;
   const statusWord = done ? 'Done.' : locked ? 'Locked.' : isNext ? 'Up next.' : 'Available.';
   const readiness = done || locked ? '' : ready ? 'Ready to open.' : generating ? 'Being written now.' : 'Will be written when opened.';
-  const fill = done ? colors.purple : isNext ? colors.yellow : locked ? colors.line : colors.mint;
+  const fill = done ? colors.purple : isNext ? colors.yellow : locked ? colors.line : branch ? colors.mintTint : colors.mint;
   const shadow = done ? colors.purpleDeep : isNext ? colors.yellowDeep : locked ? '#D6D0E8' : colors.mintDeep;
-  const labelW = Math.min(190, width / 2 - R - 24);
-  const labelLeft = labelSide === 'right' ? cx + R + 12 : cx - R - 12 - labelW;
-  // Text aligns toward the circle: left-aligned when the label sits to the right of it, and vice versa.
-  const textAlign = labelSide === 'right' ? 'left' : 'right';
   // Only the next node advertises generation progress; other available nodes just say Ready when they are.
   const tag = opening ? (ready ? 'Opening…' : 'Writing…') : done || locked ? null : ready ? 'Ready' : isNext && generating ? 'Writing…' : isNext ? 'Tap to write' : null;
-  const meta = done ? 'Done' : node.kind === 'orientation' ? 'Start here' : node.required ? 'Core' : 'Optional';
+  const meta = done ? 'Done' : node.kind === 'orientation' ? 'Start here' : branch ? 'Branch' : 'Core';
+  const icon = done ? '✓' : locked ? '🔒' : isNext ? '★' : branch ? '↗' : '•';
+
+  const labelStyle =
+    labelMode === 'below'
+      ? { left: cx - labelWidth / 2, width: labelWidth, top: cy + r + 8, alignItems: 'center' as const }
+      : {
+          left: labelSide === 'right' ? cx + r + 12 : cx - r - 12 - labelWidth,
+          width: labelWidth,
+          top: cy - 36,
+          alignItems: labelSide === 'right' ? ('flex-start' as const) : ('flex-end' as const),
+        };
+  // Text aligns toward the circle when beside it, and is centered when under it.
+  const textAlign = labelMode === 'below' ? 'center' : labelSide === 'right' ? 'left' : 'right';
+  // The companion stands beside the next lesson when there is room (single-node rows only).
+  const companionLeft = labelMode === 'side' ? (labelSide === 'right' ? cx - r - 12 - 56 : cx + r + 12) : null;
 
   return (
     <>
-      {isNext ? <View aria-hidden style={[styles.ring, { left: cx - R - 7, top: cy - R - 7 }]} /> : null}
+      {isNext ? <View aria-hidden style={[styles.ring, { left: cx - r - 7, top: cy - r - 7, width: r * 2 + 14, height: r * 2 + 14, borderRadius: r + 7 }]} /> : null}
+      {isNext && companionLeft !== null ? (
+        <View aria-hidden style={{ position: 'absolute', left: companionLeft, top: cy - 30 }}>
+          <Companion theme={companion} mood="curious" size={56} />
+        </View>
+      ) : null}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${node.title}. ${statusWord} ${meta}. ${readiness}`}
+        accessibilityLabel={`${node.title}. ${statusWord} ${meta}${branch ? ', a side branch' : ''}. ${readiness}`}
         aria-disabled={locked || disabled}
         disabled={locked || disabled}
         onPress={onPress}
-        style={[styles.circle, { left: cx - R, top: cy - R, backgroundColor: fill, borderBottomColor: shadow }, !node.required && styles.circleOptional, locked && styles.circleLocked]}
+        style={[
+          styles.circle,
+          { left: cx - r, top: cy - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: fill, borderBottomColor: shadow },
+          branch && styles.circleOptional,
+          locked && styles.circleLocked,
+        ]}
       >
         {opening ? (
           <ActivityIndicator color={colors.ink} accessibilityLabel="Loading lesson" />
         ) : (
-          <Text style={[styles.circleIcon, done && { color: '#FFFFFF' }]}>{done ? '✓' : locked ? '🔒' : isNext ? '★' : '•'}</Text>
+          <Text style={[styles.circleIcon, branch && styles.circleIconSmall, done && { color: '#FFFFFF' }]}>{icon}</Text>
         )}
       </Pressable>
-      <View aria-hidden style={[styles.label, { left: labelLeft, width: labelW, top: cy - 36, alignItems: labelSide === 'right' ? 'flex-start' : 'flex-end' }]}>
-        <Text style={[styles.labelTitle, locked && { color: colors.muted }, { textAlign, width: '100%' }]}>{node.title}</Text>
-        <Text style={[styles.labelMeta, { textAlign, width: '100%' }]}>
+      <View aria-hidden style={[styles.label, labelStyle]}>
+        <Text style={[styles.labelTitle, (branch || labelMode === 'below') && styles.labelTitleBelow, locked && { color: colors.muted }, { textAlign, width: '100%' }]} numberOfLines={2}>
+          {node.title}
+        </Text>
+        <Text style={[styles.labelMeta, branch && !locked && { color: colors.mintDeep }, { textAlign, width: '100%' }]}>
           {isNext ? 'UP NEXT · ' : ''}
-          {meta}
+          {meta.toUpperCase()}
         </Text>
         {tag ? (
           <View style={[styles.tag, ready ? styles.tagReady : generating ? styles.tagWriting : styles.tagIdle]}>
@@ -363,13 +394,15 @@ const styles = StyleSheet.create({
   unitTitle: { fontFamily: fonts.black, fontSize: 20, color: '#FFFFFF' },
   unitProgress: { fontFamily: fonts.black, fontSize: 22, color: colors.yellow },
   dot: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
-  ring: { position: 'absolute', width: R * 2 + 14, height: R * 2 + 14, borderRadius: R + 7, borderWidth: 4, borderColor: colors.yellowTint },
-  circle: { position: 'absolute', width: R * 2, height: R * 2, borderRadius: R, borderBottomWidth: 7, alignItems: 'center', justifyContent: 'center' },
+  ring: { position: 'absolute', borderWidth: 4, borderColor: colors.yellowTint },
+  circle: { position: 'absolute', borderBottomWidth: 7, alignItems: 'center', justifyContent: 'center' },
   circleOptional: { borderWidth: 3, borderColor: colors.mintDeep, borderStyle: 'dashed' },
   circleLocked: { opacity: 0.85 },
   circleIcon: { fontFamily: fonts.black, fontSize: 28, lineHeight: 32, color: colors.ink, marginTop: -4 },
+  circleIconSmall: { fontSize: 22, lineHeight: 26 },
   label: { position: 'absolute', gap: 2 },
   labelTitle: { fontFamily: fonts.black, fontSize: 15, lineHeight: 18, color: colors.ink },
+  labelTitleBelow: { fontSize: 13, lineHeight: 16 },
   labelMeta: { fontFamily: fonts.bold, fontSize: 11, color: colors.muted },
   tag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, marginTop: 2 },
   tagReady: { backgroundColor: colors.mintTint },
