@@ -27,9 +27,11 @@ One base character. Each course gets a generated name and costume (validated the
 
 Full platform during the hackathon with live generation; typed JSON slides from a component catalog; lessons reusable across courses with completion recognized everywhere; flexible progression rules; completion as the only lesson status, mastery as a derived concept; plan early, generate experiences on demand; rich text, structured; zero paid infrastructure beyond the API key.
 
+Also decided the same day: every learner goal passes Goal Screening (law, Anthropic usage policy, app-store rules) before intake and again before planning, and a refusal is spoken by the companion rather than stored (#31). Generation uses Anthropic fast mode so the first lesson is ready in under a minute (#29). Orientation lessons stay short and preview-only (#21). GitHub Issues are the only tracker; a Linear mirror was tried and removed (#24). The component catalog has eight components: text, callout, ratioBar, diagram, checklist, multipleChoice, codeBlock and fillBlank (#23, #33).
+
 ## Pending
 
-Social features (owners' brief to come). Voice input. Component catalog growth beyond the initial six. Hosting.
+Social features (owners' brief to come, #6). Voice input. Further component catalog growth (`matchPairs` is proposed on #23; the sub-agent folder contract is #8). Branching skill-path layout from the mockup (#35, in progress). Hosting beyond Tailscale (#12). Device QA on real phones and tablets (#9).
 
 ## Production-grade means evidence
 
