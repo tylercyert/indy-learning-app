@@ -1,4 +1,4 @@
-# Indy Learning
+# Poko: Learn Anything
 
 Learn anything, for a real reason. A learner states a goal, a short conversation gathers context, and the platform generates a personalized course as a skill tree of reusable lessons delivered as typed, interactive slides. Expo + TypeScript client; Hono + SQLite API server in this repo; Claude for generation behind validated contracts.
 

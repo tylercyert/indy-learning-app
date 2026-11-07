@@ -59,7 +59,7 @@ export default function DevCompanionScreen() {
           ))}
         </View>
 
-        <Text style={styles.h2}>Every headpiece × prop at 96 (base Pip body, accent varies by row)</Text>
+        <Text style={styles.h2}>Every headpiece × prop at 96 (base Poko body, accent varies by row)</Text>
         {headpieces.map((headpiece, i) => (
           <View key={headpiece} style={styles.row}>
             {props.map((prop) => {

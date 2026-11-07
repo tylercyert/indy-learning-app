@@ -118,6 +118,17 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
       // If the lesson was completed on an earlier visit, still celebrate briefly rather than exit cold.
       const latest = await api.getExperience(view.experience.id).catch(() => null);
       if (latest) setView(latest);
+      if (!celebration && latest && !latest.completed) {
+        // A check was skipped earlier: go back to it instead of exiting cold.
+        const answered = new Set(latest.results.map((r) => r.componentId));
+        const missing = slides.findIndex((s) => s.components.some((c) => componentRole(c.type) === 'assessable' && !answered.has(c.id)));
+        if (missing >= 0) {
+          setIndex(missing);
+          setError('One quick check is still open. Answer it (or skip it after reading the idea) to finish the lesson.');
+          setAnnounce('One check is still open on this slide.');
+          return;
+        }
+      }
       if (!celebration && latest?.completed) {
         const course = await api.getCourse(view.experience.courseId).catch(() => null);
         celebrate({ streak: course?.streak ?? { count: 0, lastActiveDate: null }, treeCompleted: course?.trees.at(-1)?.complete ?? false });
@@ -280,7 +291,7 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
             </View>
           ) : (
             <View style={styles.footerRow}>
-              {index > 0 ? <ChunkyButton label="Previous" variant="ghost" onPress={() => setIndex((i) => i - 1)} style={{ width: 96 }} /> : <View style={{ width: 90 }} />}
+              {index > 0 ? <ChunkyButton label="Previous" variant="ghost" onPress={() => setIndex((i) => i - 1)} style={{ minWidth: 100 }} /> : <View style={{ width: 100 }} />}
               {answeredOnSlide ? (
                 <ChunkyButton
                   label={isLast ? 'Finish' : 'Continue'}

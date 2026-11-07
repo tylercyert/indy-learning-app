@@ -72,7 +72,7 @@ export default function IntakeScreen() {
           {/* Four to six short lines over the ~60 s wait, so the screen never looks stuck. */}
           <StatusTicker lines={addingTree ? PLANNING_LINES.tree : PLANNING_LINES.course} intervalMs={7000} />
           <Text style={styles.planningText}>
-            {addingTree ? 'Pip is planning the new branch and writing its first lesson.' : 'Your first lesson will be ready the moment the path is. About a minute.'}
+            {addingTree ? 'Poko is planning the new branch and writing its first lesson.' : 'Your first lesson will be ready the moment the path is. About a minute.'}
           </Text>
         </View>
       </Screen>
@@ -193,7 +193,7 @@ export default function IntakeScreen() {
 
       {view?.status === 'ready' && view.context ? (
         <View style={styles.summary}>
-          <Text style={styles.summaryTitle}>What Pip understood</Text>
+          <Text style={styles.summaryTitle}>What Poko understood</Text>
           <SummaryRow label="Topic" value={titleCase(view.context.goal.topic)} />
           <SummaryRow label="You want to" value={view.context.goal.outcome} />
           {view.context.goal.application ? <SummaryRow label="Where" value={view.context.goal.application} /> : null}
@@ -212,7 +212,7 @@ export default function IntakeScreen() {
 
 /**
  * Intake progress as a filling object: one pip per possible question, purple as they are asked,
- * all mint once Pip has enough. The fraction is the accessible value; the pips are decorative.
+ * all mint once Poko has enough. The fraction is the accessible value; the pips are decorative.
  */
 function IntakePips({ asked, settled }: { asked: number; settled: boolean }) {
   const filled = settled ? MAX_QUESTIONS : Math.min(asked, MAX_QUESTIONS);
