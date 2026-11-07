@@ -109,6 +109,16 @@ export function ensureToken(): Promise<string> {
   return tokenPromise;
 }
 
+/** Forgets this device's learner so the next request creates a fresh one (demo reset; the old learner's data stays on the server). */
+export async function resetLearner(): Promise<void> {
+  tokenPromise = null;
+  try {
+    await AsyncStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Nothing stored or storage unavailable: the in-memory token is already gone.
+  }
+}
+
 const post = (path: string, body: unknown) => request<unknown>(path, { method: 'POST', body: JSON.stringify(body) });
 const get = (path: string) => request<unknown>(path);
 

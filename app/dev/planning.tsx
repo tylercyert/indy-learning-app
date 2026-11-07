@@ -27,7 +27,7 @@ export default function DevPlanningScreen() {
         <Text style={styles.planningTitle}>{addingTree ? 'Adding a new skill tree…' : 'Mixing up your course…'}</Text>
         <StatusTicker lines={addingTree ? PLANNING_LINES.tree : PLANNING_LINES.course} intervalMs={interval} />
         <Text style={styles.planningText}>
-          {addingTree ? 'Pip is planning the new branch and writing its first lesson.' : 'Your first lesson will be ready the moment the path is. About a minute.'}
+          {addingTree ? 'Poko is planning the new branch and writing its first lesson.' : 'Your first lesson will be ready the moment the path is. About a minute.'}
         </Text>
       </View>
     </Screen>
