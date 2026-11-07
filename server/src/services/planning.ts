@@ -31,12 +31,13 @@ export function normalizeRule(rule: ProgressionRuleV1): ProgressionRuleV1 {
  */
 export async function createCourseFromIntake(learnerId: string, intakeId: string): Promise<CourseV1> {
   const { row, context } = readyContext(learnerId, intakeId);
-  const reusable = repo.listLessonsBySubject(context.goal.topic).map((l) => ({
-    id: l.id,
-    title: l.title,
-    objective: l.objective,
-    difficulty: l.difficulty,
-  }));
+  // Offer shared lessons for reuse, but never ones this learner already completed: a new course
+  // that opens with nodes pre-checked reads as broken, and it skips the lesson the learner asked for.
+  const alreadyDone = repo.completedLessonIds(learnerId);
+  const reusable = repo
+    .listLessonsBySubject(context.goal.topic)
+    .filter((l) => !alreadyDone.has(l.id))
+    .map((l) => ({ id: l.id, title: l.title, objective: l.objective, difficulty: l.difficulty }));
   const reusableIds = new Set(reusable.map((l) => l.id));
 
   const history = describeSummary(buildLearningSummary(learnerId));
@@ -61,9 +62,14 @@ export async function createCourseFromIntake(learnerId: string, intakeId: string
   const companion = CompanionThemeV1Schema.safeParse(plan.companion).success ? plan.companion : BASE_COMPANION;
 
   const newLessons: LessonV1[] = [];
+  const usedLessonIds = new Set<string>();
   const nodes: NodeV1[] = plan.nodes.map((n) => {
     let lessonId: string;
-    if (n.lesson.source === 'reuse') {
+    // The orientation lesson is written for THIS course and goal; a reused one would greet the
+    // learner with someone else's introduction. Reusing the same lesson twice in one tree would
+    // complete two nodes at once, so a second use becomes a new lesson too.
+    const mustBeNew = n.kind === 'orientation' || (n.lesson.source === 'reuse' && usedLessonIds.has(n.lesson.lessonId));
+    if (n.lesson.source === 'reuse' && !mustBeNew) {
       lessonId = n.lesson.lessonId;
     } else {
       lessonId = randomUUID();
@@ -73,13 +79,14 @@ export async function createCourseFromIntake(learnerId: string, intakeId: string
         title: n.title,
         objective: n.objective,
         subject: plan.subject,
-        tags: n.lesson.tags,
-        difficulty: n.lesson.difficulty,
-        estimatedMinutes: n.lesson.estimatedMinutes,
+        tags: n.lesson.source === 'new' ? n.lesson.tags : [],
+        difficulty: n.lesson.source === 'new' ? n.lesson.difficulty : n.kind === 'orientation' ? 'intro' : 'core',
+        estimatedMinutes: n.lesson.source === 'new' ? n.lesson.estimatedMinutes : 5,
         contentVersion: 1,
         createdAt: now,
       });
     }
+    usedLessonIds.add(lessonId);
     return { id: n.id, lessonId, title: n.title, objective: n.objective, kind: n.kind, required: n.required, rule: normalizeRule(n.rule) };
   });
 

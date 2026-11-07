@@ -32,12 +32,34 @@ export function isGenerating(learnerId: string, courseId: string, lessonId: stri
   return inFlight.has(keyOf(learnerId, courseId, lessonId));
 }
 
-function findNode(trees: SkillTreeV1[], nodeId: string): { tree: SkillTreeV1; node: NodeV1 } {
-  for (const tree of trees) {
+/**
+ * Resolves a node. With a treeId the lookup is exact; without one, the newest tree wins so a
+ * node id reused by an older tree can never redirect a tap to the wrong lesson.
+ */
+function findNode(trees: SkillTreeV1[], nodeId: string, treeId?: string): { tree: SkillTreeV1; node: NodeV1 } {
+  const candidates = treeId ? trees.filter((t) => t.id === treeId) : [...trees].reverse();
+  for (const tree of candidates) {
     const node = tree.nodes.find((n) => n.id === nodeId);
     if (node) return { tree, node };
   }
   throw new repo.NotFoundError('node');
+}
+
+/**
+ * An experience may exist before its node is reachable (prefetch). Serving it would bypass the
+ * tree, so every read of an experience checks that its lesson is available or completed in the
+ * course for this learner.
+ */
+export function assertExperienceOpenable(learnerId: string, exp: LearningExperienceV1): void {
+  const trees = repo.getTrees(exp.courseId);
+  const completed = repo.completedLessonIds(learnerId);
+  if (completed.has(exp.lessonId)) return;
+  for (const tree of trees) {
+    const states = deriveNodeStates(tree, completed);
+    if (tree.nodes.some((n) => n.lessonId === exp.lessonId && states[n.id] !== 'locked')) return;
+  }
+  console.warn(`[lock] refused experience ${exp.id} (lesson ${exp.lessonId}) for learner ${learnerId}: still locked`);
+  throw new NodeLockedError(exp.lessonId);
 }
 
 async function generate(learnerId: string, course: CourseV1, tree: SkillTreeV1, node: NodeV1, completed: Set<string>): Promise<LearningExperienceV1> {
@@ -88,16 +110,16 @@ function startOrJoin(learnerId: string, course: CourseV1, tree: SkillTreeV1, nod
  * running) on first open. Generation sees the course, the lesson objective, neighbors in the tree
  * and what the learner already completed; never the full history.
  */
-export async function getOrGenerateExperience(learnerId: string, courseId: string, nodeId: string): Promise<LearningExperienceV1> {
+export async function getOrGenerateExperience(learnerId: string, courseId: string, nodeId: string, treeId?: string): Promise<LearningExperienceV1> {
   const course = repo.getCourse(learnerId, courseId);
   const trees = repo.getTrees(courseId);
-  const { tree, node } = findNode(trees, nodeId);
+  const { tree, node } = findNode(trees, nodeId, treeId);
   const completed = repo.completedLessonIds(learnerId);
   const state = deriveNodeStates(tree, completed)[node.id];
   if (state === 'locked') throw new NodeLockedError(node.id);
 
   // While the learner works through this lesson, write the lessons it will unlock.
-  prefetchUpcoming(learnerId, courseId, node.id);
+  prefetchUpcoming(learnerId, courseId, node.id, tree.id);
 
   const existing = repo.findExperience(learnerId, courseId, node.lessonId);
   if (existing) return existing;
@@ -109,12 +131,12 @@ export async function getOrGenerateExperience(learnerId: string, courseId: strin
  * nodes that would make available, and start generating those now. By the time the learner
  * finishes, the next lesson is ready. Bounded, fire-and-forget, deduplicated with in-flight work.
  */
-export function prefetchUpcoming(learnerId: string, courseId: string, openedNodeId: string, limit = 2): void {
+export function prefetchUpcoming(learnerId: string, courseId: string, openedNodeId: string, treeId?: string, limit = 2): void {
   if (!aiEnabled) return;
   try {
     const course = repo.getCourse(learnerId, courseId);
     const trees = repo.getTrees(courseId);
-    const { tree, node } = findNode(trees, openedNodeId);
+    const { tree, node } = findNode(trees, openedNodeId, treeId);
     const completed = repo.completedLessonIds(learnerId);
     const assumed = new Set([...completed, node.lessonId]);
     const before = deriveNodeStates(tree, completed);

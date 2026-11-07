@@ -5,6 +5,7 @@ import { TREE_SYSTEM, treeUserMessage } from '../ai/prompts';
 import { db } from '../db/client';
 import { getOrGenerateExperience, prefetchAvailable } from './experiences';
 import { buildLearningSummary } from './history';
+import { prefixNodeIds } from './node-ids';
 import { normalizeRule } from './planning';
 import * as repo from './repo';
 
@@ -22,7 +23,12 @@ export async function addSkillTree(
   const trees = repo.getTrees(courseId);
   const completed = repo.completedLessonIds(learnerId);
   const summary = buildLearningSummary(learnerId, { subject: course.subject });
-  const reusable = repo.listLessonsBySubject(course.subject, 40).map((l) => ({ id: l.id, title: l.title, objective: l.objective, difficulty: l.difficulty }));
+  // Never offer lessons the learner completed or that already sit in this course's trees.
+  const inCourse = new Set(trees.flatMap((t) => t.nodes.map((n) => n.lessonId)));
+  const reusable = repo
+    .listLessonsBySubject(course.subject, 40)
+    .filter((l) => !completed.has(l.id) && !inCourse.has(l.id))
+    .map((l) => ({ id: l.id, title: l.title, objective: l.objective, difficulty: l.difficulty }));
   const reusableIds = new Set(reusable.map((l) => l.id));
   const priorTitles = trees.flatMap((t) => t.nodes.map((n) => `${n.title}${completed.has(n.lessonId) ? ' (completed)' : ''}`));
 
@@ -42,10 +48,12 @@ export async function addSkillTree(
   }
 
   const now = new Date().toISOString();
+  const sequence = (trees[trees.length - 1]?.sequence ?? -1) + 1;
   const newLessons: LessonV1[] = [];
-  const nodes: NodeV1[] = plan.nodes.map((n) => {
+  const usedLessonIds = new Set<string>();
+  const rawNodes: NodeV1[] = plan.nodes.map((n) => {
     let lessonId: string;
-    if (n.lesson.source === 'reuse') lessonId = n.lesson.lessonId;
+    if (n.lesson.source === 'reuse' && !usedLessonIds.has(n.lesson.lessonId)) lessonId = n.lesson.lessonId;
     else {
       lessonId = randomUUID();
       newLessons.push({
@@ -54,22 +62,25 @@ export async function addSkillTree(
         title: n.title,
         objective: n.objective,
         subject: course.subject,
-        tags: n.lesson.tags,
-        difficulty: n.lesson.difficulty,
-        estimatedMinutes: n.lesson.estimatedMinutes,
+        tags: n.lesson.source === 'new' ? n.lesson.tags : [],
+        difficulty: n.lesson.source === 'new' ? n.lesson.difficulty : 'core',
+        estimatedMinutes: n.lesson.source === 'new' ? n.lesson.estimatedMinutes : 5,
         contentVersion: 1,
         createdAt: now,
       });
     }
+    usedLessonIds.add(lessonId);
     return { id: n.id, lessonId, title: n.title, objective: n.objective, kind: n.kind, required: n.required, rule: normalizeRule(n.rule) };
   });
+  // Node ids must be unique across the whole course, not just this tree.
+  const nodes = prefixNodeIds(rawNodes, sequence);
 
   const tree: SkillTreeV1 = {
     schemaVersion: 1,
     id: randomUUID(),
     courseId,
     title: plan.treeTitle,
-    sequence: (trees[trees.length - 1]?.sequence ?? -1) + 1,
+    sequence,
     nodes,
     createdAt: now,
   };

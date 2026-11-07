@@ -16,7 +16,7 @@ import { GenerationError } from '../ai/claude';
 import { aiEnabled } from '../env';
 import type { AppEnv } from '../app';
 import { requireLearner } from '../auth';
-import { getOrGenerateExperience, NodeLockedError } from '../services/experiences';
+import { assertExperienceOpenable, getOrGenerateExperience, NodeLockedError } from '../services/experiences';
 import { getIntake, readyContext, replyIntake, startIntake } from '../services/intake';
 import { createCourseFromIntake } from '../services/planning';
 import { courseList, courseView, experienceView, recordEvent } from '../services/progress';
@@ -100,18 +100,22 @@ learning.post('/discover/:id/start', async (c) => {
 });
 learning.post('/courses/:id/nodes/:nodeId/experience', async (c) => {
   const learnerId = c.get('learner').id;
-  const experience = await getOrGenerateExperience(learnerId, c.req.param('id'), c.req.param('nodeId'));
+  const experience = await getOrGenerateExperience(learnerId, c.req.param('id'), c.req.param('nodeId'), c.req.query('tree') || undefined);
   return c.json(experienceView(learnerId, experience));
 });
 
-// ---- experiences ----
+// ---- experiences (every read re-checks the lock: prefetched lessons are not reachable early) ----
 learning.get('/experiences/:id', (c) => {
   const learnerId = c.get('learner').id;
-  return c.json(experienceView(learnerId, repo.getExperience(learnerId, c.req.param('id'))));
+  const exp = repo.getExperience(learnerId, c.req.param('id'));
+  assertExperienceOpenable(learnerId, exp);
+  return c.json(experienceView(learnerId, exp));
 });
 learning.post('/experiences/:id/events', async (c) => {
+  const learnerId = c.get('learner').id;
   const req = await body(c, ExperienceEventRequestSchema);
-  return c.json(recordEvent(c.get('learner').id, c.req.param('id'), req));
+  assertExperienceOpenable(learnerId, repo.getExperience(learnerId, c.req.param('id')));
+  return c.json(recordEvent(learnerId, c.req.param('id'), req));
 });
 
 learning.onError((err, c) => {
