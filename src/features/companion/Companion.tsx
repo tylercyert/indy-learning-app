@@ -39,6 +39,26 @@ export function Companion({ theme, mood = 'happy', size = 96 }: { theme: Compani
 }
 
 /**
+ * Just the head and face, cropped to a square: the app icon (#61). Same geometry and palette as
+ * the full character, so the Home Screen icon is the Poko the learner meets inside.
+ */
+export function CompanionFace({ theme, mood = 'happy', size = 96 }: { theme: CompanionThemeV1; mood?: CompanionMood; size?: number }) {
+  // The head spans x 18..78, y 16..76; a 3-unit margin keeps the outline inside the crop.
+  const span = HEAD.r * 2 + 6;
+  const s = size / span;
+  const pal = derivePalette(theme);
+  return (
+    <View accessible accessibilityRole="image" accessibilityLabel={`${theme.name}, ${mood}`} style={{ width: size, height: size, overflow: 'hidden' }}>
+      <View style={{ position: 'absolute', left: -(HEAD.cx - HEAD.r - 3) * s, top: -(HEAD.cy - HEAD.r - 3) * s, width: 96 * s, height: 104 * s }}>
+        <Outlined s={s} fill={theme.bodyColor} parts={[BODY_PARTS[0]!]} />
+        <Rect p={HIGHLIGHT} s={s} color={pal.bodyLight} />
+        <Face s={s} mood={mood} theme={theme} />
+      </View>
+    </View>
+  );
+}
+
+/**
  * Nonvisual description, e.g. "Zest, your companion, happy, wearing a sprig". Props are part of the
  * contract but are not rendered (owner decision 2026-11-07), so they are not described either.
  */

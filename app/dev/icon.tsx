@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { BASE_COMPANION } from '../../src/contracts';
-import { Companion } from '../../src/features/companion/Companion';
+import { CompanionFace } from '../../src/features/companion/Companion';
 import { colors } from '../../src/features/theme';
 
 /**
@@ -17,14 +17,13 @@ export default function DevIconScreen() {
   const size = Math.max(16, Math.min(1024, Number(params.size ?? 512) || 512));
   const shape = params.shape === 'square' || params.shape === 'maskable' ? params.shape : 'rounded';
   const radius = shape === 'rounded' ? Math.round(size * 0.22) : 0;
-  const companionSize = Math.round(size * (shape === 'maskable' ? 0.56 : 0.7));
+  const faceSize = Math.round(size * (shape === 'maskable' ? 0.58 : 0.72));
 
   return (
     <View style={styles.page}>
       <View testID="icon" style={[styles.icon, { width: size, height: size, borderRadius: radius }]}>
-        {/* The companion box leaves headroom for a headpiece; the base Poko has none, so lift it a little. */}
-        <Companion theme={BASE_COMPANION} mood="happy" size={companionSize} />
-        <View style={{ height: size * 0.06 }} />
+        {/* Owner decision (#61): purple with just Poko's face. */}
+        <CompanionFace theme={BASE_COMPANION} mood="happy" size={faceSize} />
       </View>
     </View>
   );
