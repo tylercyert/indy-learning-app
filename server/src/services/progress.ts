@@ -21,22 +21,31 @@ import {
   treeProgress,
 } from '../../../src/domain';
 import { db } from '../db/client';
+import { isGenerating, prefetchAvailable } from './experiences';
 import * as repo from './repo';
 
-export function treeView(tree: Parameters<typeof deriveNodeStates>[0], completed: Set<string>): TreeView {
+export function treeView(
+  tree: Parameters<typeof deriveNodeStates>[0],
+  completed: Set<string>,
+  readyLessonIds: Set<string> = new Set(),
+  learnerId?: string,
+): TreeView {
   return {
     tree,
     nodeStates: deriveNodeStates(tree, completed),
     nextNodeId: nextNode(tree, completed)?.id ?? null,
     progress: treeProgress(tree, completed),
     complete: isTreeComplete(tree, completed),
+    readyNodeIds: tree.nodes.filter((n) => readyLessonIds.has(n.lessonId)).map((n) => n.id),
+    generatingNodeIds: learnerId ? tree.nodes.filter((n) => isGenerating(learnerId, tree.courseId, n.lessonId)).map((n) => n.id) : [],
   };
 }
 
 export function courseView(learnerId: string, courseId: string): CourseView {
   const course = repo.getCourse(learnerId, courseId);
   const completed = repo.completedLessonIds(learnerId);
-  const trees = repo.getTrees(courseId).map((t) => treeView(t, completed));
+  const ready = repo.experienceLessonIds(learnerId, courseId);
+  const trees = repo.getTrees(courseId).map((t) => treeView(t, completed, ready, learnerId));
   return { course, trees, streak: repo.getStreak(learnerId) };
 }
 
@@ -153,6 +162,9 @@ export function recordEvent(learnerId: string, experienceId: string, req: Experi
       }
     }
   });
+
+  // The lessons this completion unlocked start generating now, so the next tap is instant.
+  if (lessonCompleted) prefetchAvailable(learnerId, experience.courseId);
 
   return {
     scored,

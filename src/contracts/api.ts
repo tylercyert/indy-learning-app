@@ -66,6 +66,10 @@ export const TreeViewSchema = z.strictObject({
   nextNodeId: LocalIdSchema.nullable(),
   progress: z.strictObject({ completed: z.int(), required: z.int(), total: z.int() }),
   complete: z.boolean(),
+  /** Nodes whose learning experience is already generated for this learner: tapping opens instantly. */
+  readyNodeIds: z.array(LocalIdSchema),
+  /** Nodes whose experience is being written right now. */
+  generatingNodeIds: z.array(LocalIdSchema),
 });
 export type TreeView = z.infer<typeof TreeViewSchema>;
 

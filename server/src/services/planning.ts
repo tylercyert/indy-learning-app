@@ -13,6 +13,7 @@ import {
 import { generateStructured, GenerationError } from '../ai/claude';
 import { PLANNING_SYSTEM, planningUserMessage } from '../ai/prompts';
 import { db } from '../db/client';
+import { prefetchAvailable } from './experiences';
 import * as repo from './repo';
 import { markPlanned, readyContext } from './intake';
 
@@ -117,5 +118,7 @@ export async function createCourseFromIntake(learnerId: string, intakeId: string
   });
 
   console.log(`[plan] course ${courseId} "${course.title}" ${nodes.length} nodes (${newLessons.length} new) by ${model}`);
+  // Start writing the orientation lesson now so it is ready by the time the learner taps it.
+  prefetchAvailable(learnerId, courseId);
   return course;
 }

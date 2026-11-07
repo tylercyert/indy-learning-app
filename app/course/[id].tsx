@@ -1,5 +1,5 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NodeV1, TreeView } from '../../src/contracts';
 import { Companion } from '../../src/features/companion/Companion';
@@ -8,12 +8,27 @@ import { BackButton, ErrorBox, Eyebrow, Loading, Screen } from '../../src/featur
 import { useAsync } from '../../src/features/ui/useAsync';
 import { api } from '../../src/services/api';
 
+type NodeStatus = 'locked' | 'available' | 'completed';
+
 export default function CourseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const view = useAsync(() => api.getCourse(id), [id]);
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const data = view.data;
+  const current: TreeView | undefined = data?.trees.at(-1);
+  const nextNode = current ? current.tree.nodes.find((n) => n.id === current.nextNodeId) : undefined;
+  const nextReady = !!current && !!nextNode && current.readyNodeIds.includes(nextNode.id);
+
+  // While the next lesson is still being written on the server, refresh until it is ready.
+  useEffect(() => {
+    if (!current || !nextNode || nextReady) return;
+    const timer = setInterval(() => view.reload(), 3000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.tree.id, nextNode?.id, nextReady]);
 
   const open = async (nodeId: string) => {
     setOpening(nodeId);
@@ -28,9 +43,13 @@ export default function CourseScreen() {
     }
   };
 
-  const data = view.data;
-  const current: TreeView | undefined = data?.trees.at(-1);
-  const nextTitle = current ? current.tree.nodes.find((n) => n.id === current.nextNodeId)?.title : null;
+  const companionLine = (): string => {
+    if (!data || !current) return '';
+    if (current.complete) return 'You did it! Every required lesson is done.';
+    if (nextNode && !nextReady) return `Writing "${nextNode.title}" for you now… it'll be ready in a moment.`;
+    if (nextNode) return `"${nextNode.title}" is ready. Shall we?`;
+    return data.course.companion.greeting;
+  };
 
   return (
     <Screen>
@@ -49,11 +68,11 @@ export default function CourseScreen() {
       {data && current ? (
         <>
           <View style={styles.hero}>
-            <Companion theme={data.course.companion} mood={current.complete ? 'cheering' : 'happy'} size={88} />
+            <Companion theme={data.course.companion} mood={current.complete ? 'cheering' : nextReady ? 'happy' : 'thinking'} size={88} />
             <View style={{ flex: 1, gap: 6 }}>
               <Eyebrow color={colors.coralDeep}>{`${data.course.companion.name} says`}</Eyebrow>
-              <Text style={styles.greeting}>
-                {current.complete ? 'You did it! Every required lesson is done.' : nextTitle ? `Up next: ${nextTitle}. Ready?` : data.course.companion.greeting}
+              <Text style={styles.greeting} accessibilityLiveRegion="polite">
+                {companionLine()}
               </Text>
             </View>
           </View>
@@ -73,7 +92,7 @@ export default function CourseScreen() {
             </Text>
           </View>
 
-          {opening ? <Loading message={`${data.course.companion.name} is writing this lesson for you… about a minute.`} /> : null}
+          {opening ? <Loading message={`${data.course.companion.name} is finishing this lesson for you…`} /> : null}
           {error ? <ErrorBox message={error} /> : null}
 
           <View style={styles.path}>
@@ -84,6 +103,8 @@ export default function CourseScreen() {
                 index={i}
                 state={current.nodeStates[node.id] ?? 'locked'}
                 isNext={current.nextNodeId === node.id}
+                ready={current.readyNodeIds.includes(node.id)}
+                generating={current.generatingNodeIds.includes(node.id)}
                 disabled={!!opening}
                 onPress={() => void open(node.id)}
               />
@@ -100,24 +121,30 @@ function NodeCard({
   index,
   state,
   isNext,
+  ready,
+  generating,
   disabled,
   onPress,
 }: {
   node: NodeV1;
   index: number;
-  state: 'locked' | 'available' | 'completed';
+  state: NodeStatus;
   isNext: boolean;
+  ready: boolean;
+  generating: boolean;
   disabled: boolean;
   onPress: () => void;
 }) {
   const side = index % 2 === 0 ? 'flex-start' : 'flex-end';
   const locked = state === 'locked';
   const requires = [...(node.rule.allOf ?? []), ...(node.rule.anyOf ?? []), ...(node.rule.atLeast?.of ?? [])];
+  const statusWord = state === 'completed' ? 'Done.' : locked ? 'Locked.' : isNext ? 'Up next.' : 'Available.';
+  const readiness = state === 'completed' || locked ? '' : ready ? 'Ready to open.' : generating ? 'Being written now.' : 'Will be written when opened.';
   return (
     <View style={{ alignItems: side, width: '100%' }}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${node.title}. ${state === 'completed' ? 'Done.' : locked ? 'Locked.' : isNext ? 'Up next.' : 'Available.'} ${node.required ? '' : 'Optional branch.'}`}
+        accessibilityLabel={`${node.title}. ${statusWord} ${node.required ? '' : 'Optional branch.'} ${readiness}`}
         accessibilityState={{ disabled: locked || disabled }}
         disabled={locked || disabled}
         onPress={onPress}
@@ -134,6 +161,11 @@ function NodeCard({
             {locked && requires.length ? ` · after ${requires.join(node.rule.anyOf ? ' or ' : ', ')}` : ''}
           </Text>
         </View>
+        {!locked && state !== 'completed' ? (
+          <View style={[styles.tag, ready ? styles.tagReady : generating ? styles.tagWriting : styles.tagIdle]}>
+            <Text style={[styles.tagText, ready && { color: colors.mintDeep }]}>{ready ? 'Ready' : generating ? 'Writing…' : 'Tap to write'}</Text>
+          </View>
+        ) : null}
       </Pressable>
     </View>
   );
@@ -152,7 +184,7 @@ const styles = StyleSheet.create({
   unitTitle: { fontFamily: fonts.black, fontSize: 20, color: '#FFFFFF' },
   unitProgress: { fontFamily: fonts.black, fontSize: 22, color: colors.yellow },
   path: { gap: 14 },
-  node: { width: '88%', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 22, borderWidth: 3, borderColor: colors.line, borderBottomWidth: 7, backgroundColor: colors.bg },
+  node: { width: '92%', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 22, borderWidth: 3, borderColor: colors.line, borderBottomWidth: 7, backgroundColor: colors.bg },
   nodeDone: { borderColor: colors.purpleTint, backgroundColor: colors.soft },
   nodeNext: { borderColor: colors.yellow, borderBottomColor: colors.yellowDeep, backgroundColor: '#FFFBEB' },
   nodeLocked: { opacity: 0.7 },
@@ -164,4 +196,9 @@ const styles = StyleSheet.create({
   dotText: { fontFamily: fonts.black, fontSize: 18, color: colors.ink },
   nodeTitle: { fontFamily: fonts.black, fontSize: 17, color: colors.ink },
   nodeMeta: { fontFamily: fonts.bold, fontSize: 12, color: colors.muted },
+  tag: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  tagReady: { backgroundColor: colors.mintTint },
+  tagWriting: { backgroundColor: colors.yellowTint },
+  tagIdle: { backgroundColor: colors.soft },
+  tagText: { fontFamily: fonts.black, fontSize: 11, letterSpacing: 0.4, color: colors.muted },
 });

@@ -144,7 +144,7 @@ export async function generateStructured<S extends z.ZodType>(
       throw new GenerationError('invalid', `${req.task}: output failed validation after ${attempt} attempt(s)`, issues);
     }
 
-    console.warn(`[generation] ${req.task}: attempt ${attempt} failed validation (${issues.length} issues); retrying`);
+    console.warn(`[generation] ${req.task}: attempt ${attempt} failed validation (${issues.length} issues); retrying. First: ${issues.slice(0, 3).join(' | ')}`);
     messages.push({ role: 'assistant', content: message.content });
     messages.push({
       role: 'user',

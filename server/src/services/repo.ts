@@ -136,6 +136,16 @@ export function findExperience(learnerId: string, courseId: string, lessonId: st
   return row ? LearningExperienceV1Schema.parse(row.doc) : null;
 }
 
+/** Lesson ids that already have a generated experience for this learner in this course. */
+export function experienceLessonIds(learnerId: string, courseId: string): Set<string> {
+  const rows = db
+    .select({ lessonId: learningExperiences.lessonId })
+    .from(learningExperiences)
+    .where(and(eq(learningExperiences.learnerId, learnerId), eq(learningExperiences.courseId, courseId)))
+    .all();
+  return new Set(rows.map((r) => r.lessonId));
+}
+
 export function getExperience(learnerId: string, experienceId: string): LearningExperienceV1 {
   const row = db
     .select()
