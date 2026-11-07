@@ -21,18 +21,17 @@ describe('RichTextV1', () => {
       blocks: [
         { type: 'heading', level: 2, inlines: [{ text: 'Why acid' }] },
         { type: 'bulletList', items: [[{ text: 'cuts sweet', marks: ['bold'] }], [{ text: 'adds brightness' }]] },
-        { type: 'paragraph', inlines: [{ text: 'Read more', href: 'https://example.com/acid' }] },
+        { type: 'link', label: 'Read more', href: 'https://example.com/acid' },
       ],
     });
     expect(richTextToPlain(doc)).toBe('Why acid\ncuts sweet\nadds brightness\nRead more');
   });
-  it.each([
-    { href: 'http://example.com' },
-    { href: 'javascript:alert(1)' },
-    { href: 'https://' },
-  ])('rejects non-https links %j', (inline) => {
-    const result = RichTextV1Schema.safeParse({ blocks: [{ type: 'paragraph', inlines: [{ text: 'x', ...inline }] }] });
+  it.each(['http://example.com', 'javascript:alert(1)', 'https://'])('rejects non-https link %s', (href) => {
+    const result = RichTextV1Schema.safeParse({ blocks: [{ type: 'link', label: 'x', href }] });
     expect(result.success).toBe(false);
+  });
+  it('rejects links hidden on inlines (links are their own block)', () => {
+    expect(RichTextV1Schema.safeParse({ blocks: [{ type: 'paragraph', inlines: [{ text: 'x', href: 'https://example.com' }] }] }).success).toBe(false);
   });
   it('rejects unknown block types and raw html fields', () => {
     expect(RichTextV1Schema.safeParse({ blocks: [{ type: 'html', html: '<b>x</b>' }] }).success).toBe(false);
@@ -109,6 +108,12 @@ describe('ProgressionRuleV1 and SkillTreeV1', () => {
   it('rejects a tree with no root', () => {
     const nodes = exampleTree.nodes.map((n, i, all) => ({ ...n, rule: { allOf: [all[(i + 1) % all.length]!.id] } }));
     expect(SkillTreeV1Schema.safeParse({ ...exampleTree, nodes }).success).toBe(false);
+  });
+  it('requires kind "optional" and required=false to agree', () => {
+    const nodes = exampleTree.nodes.map((n) => (n.id === 'non-alc' ? { ...n, required: true } : n));
+    expect(SkillTreeV1Schema.safeParse({ ...exampleTree, nodes }).success).toBe(false);
+    const nodes2 = exampleTree.nodes.map((n) => (n.id === 'dilution' ? { ...n, required: false } : n));
+    expect(SkillTreeV1Schema.safeParse({ ...exampleTree, nodes: nodes2 }).success).toBe(false);
   });
   it('rejects progress fields on nodes (state is derived, never stored)', () => {
     const nodes = exampleTree.nodes.map((n) => ({ ...n, status: 'done' }));

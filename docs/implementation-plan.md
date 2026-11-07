@@ -21,7 +21,7 @@ Expo app (iOS / iPad / Android / web)          server/ (Hono, Node 24, this repo
 
 Contracts for rich text, six components, slides, lessons, learning experiences, skill trees with `allOf` / `anyOf` / `atLeast` rules, courses, learner context, learning history, companion, intake turn and course plan. Domain rules with tests. Server skeleton: env validation, SQLite schema and migration, health, anonymous learner bootstrap, bearer auth. Claude client with structured output, validation and one issue-fed retry. Expo Router shell. `npm run verify` and `npm run export:all` pass.
 
-## Slice 2 — first complete loop
+## Slice 2 — first complete loop (server live-verified 2026-11-07; device QA pending, issue #2)
 
 Learner types a goal → intake conversation (companion asks only what it needs, max 4 questions) → course plan → orientation lesson generated → learner completes it → celebration.
 
@@ -30,17 +30,21 @@ Learner types a goal → intake conversation (companion asks only what it needs,
 - Client: home input, intake chat screen, generating state with companion, slide renderer for the six components, completion screen.
 - Acceptance: a real goal in any subject produces a plan and a playable orientation lesson on web and on a phone via Expo Go, with validation failures handled (retry, then a clear error, never a blank screen).
 
-## Slice 3 — the skill tree
+## Slice 3 — the skill tree (shipped with #19/#22; polish on #3)
 
-Winding-path tree rendering from derived node states; on-demand generation when a node is opened; course completion; streak; celebration animation; companion moods.
+Winding-path tree of circles from derived node states; prefetch states (Ready / Writing…); course completion with "keep going"; streak; celebration screen; companion moods. Remaining: celebration animation polish.
 
-## Slice 4 — learning history into generation
+## Slice 4 — learning history into generation (PR #22)
 
-Learning summary built from events; sent as generation context; lesson reuse by objective (learner's own lessons first); companion rename and re-roll; a second skill tree when a course is completed and the learner continues.
+`LearningSummaryV1` built from events (completed lessons, struggles, strengths) and included in planning and lesson prompts; lesson reuse offered by subject; companion rename and re-roll (`PATCH /api/courses/:id/companion`); additional skill trees (`POST /api/courses/:id/trees`, continue or explore) that reopen a completed course without touching prior trees.
 
-## Slice 5 — discovery and exploration
+## Slice 5 — discovery and exploration (PR #22)
 
-Discoverable courses on the home screen; starting a course from a discovered one (shared structure, personal experiences, prior completions recognized); exploration requests through intake inside a course.
+`GET /api/discover` returns a public projection (never a learner's context); `POST /api/discover/:id/start` clones the skill trees for the new learner so completions are recognized; exploration requests start an intake inside a course and add a tree. Home has a Discover section; the course screen has "Learn something different".
+
+## Waiting, by decision (2026-11-07)
+
+Course creation awaits the orientation lesson so the first node is Ready on arrival; opening a lesson pre-writes the lessons it will unlock (predictive prefetch from the progression rules); completion also prefetches. The beaker animation is only for course creation; opening a node shows the spinner in the node.
 
 ## Slice 6 — social
 

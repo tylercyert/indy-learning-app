@@ -2,6 +2,7 @@ import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlit
 import type {
   CourseV1,
   HistoryEventV1,
+  IntakeMessage,
   LearnerContextV1,
   LearningExperienceV1,
   LessonV1,
@@ -108,7 +109,7 @@ export const streaks = sqliteTable('streaks', {
   lastActiveDate: text('last_active_date'),
 });
 
-export type IntakeMessage = { role: 'companion' | 'learner'; text: string; at: string };
+export type { IntakeMessage };
 
 export const intakeSessions = sqliteTable(
   'intake_sessions',

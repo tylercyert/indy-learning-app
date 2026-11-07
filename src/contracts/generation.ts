@@ -3,7 +3,7 @@ import { CompanionThemeV1Schema } from './companion';
 import { EntityIdSchema, LocalIdSchema, MediumTextSchema, ShortTextSchema } from './ids';
 import { LearnerContextV1Schema } from './learner';
 import { LessonDifficultySchema } from './lesson';
-import { NodeKindSchema, ProgressionRuleV1Schema, assertTreeShape } from './skill-tree';
+import { NodeKindSchema, ProgressionRuleV1Schema, assertTreeShape, kindMatchesRequired, ruleReferences } from './skill-tree';
 
 /**
  * Shapes the model returns. Each is also the structured-output schema for its request,
@@ -40,15 +40,17 @@ export const PlannedLessonSchema = z.discriminatedUnion('source', [
   }),
 ]);
 
-export const PlannedNodeV1Schema = z.strictObject({
-  id: LocalIdSchema,
-  title: ShortTextSchema.max(80),
-  objective: MediumTextSchema,
-  kind: NodeKindSchema,
-  required: z.boolean(),
-  rule: ProgressionRuleV1Schema,
-  lesson: PlannedLessonSchema,
-});
+export const PlannedNodeV1Schema = z
+  .strictObject({
+    id: LocalIdSchema,
+    title: ShortTextSchema.max(80),
+    objective: MediumTextSchema,
+    kind: NodeKindSchema,
+    required: z.boolean(),
+    rule: ProgressionRuleV1Schema,
+    lesson: PlannedLessonSchema,
+  })
+  .refine(kindMatchesRequired, { message: 'kind "optional" must have required=false and every other kind required=true', path: ['required'] });
 export type PlannedNodeV1 = z.infer<typeof PlannedNodeV1Schema>;
 
 /** CoursePlanV1: the structure of a new course or of an additional skill tree. */
@@ -66,7 +68,7 @@ export const CoursePlanV1Schema = z
     const orientation = plan.nodes.filter((n) => n.kind === 'orientation');
     if (orientation.length !== 1) {
       ctx.addIssue({ code: 'custom', message: 'a plan needs exactly one orientation node', path: ['nodes'] });
-    } else if (Object.keys(orientation[0]!.rule).length > 0) {
+    } else if (ruleReferences(orientation[0]!.rule).length > 0) {
       ctx.addIssue({ code: 'custom', message: 'the orientation node must be a root', path: ['nodes'] });
     }
   });

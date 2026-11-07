@@ -1,0 +1,63 @@
+{
+  "id": "ratio-six",
+  "title": "Ratio bar with six segments",
+  "purpose": "teach",
+  "components": [
+    {
+      "id": "ratio",
+      "type": "ratioBar",
+      "title": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx",
+      "segments": [
+        {
+          "label": "Base spirit or cold tea!",
+          "parts": 12,
+          "color": "primary"
+        },
+        {
+          "label": "Fresh citrus acid juice.",
+          "parts": 1,
+          "color": "accent"
+        },
+        {
+          "label": "Simple syrup sweeteners.",
+          "parts": 3,
+          "color": "secondary"
+        },
+        {
+          "label": "Dilution from ice & stir",
+          "parts": 6,
+          "color": "neutral"
+        },
+        {
+          "label": "Aromatic bitters dash-ed",
+          "parts": 1,
+          "color": "highlight"
+        },
+        {
+          "label": "Garnish and salt rim too",
+          "parts": 2,
+          "color": "primary"
+        }
+      ],
+      "altText": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balancex"
+    },
+    {
+      "id": "ratio-two-extreme",
+      "type": "ratioBar",
+      "title": "Two segments, 1 : 12",
+      "segments": [
+        {
+          "label": "Supercalifragilisticexpi",
+          "parts": 12,
+          "color": "highlight"
+        },
+        {
+          "label": "one",
+          "parts": 1,
+          "color": "secondary"
+        }
+      ],
+      "altText": "Twelve parts to one part."
+    }
+  ]
+}

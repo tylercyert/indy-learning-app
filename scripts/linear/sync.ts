@@ -5,6 +5,7 @@
  *   npm run linear:sync                 # dry-run (offline plan if no key; live diff if key present)
  *   npm run linear:sync -- --apply      # create/update Linear issues (requires .env.linear)
  *   npm run linear:sync -- --repo owner/name
+ *   LINEAR_ENV=/path/to/.env.linear npm run linear:sync   # read config from another checkout
  *
  * Config: .env.linear at the repo root (gitignored) with LINEAR_API_KEY and LINEAR_TEAM_KEY.
  */
@@ -50,18 +51,21 @@ const EnvSchema = z.object({
   LINEAR_TEAM_KEY: z.string().min(1).optional(),
 });
 
-function loadEnv(): z.infer<typeof EnvSchema> {
-  loadDotenv({ path: path.resolve(process.cwd(), '.env.linear'), quiet: true });
-  return EnvSchema.parse({ LINEAR_API_KEY: process.env.LINEAR_API_KEY, LINEAR_TEAM_KEY: process.env.LINEAR_TEAM_KEY });
+/** Reads `.env.linear` from the repo root, or the file named by LINEAR_ENV (read-only; never committed). */
+function loadEnv(): { env: z.infer<typeof EnvSchema>; file: string } {
+  const file = path.resolve(process.cwd(), process.env.LINEAR_ENV ?? '.env.linear');
+  loadDotenv({ path: file, quiet: true });
+  return { env: EnvSchema.parse({ LINEAR_API_KEY: process.env.LINEAR_API_KEY, LINEAR_TEAM_KEY: process.env.LINEAR_TEAM_KEY }), file };
 }
 
 const log = (line = '') => console.log(line);
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const env = loadEnv();
+  const { env, file } = loadEnv();
   const repo = args.repo ?? detectRepo();
 
+  log(`Config file: ${file}${env.LINEAR_API_KEY ? '' : ' (not found or no LINEAR_API_KEY)'}`);
   log(`GitHub repo: ${repo} (read-only via gh)`);
   const issues = listGitHubIssues(repo);
   const desired = issues.map(toDesired);

@@ -23,7 +23,7 @@ Record commit SHA, exact commands and results, acceptance evidence, known limits
 - Persistence: save/reload, restart/resume, schema migration, corrupt/partial data and intentional reset.
 - Adaptation: explanation, explicit accept/decline, one-time application and a new question.
 - UI: loading/empty/error/offline states, repeated actions, back/close/cancel, small screens, large text, accessible labels and contrast.
-- Provider: timeout, cancellation, malformed output, bounded retry and clearly labeled fixture fallback.
+- Provider: timeout, malformed output, bounded retry with validation issues fed back, and a clear error state the learner can retry from. Generation is live; there is no fixture fallback.
 
 ## Release decision
 
