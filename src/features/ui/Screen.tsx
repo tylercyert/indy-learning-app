@@ -73,13 +73,14 @@ export function Screen({
 /**
  * Extra room above the bar's content when the web app runs from the iOS Home Screen (#61). iOS draws
  * a soft blur under its status bar that fades a little way into the page; without this the blur ran
- * into the Poko wordmark on a real iPhone. Browser tabs and native builds get no extra room.
+ * into the Poko wordmark on a real iPhone. Trimmed to 6 once the status-bar tint matched the bar
+ * (#65). Browser tabs and native builds get no extra room.
  */
 const STANDALONE_TOP_CLEARANCE = (() => {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return 0;
   const nav = window.navigator as Navigator & { standalone?: boolean };
   const standalone = nav.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches === true;
-  return standalone ? 20 : 0;
+  return standalone ? 6 : 0;
 })();
 
 export function AppBar({
