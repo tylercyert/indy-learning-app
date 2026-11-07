@@ -32,6 +32,8 @@ export const IntakeMessageSchema = z.strictObject({
   role: z.enum(['companion', 'learner']),
   text: z.string(),
   at: z.iso.datetime(),
+  /** Quick answers offered with a companion question; stored so the turn can be rebuilt on reload. */
+  suggestedAnswers: z.array(z.string()).max(4).optional(),
 });
 export type IntakeMessage = z.infer<typeof IntakeMessageSchema>;
 

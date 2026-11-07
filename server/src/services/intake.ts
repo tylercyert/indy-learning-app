@@ -16,13 +16,33 @@ function questionsAsked(transcript: IntakeMessage[]): number {
   return transcript.filter((m) => m.role === 'companion').length;
 }
 
+/**
+ * Rebuilds the current turn from stored state, so a reload (or a second device) sees the same
+ * question and quick answers as the response that produced them.
+ */
+export function reconstructTurn(
+  status: string,
+  transcript: IntakeMessage[],
+  context: LearnerContextV1 | null,
+): IntakeTurnV1 | null {
+  const lastCompanion = [...transcript].reverse().find((m) => m.role === 'companion');
+  if (!lastCompanion) return null;
+  if (status === 'open') {
+    return { kind: 'ask', question: lastCompanion.text, suggestedAnswers: lastCompanion.suggestedAnswers ?? [] };
+  }
+  if ((status === 'ready' || status === 'planned') && context) {
+    return { kind: 'ready', context, summary: lastCompanion.text };
+  }
+  return null;
+}
+
 function toView(row: Row, turn: IntakeTurnV1 | null): IntakeSessionView {
   return {
     id: row.id,
     status: row.status as IntakeSessionView['status'],
     courseId: row.courseId ?? null,
     transcript: row.transcript,
-    turn,
+    turn: turn ?? reconstructTurn(row.status, row.transcript, row.context ?? null),
     questionsAsked: questionsAsked(row.transcript),
     context: row.context ?? null,
   };
@@ -53,7 +73,11 @@ async function nextTurn(transcript: IntakeMessage[]): Promise<IntakeTurnV1> {
 
 function applyTurn(row: Row, turn: IntakeTurnV1, now: string): { transcript: IntakeMessage[]; status: string; context: LearnerContextV1 | null } {
   if (turn.kind === 'ask') {
-    return { transcript: [...row.transcript, { role: 'companion', text: turn.question, at: now }], status: 'open', context: null };
+    return {
+      transcript: [...row.transcript, { role: 'companion', text: turn.question, at: now, suggestedAnswers: turn.suggestedAnswers }],
+      status: 'open',
+      context: null,
+    };
   }
   return { transcript: [...row.transcript, { role: 'companion', text: turn.summary, at: now }], status: 'ready', context: turn.context };
 }
