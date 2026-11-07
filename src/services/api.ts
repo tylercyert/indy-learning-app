@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import type { z } from 'zod';
 import {
   CourseListSchema,
@@ -16,7 +17,17 @@ import {
  * EXPO_PUBLIC_API_URL is public by design; nothing secret lives in the app bundle.
  * Every response is validated against the shared contract before a screen sees it.
  */
-const baseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8787').replace(/\/$/, '');
+/**
+ * Precedence: explicit EXPO_PUBLIC_API_URL; otherwise, on web, the page's own origin (the API server
+ * serves the exported app from the same origin); otherwise localhost for simulators.
+ */
+function resolveBaseUrl(): string {
+  const configured = process.env.EXPO_PUBLIC_API_URL;
+  if (configured) return configured.replace(/\/$/, '');
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  return 'http://localhost:8787';
+}
+const baseUrl = resolveBaseUrl();
 const TOKEN_KEY = 'indy.learnerToken';
 
 export interface Health {
@@ -55,7 +66,7 @@ async function writeToken(token: string): Promise<void> {
 async function request<T>(path: string, init: RequestInit = {}, auth = true): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(init.headers as Record<string, string>) };
   if (auth) headers.Authorization = `Bearer ${await ensureToken()}`;
-  const res = await fetch(`${baseUrl}${path}`, { ...init, headers });
+  const res = await fetch(`${baseUrl}/api${path}`, { ...init, headers });
   if (!res.ok) {
     let message = res.statusText || `HTTP ${res.status}`;
     let kind: string | undefined;

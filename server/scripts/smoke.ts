@@ -20,7 +20,7 @@ const t0 = Date.now();
 const log = (msg: string) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${msg}`);
 
 async function call(path: string, init: RequestInit = {}, token?: string): Promise<unknown> {
-  const res = await fetch(base + path, {
+  const res = await fetch(`${base}/api${path}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.headers ?? {}) },
   });

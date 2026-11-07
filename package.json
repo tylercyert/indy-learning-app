@@ -51,8 +51,11 @@
     "test:watch": "vitest",
     "verify": "npm run typecheck && npm run lint && npm test",
     "export:all": "expo export --platform all",
-    "server:dev": "tsx watch server/src/index.ts",
+    "server:dev": "tsx watch --ignore dist server/src/index.ts",
     "server:start": "tsx server/src/index.ts",
+    "web:export": "expo export --platform web",
+    "serve": "npm run web:export && npm run server:start",
+    "start:tailscale": "REACT_NATIVE_PACKAGER_HOSTNAME=$(tailscale ip -4) expo start --port 8081",
     "db:generate": "drizzle-kit generate --config server/drizzle.config.ts",
     "db:studio": "drizzle-kit studio --config server/drizzle.config.ts"
   },

@@ -14,7 +14,7 @@ The API compiles output schemas to a grammar with limits: no `oneOf`, at most 24
 
 The mockup that drives the UI is a Design artifact (link in the owners' session; ask Tyler). It shows home, intake, skill path, slides, correction, application question, celebration and the companion system.
 
-## Run on Noir
+## Run on Noir and open over Tailscale
 
 ```sh
 export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH
@@ -23,11 +23,25 @@ cd ~/projects/indy-learning-app
 n24 npm ci
 cp server/.env.example server/.env            # then set ANTHROPIC_API_KEY
 printf 'EXPO_PUBLIC_API_URL=http://%s:8787\n' "$(tailscale ip -4)" > .env.local
-n24 npm run server:dev
-n24 npm start -- --port 8081
 ```
 
-Use a unique Metro port per workspace. `ALLOW_NO_AI=1` runs the server without a key for non-generation work.
+**Stable URL for laptops and phones on the tailnet** (exported web app served by the API server, same origin):
+
+```sh
+n24 npm run serve        # expo export --platform web, then the API server on 0.0.0.0:8787
+# open http://100.75.97.3:8787 in any browser on the tailnet
+```
+
+Re-run `n24 npm run web:export` after client changes; the server picks up `dist/` on restart. All API routes live under `/api/`; the web app owns the root and deep links fall back to `index.html`.
+
+**Dev server with hot reload** (Metro advertised on the Tailscale IP, also for Expo Go):
+
+```sh
+n24 npm run start:tailscale        # Metro on :8081, QR and URLs use the tailscale IP
+# web: http://100.75.97.3:8081 · phone: scan the QR in Expo Go (SDK 58)
+```
+
+Use a unique Metro port per workspace. `ALLOW_NO_AI=1` runs the server without a key for non-generation work. If a tailnet device cannot reach :8787 or :8081, Noir's firewall is blocking the `tailscale0` interface; an admin can trust it with `sudo firewall-cmd --zone=trusted --add-interface=tailscale0 --permanent && sudo firewall-cmd --reload` (verified from Noir itself only; the firewall was not checked because that needs sudo).
 
 ## What is deliberately not configured
 
