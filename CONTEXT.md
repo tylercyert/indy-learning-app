@@ -7,12 +7,12 @@ An adaptive learning platform: a learner says what they want to learn, a convers
 ### Learning structure
 
 **Course**:
-The overall learning journey toward one topic or objective. A course can contain several skill trees over time and is completed when its required lessons are completed.
+The overall learning journey toward one topic or objective. A course can contain several skill trees over time; it is completed when the required lessons of its current skill tree are completed, and continuing adds a new skill tree and reopens it.
 _Avoid_: Path, journey, adventure, track
 
 **Skill Tree**:
 A structured, visual learning path within a course. It defines nodes, connections, progression rules, optional branches and unlocking. A course's first skill tree is its foundation; later ones add depth.
-_Avoid_: Tree (alone, in code), map, curriculum
+_Avoid_: Map, curriculum, path (in code; "tree" alone is an acceptable code abbreviation)
 
 **Node**:
 A lesson's placement in one specific skill tree: its position, progression rule, and whether it is required or optional. The same lesson appears in many skill trees through different nodes.
@@ -27,7 +27,7 @@ The specific capability a lesson exists to teach, stated in plain language. It i
 _Avoid_: Goal (reserved for the learner's own goal), outcome
 
 **Learning Experience**:
-The instructional run of a lesson for one learner: an ordered sequence of slides generated or adapted to that learner's context. One lesson can have many learning experiences.
+The instructional run of a lesson for one learner in one course: an ordered sequence of slides generated or adapted to that learner's context. One lesson can have many learning experiences.
 _Avoid_: Lesson content, lesson instance
 
 **Slide**:
@@ -39,7 +39,7 @@ A reusable, contract-driven block placed on a slide. A component is presentation
 _Avoid_: Widget, block, element
 
 **Orientation Lesson**:
-The first lesson of a course: it introduces the subject, establishes a baseline and helps the platform understand the learner.
+The lesson at a course's single orientation node, the root of its first skill tree: it introduces the subject, establishes a baseline and helps the platform understand the learner. Orientation is a node placement, not a property of the lesson itself.
 _Avoid_: 101, intro, onboarding lesson
 
 ### Progression
@@ -107,7 +107,7 @@ The learner's themed character for a course: a fixed base body with a generated 
 _Avoid_: Mascot, avatar, pet
 
 **Streak**:
-Consecutive days with meaningful learning activity, counted once per learner across all courses.
+Consecutive days on which the learner completed at least one lesson, counted once per learner across all courses. Viewing slides or answering without completing does not count.
 _Avoid_: Chain, run
 
 **Celebration**:

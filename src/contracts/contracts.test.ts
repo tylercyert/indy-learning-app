@@ -109,6 +109,12 @@ describe('ProgressionRuleV1 and SkillTreeV1', () => {
     const nodes = exampleTree.nodes.map((n, i, all) => ({ ...n, rule: { allOf: [all[(i + 1) % all.length]!.id] } }));
     expect(SkillTreeV1Schema.safeParse({ ...exampleTree, nodes }).success).toBe(false);
   });
+  it('requires kind "optional" and required=false to agree', () => {
+    const nodes = exampleTree.nodes.map((n) => (n.id === 'non-alc' ? { ...n, required: true } : n));
+    expect(SkillTreeV1Schema.safeParse({ ...exampleTree, nodes }).success).toBe(false);
+    const nodes2 = exampleTree.nodes.map((n) => (n.id === 'dilution' ? { ...n, required: false } : n));
+    expect(SkillTreeV1Schema.safeParse({ ...exampleTree, nodes: nodes2 }).success).toBe(false);
+  });
   it('rejects progress fields on nodes (state is derived, never stored)', () => {
     const nodes = exampleTree.nodes.map((n) => ({ ...n, status: 'done' }));
     expect(SkillTreeV1Schema.safeParse({ ...exampleTree, nodes }).success).toBe(false);

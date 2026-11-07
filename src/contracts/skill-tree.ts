@@ -40,16 +40,24 @@ export const NodeKindSchema = z.enum(['orientation', 'core', 'optional', 'explor
  * NodeV1: one lesson's placement in one skill tree.
  * The same lesson appears in other trees through other nodes.
  */
-export const NodeV1Schema = z.strictObject({
-  id: LocalIdSchema,
-  lessonId: EntityIdSchema,
-  title: ShortTextSchema.max(80),
-  objective: MediumTextSchema,
-  kind: NodeKindSchema,
-  /** Required nodes gate course completion; optional ones never do. */
-  required: z.boolean(),
-  rule: ProgressionRuleV1Schema,
-});
+/** kind "optional" and required=false say the same thing; they must agree. */
+export function kindMatchesRequired(node: { kind: string; required: boolean }): boolean {
+  return (node.kind === 'optional') === !node.required;
+}
+const KIND_REQUIRED_MESSAGE = 'kind "optional" must have required=false and every other kind required=true';
+
+export const NodeV1Schema = z
+  .strictObject({
+    id: LocalIdSchema,
+    lessonId: EntityIdSchema,
+    title: ShortTextSchema.max(80),
+    objective: MediumTextSchema,
+    kind: NodeKindSchema,
+    /** Required nodes gate course completion; optional ones never do. */
+    required: z.boolean(),
+    rule: ProgressionRuleV1Schema,
+  })
+  .refine(kindMatchesRequired, { message: KIND_REQUIRED_MESSAGE, path: ['required'] });
 export type NodeV1 = z.infer<typeof NodeV1Schema>;
 
 export function assertTreeShape(

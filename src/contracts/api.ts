@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CompanionThemeV1Schema } from './companion';
+import { ComponentResultV1Schema } from './components';
 import { CourseV1Schema } from './course';
 import { IntakeTurnV1Schema } from './generation';
 import { StreakV1Schema } from './history';
@@ -32,6 +33,7 @@ export const IntakeMessageSchema = z.strictObject({
   text: z.string(),
   at: z.iso.datetime(),
 });
+export type IntakeMessage = z.infer<typeof IntakeMessageSchema>;
 
 export const IntakeStatusSchema = z.enum(['open', 'ready', 'planned', 'abandoned']);
 
@@ -96,12 +98,7 @@ export const ExperienceViewSchema = z.strictObject({
   experience: LearningExperienceV1Schema,
   viewedSlideIds: z.array(LocalIdSchema),
   /** Recorded results, latest attempt per component. */
-  results: z.array(
-    z.discriminatedUnion('type', [
-      z.strictObject({ type: z.literal('multipleChoice'), componentId: LocalIdSchema, selectedOptionId: LocalIdSchema, correct: z.boolean(), attempt: z.int() }),
-      z.strictObject({ type: z.literal('checklist'), componentId: LocalIdSchema, checkedItemIds: z.array(LocalIdSchema), confirmed: z.boolean() }),
-    ]),
-  ),
+  results: z.array(ComponentResultV1Schema),
   completed: z.boolean(),
 });
 export type ExperienceView = z.infer<typeof ExperienceViewSchema>;
