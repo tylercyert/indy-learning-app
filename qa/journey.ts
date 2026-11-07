@@ -35,7 +35,20 @@ async function shot(page: Page, name: string) {
 
 async function answerSlide(page: Page): Promise<'answered' | 'none'> {
   const radios = page.getByRole('radio');
-  if ((await radios.count()) === 0) return 'none';
+  const boxes = page.getByRole('textbox');
+  if ((await radios.count()) === 0 && (await boxes.count()) === 0) return 'none';
+  if ((await radios.count()) === 0) {
+    // fillBlank: the journey does not know the accepted answers; it attempts, reads the teaching
+    // text, and moves on with "Skip for now" (a legitimate learner path; attempts count as answered).
+    const n = await boxes.count();
+    for (let i = 0; i < n; i++) await boxes.nth(i).fill('a guess');
+    await page.getByRole('button', { name: /^check( again)?$/i }).first().click();
+    await page.getByText(/Nice!|Close!|Not quite/).first().waitFor({ timeout: 20_000 });
+    await shot(page, 'lesson-feedback-fillblank');
+    const skip = page.getByRole('button', { name: /^skip for now/i });
+    if ((await skip.count()) > 0) await skip.first().click();
+    return 'answered';
+  }
   const count = await radios.count();
   for (let i = 0; i < count; i++) {
     const radio = radios.nth(i);
@@ -44,9 +57,13 @@ async function answerSlide(page: Page): Promise<'answered' | 'none'> {
     const check = page.getByRole('button', { name: /^check( again)?$/i });
     if ((await check.count()) === 0) return 'answered';
     await check.first().click();
-    await page.getByText(/Nice!|Not quite/).first().waitFor({ timeout: 20_000 });
+    // The explanation sheet: "Nice! That's it." when right, "Close! Here's the idea" when wrong.
+    await page.getByText(/Nice!|Close!|Not quite/).first().waitFor({ timeout: 20_000 });
     await shot(page, `lesson-feedback-${i + 1}`);
-    if ((await page.getByText('Nice!').count()) > 0) return 'answered';
+    if ((await page.getByText(/Nice!/).count()) > 0) return 'answered';
+    // Wrong: the sheet offers Try again, which clears the explanation so another option can be checked.
+    const tryAgain = page.getByRole('button', { name: /^try again$/i });
+    if ((await tryAgain.count()) > 0) await tryAgain.first().click();
   }
   return 'answered';
 }
@@ -69,7 +86,7 @@ async function main() {
     await page.goto(`${base}/course/${process.env.QA_COURSE}`);
   } else {
     await page.goto(base);
-    await page.getByText('What do you want to learn?').first().waitFor({ timeout: 30_000 });
+    await page.getByLabel('What do you want to learn?').first().waitFor({ timeout: 30_000 });
     await shot(page, 'home');
     await page.getByLabel('What do you want to learn?').fill(goal);
     await shot(page, 'home-filled');
@@ -109,7 +126,9 @@ async function main() {
     await page.waitForTimeout(400);
     if ((await page.getByText(/Lesson complete/).count()) > 0) break;
     await shot(page, `lesson-slide-${slide}`);
+    const before = await page.getByRole('progressbar').getAttribute('aria-valuenow');
     await answerSlide(page);
+    if ((await page.getByRole('progressbar').getAttribute('aria-valuenow')) !== before) continue; // skip moved us on
     const finish = page.getByRole('button', { name: /^finish$/i });
     if ((await finish.count()) > 0) {
       await finish.first().click();
