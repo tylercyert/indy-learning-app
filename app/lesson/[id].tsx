@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BASE_COMPANION, componentRole, type CompanionThemeV1, type ExperienceView, type StreakV1 } from '../../src/contracts';
 import { Companion } from '../../src/features/companion/Companion';
 import type { FillBlankFeedback } from '../../src/features/components/FillBlank';
+import type { MatchPairsFeedback } from '../../src/features/components/MatchPairs';
 import type { ChoiceFeedback } from '../../src/features/components/MultipleChoice';
 import { SlideView } from '../../src/features/components/SlideView';
 import { colors, fonts } from '../../src/features/theme';
@@ -65,6 +66,7 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
   const [index, setIndex] = useState(view.completed ? 0 : Math.max(0, firstUnviewed));
   const [feedback, setFeedback] = useState<Record<string, ChoiceFeedback | undefined>>({});
   const [fillBlankFeedback, setFillBlankFeedback] = useState<Record<string, FillBlankFeedback | undefined>>({});
+  const [matchPairsFeedback, setMatchPairsFeedback] = useState<Record<string, MatchPairsFeedback | undefined>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<Celebration | null>(null);
@@ -137,6 +139,8 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
       if (mc) return { componentId: cid, correct: mc.correct, lines: [mc.explanation] };
       const fb = fillBlankFeedback[cid];
       if (fb) return { componentId: cid, correct: fb.correct, lines: fb.gaps.filter((g) => !g.correct && g.explanation).map((g) => g.explanation) };
+      const mp = matchPairsFeedback[cid];
+      if (mp) return { componentId: cid, correct: mp.correct, lines: mp.matches.filter((m) => !m.correct && m.explanation).map((m) => m.explanation) };
     }
     return null;
   })();
@@ -157,7 +161,13 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
         const wrong = fb.gaps.filter((g) => !g.correct).map((g) => g.explanation).join(' ');
         setAnnounce(fb.correct ? 'Correct.' : `Not quite. ${wrong}`);
       }
-      if (res.scored || res.scoredFillBlank) requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+      if (res.scoredMatchPairs) {
+        const mp = res.scoredMatchPairs;
+        setMatchPairsFeedback((f) => ({ ...f, [componentId]: mp }));
+        const wrong = mp.matches.filter((m) => !m.correct).map((m) => m.explanation).join(' ');
+        setAnnounce(mp.correct ? 'Correct.' : `Not quite. ${wrong}`);
+      }
+      if (res.scored || res.scoredFillBlank || res.scoredMatchPairs) requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
       if (res.lessonCompleted) celebrate({ streak: res.streak, treeCompleted: res.treeCompleted });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save that');
@@ -170,6 +180,7 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
   const tryAgain = (componentId: string) => {
     setFeedback((f) => ({ ...f, [componentId]: undefined }));
     setFillBlankFeedback((f) => ({ ...f, [componentId]: undefined }));
+    setMatchPairsFeedback((f) => ({ ...f, [componentId]: undefined }));
   };
 
   if (celebration && isLast && !finishing) {
@@ -242,6 +253,8 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
               onChecklist: (componentId, checkedItemIds, confirmed) => void send(componentId, { type: 'checklist', slideId: slide.id, componentId, checkedItemIds, confirmed }),
               fillBlankFeedback,
               onFillBlank: (componentId, answers) => void send(componentId, { type: 'fillBlank', slideId: slide.id, componentId, answers }),
+              matchPairsFeedback,
+              onMatchPairs: (componentId, matches) => void send(componentId, { type: 'matchPairs', slideId: slide.id, componentId, matches }),
               feedbackInFooter: true,
             }}
           />
@@ -304,7 +317,7 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: colors.yellow, borderRadius: 8 },
   count: { fontFamily: fonts.black, fontSize: 13, color: colors.muted, minWidth: 44, textAlign: 'right' },
   scroll: { flexGrow: 1 },
-  content: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', padding: 20, gap: 18, paddingBottom: 40 },
+  content: { flexGrow: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', padding: 20, gap: 18, paddingBottom: 40 },
   footer: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.bg },
   footerRight: { backgroundColor: colors.greenTint, borderTopColor: colors.green },
   footerWrong: { backgroundColor: colors.coralTint, borderTopColor: '#FFD1B8' },

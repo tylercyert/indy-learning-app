@@ -159,6 +159,13 @@ export const ExperienceEventRequestSchema = z.discriminatedUnion('type', [
     /** One entry per gap the learner filled; missing gaps score as empty. */
     answers: z.array(z.strictObject({ gapId: LocalIdSchema, value: z.string().max(60) })).min(1).max(2),
   }),
+  z.strictObject({
+    type: z.literal('matchPairs'),
+    slideId: LocalIdSchema,
+    componentId: LocalIdSchema,
+    /** Every pair exactly once: which right-hand item (by its pair id) the learner put on each pair. */
+    matches: z.array(z.strictObject({ pairId: LocalIdSchema, chosenPairId: LocalIdSchema })).min(3).max(5),
+  }),
 ]).and(
   z.object({
     /** The learner's local calendar day, for the streak. Server date if absent. */
@@ -183,6 +190,14 @@ export const ExperienceEventResponseSchema = z.strictObject({
       correct: z.boolean(),
       attempt: z.int(),
       gaps: z.array(z.strictObject({ gapId: LocalIdSchema, correct: z.boolean(), explanation: z.string().max(200) })).min(1).max(2),
+    })
+    .nullable(),
+  /** Present for matchPairs answers: every pair in component order; wrong matches carry their explanation, right ones "". */
+  scoredMatchPairs: z
+    .strictObject({
+      correct: z.boolean(),
+      attempt: z.int(),
+      matches: z.array(z.strictObject({ pairId: LocalIdSchema, correct: z.boolean(), explanation: z.string().max(160) })).min(3).max(5),
     })
     .nullable(),
   /** True the first time this event completes the lesson. */
