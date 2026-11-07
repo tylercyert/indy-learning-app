@@ -1,8 +1,46 @@
 # Poko: Learn Anything
 
-Learn anything, for a real reason. A learner states a goal, a short conversation gathers context, and the platform generates a personalized course as a skill tree of reusable lessons delivered as typed, interactive slides. Expo + TypeScript client; Hono + SQLite API server in this repo; Claude for generation behind validated contracts.
+*Poco a poco. Learn anything.*
 
-**Status (2026-11-07):** slices 1–5 are merged: a learner states a goal, is screened, answers a short intake, gets a course whose first lesson is ready on arrival, plays slides from an eight-component catalog (text, callout, ratioBar, diagram, checklist, multipleChoice, codeBlock, fillBlank) with deterministic scoring and teaching feedback, celebrates, keeps a streak, extends a finished course or explores sideways, and can start from courses other learners built. Social features are out of scope (#6); the winding skill path with side branches is merged (#35, #51); no real device has run the app yet (#9). The tracker is GitHub Issues; `docs/handoff.md` is the current snapshot and `docs/roadmap.md` the map.
+Tell Poko what you want to learn and why. A short chat gathers only the context that matters, and Poko builds a personal course: a winding skill path of reusable lessons, each played as interactive slides, with checks that teach when you are wrong. Expo + TypeScript client, Hono + SQLite API server in this repo, Claude for generation behind validated contracts.
+
+## Try it
+
+- **Live demo (tailnet):** http://100.75.97.3:8787. The API server serves the exported web app on the same origin.
+- **On an iPhone:** open the URL in Safari, tap Share, then "Add to Home Screen". Poko opens full screen with its own icon and a persistent purple app bar.
+- **Fresh start:** "Start over as a new learner" at the bottom of the home screen clears the device's learner.
+- **Demo script and evidence map:** `docs/demo.md`.
+
+## What a learner can do (state at submission, 2026-11-07)
+
+- State a goal. Goal Screening refuses illegal or policy-violating goals, and Poko says why.
+- Answer up to four intake questions with suggested quick answers.
+- Get a course whose first lesson is already written when the skill path appears.
+- Follow a winding path of required lessons, with optional side branches that dead-end. Node states (locked, available, done) are derived from completions and rules, never stored.
+- Play slides from a nine-component catalog: text, callout, ratioBar, diagram, checklist, multipleChoice, codeBlock, fillBlank, matchPairs. Checks are scored by code, wrong answers explain and allow retries, and skipped checks are revisited before finishing.
+- Celebrate completion, keep a streak, and see the next lesson unlock.
+- Keep going with a new skill tree, explore something different, or start from a course another learner built.
+- Meet a companion per course with a generated name and costume, renamed or re-rolled at will.
+
+Social features are out of scope (#6).
+
+## How it works
+
+- **Contracts first.** Every model output is requested as structured output against a Zod contract in `src/contracts` and validated with that contract before storage or display. Slides are typed JSON from a closed catalog: no generated HTML, markup or code runs anywhere.
+- **One process holds the key.** Only the API server talks to Anthropic. `ANTHROPIC_API_KEY` lives in `server/.env`, never in the client.
+- **Models.** Generation uses `claude-opus-5-5` with adaptive thinking and fast mode, with one issue-fed retry before a clear error. Goal Screening uses `claude-haiku-5-5` and fails closed.
+- **Deterministic learning rules.** Scoring, progression, completion and streaks are pure functions in `src/domain`, shared by client and server. The model never decides whether an answer is right.
+- **Plan early, generate on demand.** A course plan is made at creation. Each lesson is generated when its node is opened or predicted next, using what the learner has done since.
+
+Details: `docs/architecture.md`, `docs/decisions/`, `docs/security-notes.md`.
+
+## How it was built
+
+Two owners drove one shared Claude Code session, with sub-agents in their own worktrees for bounded lanes: component hardening, QA audits, companion art and the Home Screen shell. GitHub is the record. Every unit of work has an issue, every branch a PR with evidence, and nothing merged without an owner's say-so. The local gate is `npm run verify` plus headless Playwright journeys against the live server. See `docs/factory.md`, `AGENTS.md` and `docs/handoff.md`.
+
+**Evidence at submission:** `npm run verify` passes on `main` (typecheck, lint with zero warnings, 143 tests). A full phone journey (`qa/journey.ts`) passed against the live demo after the final deploy with no console or page errors. The owners tested the Home Screen app on an iPhone 14 Pro over Tailscale.
+
+**Not verified:** VoiceOver and TalkBack, Android, and native builds on a device (#9). Open findings from the last phone pass are #67 and #68.
 
 ## Start here
 
@@ -44,7 +82,7 @@ Server settings (`server/.env`): `ANTHROPIC_API_KEY`; `PORT` (8787); `DATABASE_P
 | `npm run qa:journey [goal]` | headless Playwright journey with screenshots in `qa/out/` (needs the server; spends tokens) |
 | `npm run qa:slides` | renders the stress fixtures in `qa/fixtures/stress/` through `/dev/slide` |
 
-Also run with `npx tsx`: `server/scripts/screen-smoke.ts` (Goal Screening), `qa/discover.ts`, `qa/explore.ts`, `qa/a11y/audit.ts` (axe-core + keyboard), `qa/fixtures/stress/generate.ts`.
+Also run with `npx tsx`: `server/scripts/screen-smoke.ts` (Goal Screening), `qa/discover.ts`, `qa/explore.ts`, `qa/a11y/audit.ts` (axe-core + keyboard), `qa/shot-pwa.ts` (Home Screen shell on phone sizes), `qa/render-icons.ts` (app icons from the Poko companion), `qa/fixtures/stress/generate.ts`.
 
 ## Layout
 
