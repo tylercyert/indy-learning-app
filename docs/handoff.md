@@ -1,5 +1,17 @@
 # Current handoff
 
+## At submission (2026-11-07, 16:50 EST; `main` at `f14831e`)
+
+The app is **Poko: Learn Anything**, served at http://100.75.97.3:8787 on the tailnet and demoed from an iPhone Home Screen. Since the snapshot below, these merged to `main`:
+
+- Winding skill path with optional side branches (#51, PR #53); Finish returns to a skipped check.
+- Home Screen app shell (#52, PR #55): manifest, Poko face icon, persistent purple app bar, one shared back control.
+- Companion art overhaul (#50, PR #58), then trimmed for the demo by owner decision: no held items (#57, PR #56) and no arms (#61, PR #62).
+- iPhone fixes from the owners' device test (#59, #61, #63, #65): standard status bar, Safari tint matches the app bar, space above the bar trimmed.
+- Social features removed from scope (#6, PR #54).
+
+Evidence at submission: `npm run verify` green (143 tests, eslint 0 warnings) on every merge; `qa/journey.ts` full phone journey against the live demo after each deploy, no console or page errors. First real-device check was the owners' iPhone 14 Pro over Tailscale during these fixes; VoiceOver and Android remain untested (#9).
+
 ## State on 2026-11-07 (end of day; `main` at `ecaf7b5`)
 
 Slices 1–5 of `docs/implementation-plan.md` are merged to `main`. The tracker is GitHub Issues (milestone "First complete learning loop"); this document is a snapshot of what a stranger would find, not the tracker. A Linear mirror was tried and removed the same day (#25, #27): there is no second tracker.
