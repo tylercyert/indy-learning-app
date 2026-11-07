@@ -40,6 +40,12 @@ export function Diagram({ component }: { component: DiagramComponent }) {
   const rowY = (row: number) => PAD + NODE_H / 2 + row * ROW_PITCH;
   const byId = new Map(layout.nodes.map((n) => [n.id, n] as const));
   const showAlt = component.altText.length <= 160;
+  // Many labeled edges cannot be read on a phone canvas; list them underneath instead.
+  const labeledEdges = component.edges.filter((e) => !!e.label);
+  const inlineLabels = labeledEdges.length <= 4;
+  const nodeRects = layout.nodes.map((n) => ({ x: colX(n.col) - nodeW / 2, y: rowY(n.row) - NODE_H / 2, w: nodeW, h: NODE_H }));
+  const hitsNode = (x: number, y: number, w: number, h: number) =>
+    nodeRects.some((r) => x < r.x + r.w + 4 && x + w > r.x - 4 && y < r.y + r.h + 4 && y + h > r.y - 4);
 
   return (
     <View style={styles.card}>
@@ -94,6 +100,7 @@ export function Diagram({ component }: { component: DiagramComponent }) {
             );
           })}
         {width > 0 &&
+          inlineLabels &&
           component.edges.map((edge, i) => {
             if (!edge.label) return null;
             const a = byId.get(edge.from);
@@ -104,12 +111,16 @@ export function Diagram({ component }: { component: DiagramComponent }) {
             const len = Math.hypot(q.cx - p.cx, q.cy - p.cy);
             const inset = edgeInset(q.cx - p.cx, q.cy - p.cy, nodeW, NODE_H);
             if (len - inset * 2 < 56) return null;
-            // A third of the way along, alternating sides, drawn above the nodes so it is never hidden.
-            const t = 0.38;
-            const lx = p.cx + (q.cx - p.cx) * t;
-            const ly = p.cy + (q.cy - p.cy) * t + (i % 2 === 0 ? -14 : 14);
+            // Try a few spots along the edge, alternating sides; skip the label if every spot hits a node.
+            const labelW = 84;
+            const labelH = 18;
+            const candidates = [0.5, 0.38, 0.62].flatMap((t) => [i % 2 === 0 ? -14 : 14, i % 2 === 0 ? 14 : -14].map((off) => ({ t, off })));
+            const spot = candidates
+              .map(({ t, off }) => ({ x: p.cx + (q.cx - p.cx) * t - labelW / 2, y: p.cy + (q.cy - p.cy) * t + off - labelH / 2 }))
+              .find((s) => !hitsNode(s.x, s.y, labelW, labelH));
+            if (!spot) return null;
             return (
-              <View key={`l${i}`} aria-hidden style={[styles.edgeLabelWrap, { left: lx - 40, top: ly - 9, width: 80 }]}>
+              <View key={`l${i}`} aria-hidden style={[styles.edgeLabelWrap, { left: spot.x, top: spot.y, width: labelW }]}>
                 <Text style={styles.edgeLabel} numberOfLines={1}>
                   {edge.label}
                 </Text>
@@ -117,6 +128,15 @@ export function Diagram({ component }: { component: DiagramComponent }) {
             );
           })}
       </View>
+      {!inlineLabels && labeledEdges.length > 0 ? (
+        <View style={styles.legend}>
+          {labeledEdges.map((e, i) => (
+            <Text key={i} style={styles.legendLine}>
+              {byId.get(e.from)?.label ?? e.from} → {byId.get(e.to)?.label ?? e.to}: {e.label}
+            </Text>
+          ))}
+        </View>
+      ) : null}
       {showAlt ? <Text style={styles.alt}>{component.altText}</Text> : null}
     </View>
   );
@@ -143,4 +163,6 @@ const styles = StyleSheet.create({
   node: { position: 'absolute', minHeight: NODE_H, borderRadius: 12, borderBottomWidth: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 6 },
   nodeText: { fontFamily: fonts.black, lineHeight: 14, textAlign: 'center' },
   alt: { fontFamily: fonts.bold, fontSize: 13, color: colors.muted },
+  legend: { gap: 2 },
+  legendLine: { fontFamily: fonts.bold, fontSize: 12, color: '#4B4365' },
 });
