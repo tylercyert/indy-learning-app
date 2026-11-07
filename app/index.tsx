@@ -17,6 +17,21 @@ export default function HomeScreen() {
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const courses = useAsync(() => api.listCourses(), []);
+  const discover = useAsync(() => api.discover(), []);
+  const [startingDiscovered, setStartingDiscovered] = useState<string | null>(null);
+
+  const startDiscovered = async (courseId: string) => {
+    setStartingDiscovered(courseId);
+    setStartError(null);
+    try {
+      const course = await api.startFromDiscovered(courseId);
+      router.push({ pathname: '/course/[id]', params: { id: course.course.id } });
+    } catch (e) {
+      setStartError(e instanceof Error ? e.message : 'Could not start that course');
+    } finally {
+      setStartingDiscovered(null);
+    }
+  };
 
   const start = async (text: string) => {
     const trimmed = text.trim();
@@ -103,6 +118,27 @@ export default function HomeScreen() {
           </Pressable>
         ))}
       </View>
+      {discover.data && discover.data.courses.length > 0 ? (
+        <View style={styles.section}>
+          <Eyebrow>Discover courses others built</Eyebrow>
+          <Text style={styles.empty}>Same path, your own lessons: everything is written fresh for you as you go.</Text>
+          {discover.data.courses.map((c) => (
+            <View key={c.courseId} style={styles.courseCard}>
+              <Companion theme={c.companion} size={56} />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={styles.courseTitle}>{c.title}</Text>
+                <Text style={styles.courseMeta} numberOfLines={3}>
+                  {c.summary}
+                </Text>
+                <Text style={styles.courseMeta}>
+                  {c.lessonCount} lessons · starts with {c.firstLessons.slice(0, 2).join(', ')}
+                </Text>
+                <ChunkyButton label="Start this course" variant="outline" onPress={() => void startDiscovered(c.courseId)} loading={startingDiscovered === c.courseId} disabled={!!startingDiscovered} style={{ marginTop: 6 }} />
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
       {__DEV__ ? <Text style={styles.foot}>{api.baseUrl}</Text> : null}
     </Screen>
   );

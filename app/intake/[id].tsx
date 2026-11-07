@@ -54,7 +54,8 @@ export default function IntakeScreen() {
     setPlanning(true);
     setError(null);
     try {
-      const course = await api.createCourse(view.id);
+      // An intake started inside a course becomes a new skill tree there; otherwise a new course.
+      const course = view.courseId ? await api.addTree(view.courseId, { kind: 'explore', intakeId: view.id }) : await api.createCourse(view.id);
       router.replace({ pathname: '/course/[id]', params: { id: course.course.id } });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not plan the course');
@@ -67,8 +68,12 @@ export default function IntakeScreen() {
       <Screen scroll={false}>
         <View style={styles.planning}>
           <BeakerLoader size={210} />
-          <Text style={styles.planningTitle}>Mixing up your course…</Text>
-          <Text style={styles.planningText}>Pip is laying out the path, picking a companion for it, and writing your first lesson. About a minute.</Text>
+          <Text style={styles.planningTitle}>{view?.courseId ? 'Adding a new skill tree…' : 'Mixing up your course…'}</Text>
+          <Text style={styles.planningText}>
+            {view?.courseId
+              ? 'Pip is planning the new branch and writing its first lesson. About a minute.'
+              : 'Pip is laying out the path, picking a companion, and writing your first lesson so you can start right away. About a minute.'}
+          </Text>
         </View>
       </Screen>
     );
@@ -117,14 +122,14 @@ export default function IntakeScreen() {
                 style={styles.input}
               />
             </View>
-            <ChunkyButton label="Build my course" onPress={() => void build()} disabled={draft.trim().length > 0} />
+            <ChunkyButton label={view.courseId ? 'Add to my course' : 'Build my course'} onPress={() => void build()} disabled={draft.trim().length > 0} />
             {draft.trim().length > 0 ? <ChunkyButton label="Send correction" variant="outline" onPress={() => void send(draft)} loading={sending} /> : null}
           </View>
         ) : null
       }
     >
       <View style={styles.header}>
-        <BackButton label="Back to home" onPress={() => router.replace('/')} />
+        <BackButton label={view?.courseId ? 'Back to course' : 'Back to home'} onPress={() => (view?.courseId ? router.replace({ pathname: '/course/[id]', params: { id: view.courseId } }) : router.replace('/'))} />
         <Text style={styles.headerText}>{headerText}</Text>
       </View>
 

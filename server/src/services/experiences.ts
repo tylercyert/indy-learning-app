@@ -11,6 +11,7 @@ import { deriveNodeStates } from '../../../src/domain';
 import { generateStructured } from '../ai/claude';
 import { EXPERIENCE_SYSTEM, experienceUserMessage } from '../ai/prompts';
 import { aiEnabled } from '../env';
+import { buildLearningSummary, describeSummary } from './history';
 import * as repo from './repo';
 
 export class NodeLockedError extends Error {
@@ -46,12 +47,13 @@ async function generate(learnerId: string, course: CourseV1, tree: SkillTreeV1, 
   const after = tree.nodes.filter((n) => ruleReferences(n.rule).includes(node.id));
   const completedTitles = tree.nodes.filter((n) => completed.has(n.lessonId)).map((n) => n.title);
   const upcomingTitles = tree.nodes.filter((n) => n.id !== node.id).map((n) => n.title);
+  const history = describeSummary(buildLearningSummary(learnerId));
 
   const { data, model } = await generateStructured({
     task: `experience:${lesson.title}`,
     schema: GeneratedSlidesV1Schema,
     system: EXPERIENCE_SYSTEM,
-    messages: [{ role: 'user', content: experienceUserMessage({ course, lesson, node, before, after, completedTitles, upcomingTitles }) }],
+    messages: [{ role: 'user', content: experienceUserMessage({ course, lesson, node, before, after, completedTitles, upcomingTitles, history }) }],
     effort: 'medium',
     maxTokens: 24_000,
   });
@@ -94,9 +96,48 @@ export async function getOrGenerateExperience(learnerId: string, courseId: strin
   const state = deriveNodeStates(tree, completed)[node.id];
   if (state === 'locked') throw new NodeLockedError(node.id);
 
+  // While the learner works through this lesson, write the lessons it will unlock.
+  prefetchUpcoming(learnerId, courseId, node.id);
+
   const existing = repo.findExperience(learnerId, courseId, node.lessonId);
   if (existing) return existing;
   return startOrJoin(learnerId, course, tree, node, completed);
+}
+
+/**
+ * Predictive prefetch: assume the node being opened will be completed, derive which required
+ * nodes that would make available, and start generating those now. By the time the learner
+ * finishes, the next lesson is ready. Bounded, fire-and-forget, deduplicated with in-flight work.
+ */
+export function prefetchUpcoming(learnerId: string, courseId: string, openedNodeId: string, limit = 2): void {
+  if (!aiEnabled) return;
+  try {
+    const course = repo.getCourse(learnerId, courseId);
+    const trees = repo.getTrees(courseId);
+    const { tree, node } = findNode(trees, openedNodeId);
+    const completed = repo.completedLessonIds(learnerId);
+    const assumed = new Set([...completed, node.lessonId]);
+    const before = deriveNodeStates(tree, completed);
+    const afterStates = deriveNodeStates(tree, assumed);
+    const ready = repo.experienceLessonIds(learnerId, courseId);
+    const unlocking = tree.nodes.filter(
+      (n) =>
+        n.id !== node.id &&
+        afterStates[n.id] === 'available' &&
+        before[n.id] !== 'completed' &&
+        n.required &&
+        !ready.has(n.lessonId) &&
+        !isGenerating(learnerId, courseId, n.lessonId),
+    );
+    for (const next of unlocking.slice(0, limit)) {
+      console.log(`[prefetch:upcoming] ${course.title}: "${node.title}" → "${next.title}"`);
+      startOrJoin(learnerId, course, tree, next, assumed).catch((e: unknown) => {
+        console.warn(`[prefetch:upcoming] "${next.title}" failed: ${e instanceof Error ? e.message : String(e)}`);
+      });
+    }
+  } catch (e) {
+    console.warn(`[prefetch:upcoming] skipped: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 /**

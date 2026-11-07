@@ -31,7 +31,8 @@ async function main() {
 
   for (const file of files) {
     const json = fs.readFileSync(file, 'utf8');
-    const url = `${base}/dev/slide?doc=${encodeURIComponent(JSON.stringify(JSON.parse(json)))}`;
+    // Hash, not query: large fixtures would exceed the server's header limit as a query string.
+    const url = `${base}/dev/slide#doc=${encodeURIComponent(JSON.stringify(JSON.parse(json)))}`;
     await page.goto(url);
     await page.getByText('QA HARNESS').waitFor({ timeout: 30_000 });
     await page.waitForTimeout(600);

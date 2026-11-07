@@ -1,9 +1,10 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NodeV1, TreeView } from '../../src/contracts';
 import { Companion } from '../../src/features/companion/Companion';
 import { colors, fonts } from '../../src/features/theme';
+import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
 import { BackButton, ErrorBox, Eyebrow, Loading, Screen } from '../../src/features/ui/Screen';
 import { useAsync } from '../../src/features/ui/useAsync';
 import { api } from '../../src/services/api';
@@ -16,8 +17,40 @@ export default function CourseScreen() {
   const view = useAsync(() => api.getCourse(id), [id]);
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editingCompanion, setEditingCompanion] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [companionBusy, setCompanionBusy] = useState(false);
+  const [extending, setExtending] = useState(false);
 
   const data = view.data;
+
+  const companionAction = async (action: 'rename' | 'reroll') => {
+    if (!data) return;
+    setCompanionBusy(true);
+    setError(null);
+    try {
+      const next = action === 'rename' ? await api.updateCompanion(id, { action: 'rename', name: newName.trim() }) : await api.updateCompanion(id, { action: 'reroll' });
+      view.setData(next);
+      setEditingCompanion(false);
+      setNewName('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update the companion');
+    } finally {
+      setCompanionBusy(false);
+    }
+  };
+
+  const keepGoing = async () => {
+    setExtending(true);
+    setError(null);
+    try {
+      view.setData(await api.addTree(id, { kind: 'continue' }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not plan the next skill tree');
+    } finally {
+      setExtending(false);
+    }
+  };
   const current: TreeView | undefined = data?.trees.at(-1);
   const nextNode = current ? current.tree.nodes.find((n) => n.id === current.nextNodeId) : undefined;
   const nextReady = !!current && !!nextNode && current.readyNodeIds.includes(nextNode.id);
@@ -46,6 +79,10 @@ export default function CourseScreen() {
   const companionLine = (): string => {
     if (!data || !current) return '';
     if (current.complete) return 'You did it! Every required lesson is done.';
+    if (opening) {
+      const title = current.tree.nodes.find((n) => n.id === opening)?.title ?? 'your lesson';
+      return current.readyNodeIds.includes(opening) ? `Opening "${title}"…` : `Finishing "${title}" for you now…`;
+    }
     if (nextNode && !nextReady) return `Writing "${nextNode.title}" for you now… it'll be ready in a moment.`;
     if (nextNode) return `"${nextNode.title}" is ready. Shall we?`;
     return data.course.companion.greeting;
@@ -67,15 +104,49 @@ export default function CourseScreen() {
 
       {data && current ? (
         <>
-          <View style={styles.hero}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${data.course.companion.name}, your companion. Rename or get a new look.`}
+            onPress={() => setEditingCompanion((v) => !v)}
+            style={styles.hero}
+          >
             <Companion theme={data.course.companion} mood={current.complete ? 'cheering' : nextReady ? 'happy' : 'thinking'} size={72} />
             <View style={{ flex: 1, gap: 6 }}>
               <Eyebrow color={colors.coralDeep}>{`${data.course.companion.name} · your guide, picked by Pip`}</Eyebrow>
               <Text style={styles.greeting} accessibilityLiveRegion="polite">
                 {companionLine()}
               </Text>
+              <Text style={styles.heroHint}>{editingCompanion ? 'Tap to close' : 'Tap to rename or change look'}</Text>
             </View>
-          </View>
+          </Pressable>
+          {editingCompanion ? (
+            <View style={styles.companionPanel}>
+              <TextInput
+                accessibilityLabel="New companion name"
+                placeholder={`Rename ${data.course.companion.name} (one word)`}
+                placeholderTextColor="#7E76A0"
+                value={newName}
+                onChangeText={setNewName}
+                autoCapitalize="words"
+                maxLength={10}
+                style={styles.input}
+                editable={!companionBusy}
+              />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <ChunkyButton label="Rename" variant="secondary" onPress={() => void companionAction('rename')} disabled={!/^[A-Z][a-z]{1,9}$/.test(newName.trim())} loading={companionBusy} style={{ flex: 1 }} />
+                <ChunkyButton label="New look" variant="outline" onPress={() => void companionAction('reroll')} loading={companionBusy} style={{ flex: 1 }} />
+              </View>
+            </View>
+          ) : null}
+
+          {current.complete ? (
+            <View style={styles.completeCard}>
+              <Text style={styles.completeTitle}>Skill tree complete</Text>
+              <Text style={styles.completeText}>Stop here with a finished course, or let {data.course.companion.name} plan the next stage: deeper, broader, or more applied.</Text>
+              <ChunkyButton label="Keep going: plan the next tree" onPress={() => void keepGoing()} loading={extending} />
+            </View>
+          ) : null}
+          {extending ? <Loading message={`${data.course.companion.name} is planning your next skill tree…`} /> : null}
 
           <Text accessibilityRole="header" style={styles.title}>
             {data.course.title}
@@ -92,10 +163,24 @@ export default function CourseScreen() {
             </Text>
           </View>
 
-          {opening ? <Loading message={`${data.course.companion.name} is finishing this lesson for you…`} /> : null}
           {error ? <ErrorBox message={error} /> : null}
 
-          <SkillPath tree={current} disabled={!!opening} onOpen={(nodeId) => void open(nodeId)} />
+          <SkillPath tree={current} openingNodeId={opening} onOpen={(nodeId) => void open(nodeId)} />
+
+          <ChunkyButton
+            label="Learn something different"
+            variant="ghost"
+            onPress={async () => {
+              setError(null);
+              try {
+                const session = await api.startIntake(`Within my course "${data.course.title}", I want to go in a new direction.`, id);
+                router.push({ pathname: '/intake/[id]', params: { id: session.id } });
+              } catch (e) {
+                setError(e instanceof Error ? e.message : 'Could not start that');
+              }
+            }}
+            accessibilityHint="Tell your companion what you want to explore; it becomes a new skill tree in this course"
+          />
         </>
       ) : null}
     </Screen>
@@ -109,7 +194,8 @@ const LANE_MAX = 520;
 /** Horizontal positions (fraction of lane) for the winding path: center, left, center, right… */
 const COLS = [0.5, 0.24, 0.5, 0.76];
 
-function SkillPath({ tree, disabled, onOpen }: { tree: TreeView; disabled: boolean; onOpen: (nodeId: string) => void }) {
+function SkillPath({ tree, openingNodeId, onOpen }: { tree: TreeView; openingNodeId: string | null; onOpen: (nodeId: string) => void }) {
+  const disabled = !!openingNodeId;
   const [width, setWidth] = useState(0);
   const nodes = tree.tree.nodes;
   const lane = Math.min(width, LANE_MAX);
@@ -152,6 +238,7 @@ function SkillPath({ tree, disabled, onOpen }: { tree: TreeView; disabled: boole
             isNext={tree.nextNodeId === node.id}
             ready={tree.readyNodeIds.includes(node.id)}
             generating={tree.generatingNodeIds.includes(node.id)}
+            opening={openingNodeId === node.id}
             disabled={disabled}
             onPress={() => onOpen(node.id)}
           />
@@ -170,6 +257,7 @@ function PathNode({
   isNext,
   ready,
   generating,
+  opening,
   disabled,
   onPress,
 }: {
@@ -182,6 +270,8 @@ function PathNode({
   isNext: boolean;
   ready: boolean;
   generating: boolean;
+  /** This node is being opened: its lesson is loading or being written right now. */
+  opening: boolean;
   disabled: boolean;
   onPress: () => void;
 }) {
@@ -196,7 +286,7 @@ function PathNode({
   // Text aligns toward the circle: left-aligned when the label sits to the right of it, and vice versa.
   const textAlign = labelSide === 'right' ? 'left' : 'right';
   // Only the next node advertises generation progress; other available nodes just say Ready when they are.
-  const tag = done || locked ? null : ready ? 'Ready' : isNext && generating ? 'Writing…' : isNext ? 'Tap to write' : null;
+  const tag = opening ? (ready ? 'Opening…' : 'Writing…') : done || locked ? null : ready ? 'Ready' : isNext && generating ? 'Writing…' : isNext ? 'Tap to write' : null;
   const meta = done ? 'Done' : node.kind === 'orientation' ? 'Start here' : node.required ? 'Core' : 'Optional';
 
   return (
@@ -210,7 +300,11 @@ function PathNode({
         onPress={onPress}
         style={[styles.circle, { left: cx - R, top: cy - R, backgroundColor: fill, borderBottomColor: shadow }, !node.required && styles.circleOptional, locked && styles.circleLocked]}
       >
-        <Text style={[styles.circleIcon, done && { color: '#FFFFFF' }]}>{done ? '✓' : locked ? '🔒' : isNext ? '★' : '•'}</Text>
+        {opening ? (
+          <ActivityIndicator color={colors.ink} accessibilityLabel="Loading lesson" />
+        ) : (
+          <Text style={[styles.circleIcon, done && { color: '#FFFFFF' }]}>{done ? '✓' : locked ? '🔒' : isNext ? '★' : '•'}</Text>
+        )}
       </Pressable>
       <View aria-hidden style={[styles.label, { left: labelLeft, width: labelW, top: cy - 36, alignItems: labelSide === 'right' ? 'flex-start' : 'flex-end' }]}>
         <Text style={[styles.labelTitle, locked && { color: colors.muted }, { textAlign, width: '100%' }]}>{node.title}</Text>
@@ -234,6 +328,12 @@ const styles = StyleSheet.create({
   streakText: { fontFamily: fonts.black, fontSize: 14, color: colors.ink },
   hero: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, padding: 16, borderRadius: 24, backgroundColor: colors.coralTint },
   greeting: { fontFamily: fonts.extraBold, fontSize: 16, lineHeight: 22, color: colors.ink },
+  heroHint: { fontFamily: fonts.bold, fontSize: 11, color: colors.muted },
+  companionPanel: { gap: 10, padding: 14, borderRadius: 20, borderWidth: 3, borderColor: colors.line },
+  input: { minHeight: 52, borderWidth: 3, borderColor: '#C4B5FD', borderRadius: 16, paddingHorizontal: 14, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
+  completeCard: { gap: 10, padding: 16, borderRadius: 22, backgroundColor: colors.mintTint },
+  completeTitle: { fontFamily: fonts.black, fontSize: 18, color: colors.mintDeep },
+  completeText: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.ink },
   title: { fontFamily: fonts.black, fontSize: 28, lineHeight: 33, color: colors.ink },
   summary: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 21, color: colors.muted },
   unit: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, backgroundColor: colors.purple, borderBottomWidth: 6, borderBottomColor: colors.purpleDeep },

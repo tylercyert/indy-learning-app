@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   letterCorrect: { backgroundColor: colors.mintDeep },
   letterText: { fontFamily: fonts.black, fontSize: 13, color: colors.muted },
   letterTextSelected: { color: '#FFFFFF' },
-  optionText: { flex: 1, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
+  optionText: { flex: 1, minWidth: 0, flexShrink: 1, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
   feedback: { padding: 14, borderRadius: 20, gap: 6 },
   feedbackRight: { backgroundColor: colors.greenTint },
   feedbackWrong: { backgroundColor: colors.coralTint },

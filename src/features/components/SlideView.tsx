@@ -114,7 +114,7 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
 const styles = StyleSheet.create({
   slide: { gap: 18 },
   title: { fontFamily: fonts.black, fontSize: 26, lineHeight: 31, color: colors.ink },
-  speech: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
+  speech: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   bubble: { flex: 1, padding: 14, borderRadius: 20, borderBottomLeftRadius: 6 },
   plainCallout: { padding: 14, borderRadius: 20 },
   card: { padding: 16, borderRadius: 24, backgroundColor: colors.coralTint, gap: 12 },

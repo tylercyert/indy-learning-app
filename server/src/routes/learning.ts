@@ -1,17 +1,23 @@
 import { Hono } from 'hono';
 import type { z } from 'zod';
 import {
+  AddTreeRequestSchema,
   CreateCourseRequestSchema,
   ExperienceEventRequestSchema,
   IntakeReplyRequestSchema,
+  StartFromDiscoveredRequestSchema,
   StartIntakeRequestSchema,
+  UpdateCompanionRequestSchema,
 } from '../../../src/contracts';
+import { renameCompanion, rerollCompanion } from '../services/companion';
+import { listDiscoverable, startFromDiscovered } from '../services/discovery';
+import { addSkillTree } from '../services/trees';
 import { GenerationError } from '../ai/claude';
 import { aiEnabled } from '../env';
 import type { AppEnv } from '../app';
 import { requireLearner } from '../auth';
 import { getOrGenerateExperience, NodeLockedError } from '../services/experiences';
-import { getIntake, replyIntake, startIntake } from '../services/intake';
+import { getIntake, readyContext, replyIntake, startIntake } from '../services/intake';
 import { createCourseFromIntake } from '../services/planning';
 import { courseList, courseView, experienceView, recordEvent } from '../services/progress';
 import * as repo from '../services/repo';
@@ -60,6 +66,38 @@ learning.post('/courses', async (c) => {
   return c.json(courseView(c.get('learner').id, course.id), 201);
 });
 learning.get('/courses/:id', (c) => c.json(courseView(c.get('learner').id, c.req.param('id'))));
+
+learning.patch('/courses/:id/companion', async (c) => {
+  const learnerId = c.get('learner').id;
+  const req = await body(c, UpdateCompanionRequestSchema);
+  if (req.action === 'rename') renameCompanion(learnerId, c.req.param('id'), req.name);
+  else {
+    requireAi();
+    await rerollCompanion(learnerId, c.req.param('id'));
+  }
+  return c.json(courseView(learnerId, c.req.param('id')));
+});
+
+learning.post('/courses/:id/trees', async (c) => {
+  requireAi();
+  const learnerId = c.get('learner').id;
+  const req = await body(c, AddTreeRequestSchema);
+  if (req.kind === 'continue') await addSkillTree(learnerId, c.req.param('id'), { kind: 'continue' });
+  else {
+    const { context } = readyContext(learnerId, req.intakeId);
+    await addSkillTree(learnerId, c.req.param('id'), { kind: 'explore', context });
+  }
+  return c.json(courseView(learnerId, c.req.param('id')), 201);
+});
+
+// ---- discovery ----
+learning.get('/discover', (c) => c.json({ courses: listDiscoverable(c.get('learner').id) }));
+learning.post('/discover/:id/start', async (c) => {
+  const learnerId = c.get('learner').id;
+  const req = await body(c, StartFromDiscoveredRequestSchema);
+  const course = startFromDiscovered(learnerId, c.req.param('id'), req.goal);
+  return c.json(courseView(learnerId, course.id), 201);
+});
 learning.post('/courses/:id/nodes/:nodeId/experience', async (c) => {
   const learnerId = c.get('learner').id;
   const experience = await getOrGenerateExperience(learnerId, c.req.param('id'), c.req.param('nodeId'));

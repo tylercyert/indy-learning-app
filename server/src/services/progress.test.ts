@@ -169,6 +169,20 @@ describe('progress service (in-memory SQLite, no model)', () => {
     expect(list.courses[0]!.progress).toEqual({ completed: 4, required: 4, total: 5 });
   });
 
+  it('summarizes history for generation: completed lessons, struggles, strengths', async () => {
+    const { buildLearningSummary, describeSummary } = await import('./history');
+    const summary = buildLearningSummary(learnerId);
+    expect(summary.completedLessons.map((l) => l.title)).toEqual(expect.arrayContaining(['What makes a drink taste right', 'Acidity', 'Dilution', 'Design your own drink']));
+    // Orientation was answered wrong once ('d') before being answered right.
+    expect(summary.struggles).toEqual([{ objective: expect.stringContaining('base, sour, sweet, dilution'), wrongAnswers: 1 }]);
+    // The other three lessons were answered right first time.
+    expect(summary.strengths).toHaveLength(3);
+    const text = describeSummary(summary);
+    expect(text).toMatch(/completed/i);
+    expect(text).toMatch(/1 wrong answer/);
+    expect(buildLearningSummary(learnerId, { subject: 'nothing-here' }).completedLessons).toEqual([]);
+  });
+
   it('rejects an answer for an option that is not on the component', () => {
     const exp = repo.findExperience(learnerId, courseId, seeded.lessonIds.get('acidity')!)!;
     expect(() => progress.recordEvent(learnerId, exp.id, { type: 'answer', slideId: 'check', componentId: 'q1', selectedOptionId: 'zz' })).toThrow();

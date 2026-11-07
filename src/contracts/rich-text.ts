@@ -49,7 +49,7 @@ export const CalloutBlockSchema = z.strictObject({
 
 export const LinkBlockSchema = z.strictObject({
   type: z.literal('link'),
-  label: ShortTextSchema,
+  label: ShortTextSchema.max(60),
   href: z.url({ protocol: /^https$/, hostname: z.regexes.domain }).max(2000),
 });
 
@@ -63,9 +63,35 @@ export const RichTextBlockV1Schema = z.discriminatedUnion('type', [
 ]);
 export type RichTextBlockV1 = z.infer<typeof RichTextBlockV1Schema>;
 
-export const RichTextV1Schema = z.strictObject({
-  blocks: z.array(RichTextBlockV1Schema).min(1).max(40),
-});
+/** Readable on a phone: a block's text stays under ~600 characters, headings under 80. */
+export const RICH_TEXT_MAX_BLOCK_CHARS = 600;
+export const RICH_TEXT_MAX_HEADING_CHARS = 80;
+
+function blockChars(block: RichTextBlockV1): number {
+  switch (block.type) {
+    case 'bulletList':
+    case 'numberedList':
+      return block.items.reduce((n, item) => n + item.reduce((m, i) => m + i.text.length, 0), 0);
+    case 'link':
+      return block.label.length;
+    default:
+      return block.inlines.reduce((n, i) => n + i.text.length, 0);
+  }
+}
+
+export const RichTextV1Schema = z
+  .strictObject({
+    blocks: z.array(RichTextBlockV1Schema).min(1).max(20),
+  })
+  .superRefine((doc, ctx) => {
+    doc.blocks.forEach((block, index) => {
+      const chars = blockChars(block);
+      const limit = block.type === 'heading' ? RICH_TEXT_MAX_HEADING_CHARS : RICH_TEXT_MAX_BLOCK_CHARS;
+      if (chars > limit) {
+        ctx.addIssue({ code: 'custom', message: `${block.type} is ${chars} characters; keep each block under ${limit} and split long ideas across slides`, path: ['blocks', index] });
+      }
+    });
+  });
 export type RichTextV1 = z.infer<typeof RichTextV1Schema>;
 
 /** Convenience for tests and fixtures: one paragraph of plain text. */

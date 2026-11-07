@@ -1,32 +1,51 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { diagramCollisions, type ComponentV1 } from '../../contracts/components';
+import type { ComponentV1 } from '../../contracts/components';
 import { colors, fonts, palette } from '../theme';
 
 type DiagramComponent = Extract<ComponentV1, { type: 'diagram' }>;
-type DNode = DiagramComponent['nodes'][number];
 
-const NODE_W = 100;
-const NODE_H = 46;
+const NODE_H = 48;
 const PAD = 8;
+const ROW_PITCH = 92;
+const MAX_COLS_PHONE = 3;
 
 /**
- * Boxes on a 0-100 grid joined by straight lines. Plain views, no SVG dependency.
- * Readability is enforced twice: the contract rejects nodes too close together, and if stored
- * content still collides (older documents), the renderer re-lays the nodes out on a clean grid.
- * Edge labels are drawn only when the edge is long enough to carry them. The required altText
- * carries the meaning for screen readers.
+ * Boxes joined by straight lines, laid out ORDINALLY: the model's x/y values only decide which
+ * column and row a node sits in; columns and rows are then spaced evenly for the real width, so
+ * nodes can never overlap whatever the grid numbers were. Edge labels sit at a third of the edge,
+ * alternate above/below, and only draw when the edge is long enough to carry them.
+ * The required altText is the accessible content; it is shown visibly only when short.
  */
 export function Diagram({ component }: { component: DiagramComponent }) {
   const [width, setWidth] = useState(0);
-  const nodes = useMemo(() => (diagramCollisions(component.nodes).length ? autoLayout(component.nodes) : component.nodes), [component.nodes]);
-  const rows = new Set(nodes.map((n) => n.y)).size;
-  const height = Math.max(160, Math.min(360, rows * 78 + 60));
-  const pos = (x: number, y: number) => ({
-    cx: PAD + NODE_W / 2 + (x / 100) * (width - NODE_W - PAD * 2),
-    cy: PAD + NODE_H / 2 + (y / 100) * (height - NODE_H - PAD * 2),
-  });
-  const byId = new Map(nodes.map((n) => [n.id, n] as const));
+
+  const layout = useMemo(() => {
+    const xs = [...new Set(component.nodes.map((n) => n.x))].sort((a, b) => a - b);
+    const ys = [...new Set(component.nodes.map((n) => n.y))].sort((a, b) => a - b);
+    const maxCols = width > 0 && width < 560 ? MAX_COLS_PHONE : 4;
+    if (xs.length <= maxCols) {
+      return { nodes: component.nodes.map((n) => ({ ...n, col: xs.indexOf(n.x), row: ys.indexOf(n.y) })), cols: xs.length, rows: ys.length };
+    }
+    // Too many distinct columns for this width: reflow into rows of maxCols, preserving reading order.
+    const ordered = [...component.nodes].sort((a, b) => a.y - b.y || a.x - b.x);
+    const nodes = ordered.map((n, i) => ({ ...n, col: i % maxCols, row: Math.floor(i / maxCols) }));
+    return { nodes, cols: Math.min(maxCols, ordered.length), rows: Math.ceil(ordered.length / maxCols) };
+  }, [component.nodes, width]);
+
+  const gap = 10;
+  const nodeW = width > 0 ? Math.max(72, Math.min(120, (width - PAD * 2 - gap * (layout.cols - 1)) / layout.cols)) : 100;
+  const height = PAD * 2 + NODE_H + (layout.rows - 1) * ROW_PITCH;
+  const colX = (col: number) => (layout.cols === 1 ? width / 2 : PAD + nodeW / 2 + col * ((width - PAD * 2 - nodeW) / (layout.cols - 1)));
+  const rowY = (row: number) => PAD + NODE_H / 2 + row * ROW_PITCH;
+  const byId = new Map(layout.nodes.map((n) => [n.id, n] as const));
+  const showAlt = component.altText.length <= 160;
+  // Many labeled edges cannot be read on a phone canvas; list them underneath instead.
+  const labeledEdges = component.edges.filter((e) => !!e.label);
+  const inlineLabels = labeledEdges.length <= 4;
+  const nodeRects = layout.nodes.map((n) => ({ x: colX(n.col) - nodeW / 2, y: rowY(n.row) - NODE_H / 2, w: nodeW, h: NODE_H }));
+  const hitsNode = (x: number, y: number, w: number, h: number) =>
+    nodeRects.some((r) => x < r.x + r.w + 4 && x + w > r.x - 4 && y < r.y + r.h + 4 && y + h > r.y - 4);
 
   return (
     <View style={styles.card}>
@@ -37,19 +56,18 @@ export function Diagram({ component }: { component: DiagramComponent }) {
             const a = byId.get(edge.from);
             const b = byId.get(edge.to);
             if (!a || !b) return null;
-            const p = pos(a.x, a.y);
-            const q = pos(b.x, b.y);
+            const p = { cx: colX(a.col), cy: rowY(a.row) };
+            const q = { cx: colX(b.col), cy: rowY(b.row) };
             const dx = q.cx - p.cx;
             const dy = q.cy - p.cy;
             const len = Math.hypot(dx, dy);
             const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-            // Trim the line so it starts and ends at the box edges rather than the centers.
-            const trim = Math.min(len / 2 - 4, Math.max(NODE_W, NODE_H) / 2);
-            const drawn = Math.max(0, len - trim * 2);
-            const showLabel = !!edge.label && drawn > 110;
+            // Trim so the line runs between box edges, not centers.
+            const trimA = edgeInset(dx, dy, nodeW, NODE_H);
+            const drawn = Math.max(0, len - trimA * 2);
             return (
               <View
-                key={i}
+                key={`e${i}`}
                 aria-hidden
                 style={[
                   styles.edge,
@@ -58,19 +76,11 @@ export function Diagram({ component }: { component: DiagramComponent }) {
                 ]}
               >
                 {edge.style !== 'line' && <View style={styles.arrowHead} />}
-                {showLabel ? (
-                  <View style={[styles.edgeLabelWrap, { transform: [{ rotate: `${-angle}deg` }] }]}>
-                    <Text style={styles.edgeLabel} numberOfLines={1}>
-                      {edge.label}
-                    </Text>
-                  </View>
-                ) : null}
               </View>
             );
           })}
         {width > 0 &&
-          nodes.map((node) => {
-            const p = pos(node.x, node.y);
+          layout.nodes.map((node) => {
             const c = palette[node.color ?? 'neutral'];
             return (
               <View
@@ -78,47 +88,81 @@ export function Diagram({ component }: { component: DiagramComponent }) {
                 aria-hidden
                 style={[
                   styles.node,
-                  node.shape === 'circle' && styles.nodeCircle,
-                  node.shape === 'pill' && styles.nodePill,
-                  { left: p.cx - NODE_W / 2, top: p.cy - NODE_H / 2, backgroundColor: c.fill, borderBottomColor: c.shadow },
+                  node.shape === 'circle' && { borderRadius: NODE_H / 2 },
+                  node.shape === 'pill' && { borderRadius: 999 },
+                  { width: nodeW, left: colX(node.col) - nodeW / 2, top: rowY(node.row) - NODE_H / 2, backgroundColor: c.fill, borderBottomColor: c.shadow },
                 ]}
               >
-                <Text style={[styles.nodeText, { color: c.text }]}>{node.label}</Text>
+                <Text style={[styles.nodeText, { color: c.text, fontSize: nodeW < 90 ? 11 : 12 }]} numberOfLines={3}>
+                  {node.label}
+                </Text>
+              </View>
+            );
+          })}
+        {width > 0 &&
+          inlineLabels &&
+          component.edges.map((edge, i) => {
+            if (!edge.label) return null;
+            const a = byId.get(edge.from);
+            const b = byId.get(edge.to);
+            if (!a || !b) return null;
+            const p = { cx: colX(a.col), cy: rowY(a.row) };
+            const q = { cx: colX(b.col), cy: rowY(b.row) };
+            const len = Math.hypot(q.cx - p.cx, q.cy - p.cy);
+            const inset = edgeInset(q.cx - p.cx, q.cy - p.cy, nodeW, NODE_H);
+            if (len - inset * 2 < 56) return null;
+            // Try a few spots along the edge, alternating sides; skip the label if every spot hits a node.
+            const labelW = 84;
+            const labelH = 18;
+            const candidates = [0.5, 0.38, 0.62].flatMap((t) => [i % 2 === 0 ? -14 : 14, i % 2 === 0 ? 14 : -14].map((off) => ({ t, off })));
+            const spot = candidates
+              .map(({ t, off }) => ({ x: p.cx + (q.cx - p.cx) * t - labelW / 2, y: p.cy + (q.cy - p.cy) * t + off - labelH / 2 }))
+              .find((s) => !hitsNode(s.x, s.y, labelW, labelH));
+            if (!spot) return null;
+            return (
+              <View key={`l${i}`} aria-hidden style={[styles.edgeLabelWrap, { left: spot.x, top: spot.y, width: labelW }]}>
+                <Text style={styles.edgeLabel} numberOfLines={1}>
+                  {edge.label}
+                </Text>
               </View>
             );
           })}
       </View>
-      <Text style={styles.alt}>{component.altText}</Text>
+      {!inlineLabels && labeledEdges.length > 0 ? (
+        <View style={styles.legend}>
+          {labeledEdges.map((e, i) => (
+            <Text key={i} style={styles.legendLine}>
+              {byId.get(e.from)?.label ?? e.from} → {byId.get(e.to)?.label ?? e.to}: {e.label}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+      {showAlt ? <Text style={styles.alt}>{component.altText}</Text> : null}
     </View>
   );
 }
 
-/** Deterministic fallback layout: rows of up to three, evenly spread, ignoring stored positions. */
-function autoLayout(nodes: readonly DNode[]): DNode[] {
-  const perRow = nodes.length <= 4 ? 2 : 3;
-  const rows = Math.ceil(nodes.length / perRow);
-  return nodes.map((n, i) => {
-    const row = Math.floor(i / perRow);
-    const inRow = Math.min(perRow, nodes.length - row * perRow);
-    const col = i % perRow;
-    const x = inRow === 1 ? 50 : Math.round((col / (inRow - 1)) * 100);
-    const y = rows === 1 ? 50 : Math.round((row / (rows - 1)) * 100);
-    return { ...n, x, y };
-  });
+/** Distance from a box center to its border along a direction. */
+function edgeInset(dx: number, dy: number, w: number, h: number): number {
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = Math.abs(dx / len);
+  const uy = Math.abs(dy / len);
+  const tx = ux > 0 ? w / 2 / ux : Infinity;
+  const ty = uy > 0 ? h / 2 / uy : Infinity;
+  return Math.min(tx, ty) + 4;
 }
 
 const styles = StyleSheet.create({
   card: { padding: 16, borderRadius: 24, backgroundColor: colors.soft, gap: 10 },
   title: { fontFamily: fonts.black, fontSize: 13, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.purple },
-  edge: { position: 'absolute', height: 3, backgroundColor: '#B8AED6', borderRadius: 2, justifyContent: 'center' },
+  edge: { position: 'absolute', height: 3, backgroundColor: '#A99DD1', borderRadius: 2, justifyContent: 'center' },
   edgeDashed: { opacity: 0.55 },
-  arrowHead: { position: 'absolute', right: -1, top: -4, width: 10, height: 10, borderTopWidth: 3, borderRightWidth: 3, borderColor: '#B8AED6', transform: [{ rotate: '45deg' }] },
-  edgeLabelWrap: { position: 'absolute', alignSelf: 'center', top: -24, backgroundColor: colors.soft, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
-  edgeLabel: { fontFamily: fonts.extraBold, fontSize: 11, color: colors.muted },
-  // minHeight, not height: labels wrap and the box grows rather than clipping text.
-  node: { position: 'absolute', width: NODE_W, minHeight: NODE_H, borderRadius: 12, borderBottomWidth: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 6 },
-  nodeCircle: { borderRadius: NODE_H / 2 },
-  nodePill: { borderRadius: 999 },
-  nodeText: { fontFamily: fonts.black, fontSize: 12, lineHeight: 14, textAlign: 'center' },
+  arrowHead: { position: 'absolute', right: -1, top: -4, width: 10, height: 10, borderTopWidth: 3, borderRightWidth: 3, borderColor: '#A99DD1', transform: [{ rotate: '45deg' }] },
+  edgeLabelWrap: { position: 'absolute', alignItems: 'center' },
+  edgeLabel: { fontFamily: fonts.extraBold, fontSize: 11, color: '#4B4365', backgroundColor: colors.soft, paddingHorizontal: 5, borderRadius: 6 },
+  node: { position: 'absolute', minHeight: NODE_H, borderRadius: 12, borderBottomWidth: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 6 },
+  nodeText: { fontFamily: fonts.black, lineHeight: 14, textAlign: 'center' },
   alt: { fontFamily: fonts.bold, fontSize: 13, color: colors.muted },
+  legend: { gap: 2 },
+  legendLine: { fontFamily: fonts.bold, fontSize: 12, color: '#4B4365' },
 });

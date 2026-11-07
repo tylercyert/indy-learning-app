@@ -14,7 +14,10 @@ import { colors, fonts } from '../../src/features/theme';
  * ratios) across viewports. Validation errors are shown instead of the slide. Interactions are local.
  */
 export default function DevSlideScreen() {
-  const { doc } = useLocalSearchParams<{ doc?: string }>();
+  const params = useLocalSearchParams<{ doc?: string }>();
+  // Large fixtures travel in the hash (never sent to the server, so no header-size limit).
+  const hashDoc = typeof window !== 'undefined' && window.location?.hash.startsWith('#doc=') ? decodeURIComponent(window.location.hash.slice(5)) : undefined;
+  const doc = params.doc ?? hashDoc;
   const [results, setResults] = useState<ComponentResultV1[]>([]);
   const [feedback, setFeedback] = useState<Record<string, ChoiceFeedback | undefined>>({});
 
@@ -36,7 +39,8 @@ export default function DevSlideScreen() {
       <View style={styles.banner}>
         <Text style={styles.bannerText}>QA HARNESS · local render, no server</Text>
       </View>
-      <ScrollView contentContainerStyle={styles.content}>
+      {/* The document itself scrolls so full-page screenshots capture everything. */}
+      <ScrollView contentContainerStyle={styles.content} style={{ flexGrow: 0 }} scrollEnabled={false}>
         {parsed.ok ? (
           <SlideView
             slide={parsed.slide}
@@ -70,7 +74,7 @@ export default function DevSlideScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { backgroundColor: colors.bg },
   banner: { backgroundColor: colors.yellowTint, paddingVertical: 6, alignItems: 'center' },
   bannerText: { fontFamily: fonts.black, fontSize: 11, letterSpacing: 1, color: '#92400E' },
   content: { padding: 20, gap: 18, paddingBottom: 40 },
