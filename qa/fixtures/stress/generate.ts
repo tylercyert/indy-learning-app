@@ -483,6 +483,47 @@ const fixtures: Record<string, SlideV1> = {
     ],
   },
 
+  'matchpairs-max': {
+    id: 'matchpairs-max',
+    title: 'Match pairs: five pairs at the length caps',
+    purpose: 'practice',
+    components: [
+      {
+        id: 'm',
+        type: 'matchPairs',
+        prompt: filler(160),
+        pairs: [
+          { id: 'p1', left: filler(40), right: filler(60), explanation: filler(160) },
+          { id: 'p2', left: nospace(40), right: filler(59).replace('Balance', 'Balanced'), explanation: filler(160) },
+          { id: 'p3', left: 'Acid', right: 'Cuts sweetness so the drink tastes bright, not syrupy.', explanation: filler(160) },
+          { id: 'p4', left: 'Dilution', right: nospace(60), explanation: filler(160) },
+          { id: 'p5', left: 'Base', right: 'Body and strength', explanation: 'The base is the spirit or strong tea; it gives body.' },
+        ],
+      },
+    ],
+  },
+
+  'void-short': {
+    id: 'void-short',
+    title: 'A short slide should still feel composed',
+    purpose: 'teach',
+    components: [
+      { id: 'c1', type: 'callout', speaker: 'companion', tone: 'explain', content: { blocks: [para('Here is the one idea behind every great sour drink.')] } },
+      { id: 't', type: 'text', content: { blocks: [para('Sugar makes a drink feel heavy. Acid cuts through it so flavors taste bright instead of syrupy.')] } },
+      {
+        id: 'r',
+        type: 'ratioBar',
+        title: 'A classic sour, by volume',
+        segments: [
+          { label: 'base', parts: 2, color: 'primary' },
+          { label: 'sour', parts: 1, color: 'accent' },
+          { label: 'sweet', parts: 1, color: 'secondary' },
+        ],
+        altText: 'Two parts base, one part sour, one part sweet.',
+      },
+    ],
+  },
+
   'title-60': {
     id: 'title-60',
     title: nospace(60),

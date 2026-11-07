@@ -1,10 +1,12 @@
-import type { ComponentV1, FillBlankResultSchema, MultipleChoiceResultSchema } from '../contracts/components';
+import type { ComponentV1, FillBlankResultSchema, MatchPairsResultSchema, MultipleChoiceResultSchema } from '../contracts/components';
 import type { z } from 'zod';
 
 type MultipleChoice = Extract<ComponentV1, { type: 'multipleChoice' }>;
 type MultipleChoiceResult = z.infer<typeof MultipleChoiceResultSchema>;
 type FillBlank = Extract<ComponentV1, { type: 'fillBlank' }>;
 type FillBlankResult = z.infer<typeof FillBlankResultSchema>;
+type MatchPairs = Extract<ComponentV1, { type: 'matchPairs' }>;
+type MatchPairsResult = z.infer<typeof MatchPairsResultSchema>;
 
 export interface ScoredChoice {
   result: MultipleChoiceResult;
@@ -65,5 +67,37 @@ export function scoreFillBlank(
   return {
     result: { type: 'fillBlank', componentId: component.id, answers: scored, correct: scored.every((s) => s.correct), attempt },
     explanations: component.gaps.filter((_, i) => !scored[i]!.correct).map((g) => ({ gapId: g.id, explanation: g.explanation })),
+  };
+}
+
+export interface ScoredMatchPairs {
+  result: MatchPairsResult;
+  /** Explanations for the pairs matched wrongly, in component order. Empty when every match agrees. */
+  explanations: { pairId: string; explanation: string }[];
+}
+
+/**
+ * Deterministic scoring for matchPairs. Every pair must be matched exactly once; a missing pair or
+ * an id that is not on the component is a client bug and throws.
+ */
+export function scoreMatchPairs(
+  component: MatchPairs,
+  matches: readonly { pairId: string; chosenPairId: string }[],
+  attempt: number,
+): ScoredMatchPairs {
+  const ids = new Set(component.pairs.map((p) => p.id));
+  for (const m of matches) {
+    if (!ids.has(m.pairId) || !ids.has(m.chosenPairId)) throw new Error(`pair "${m.pairId}"→"${m.chosenPairId}" is not on component "${component.id}"`);
+  }
+  const scored = component.pairs.map((pair) => {
+    const found = matches.filter((m) => m.pairId === pair.id);
+    if (found.length !== 1) throw new Error(`pair "${pair.id}" must be matched exactly once on component "${component.id}"`);
+    const chosenPairId = found[0]!.chosenPairId;
+    return { pairId: pair.id, chosenPairId, correct: chosenPairId === pair.id };
+  });
+  const correctCount = scored.filter((s) => s.correct).length;
+  return {
+    result: { type: 'matchPairs', componentId: component.id, matches: scored, correctCount, correct: correctCount === scored.length, attempt },
+    explanations: component.pairs.filter((_, i) => !scored[i]!.correct).map((p) => ({ pairId: p.id, explanation: p.explanation })),
   };
 }

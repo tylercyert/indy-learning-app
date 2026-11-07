@@ -12,6 +12,7 @@ import {
   normalizeAnswer,
   remainingAssessables,
   scoreFillBlank,
+  scoreMatchPairs,
   scoreMultipleChoice,
   treeProgress,
 } from './index';
@@ -132,6 +133,46 @@ describe('scoreFillBlank', () => {
   });
   it('throws on an answer for a gap that is not on the component', () => {
     expect(() => scoreFillBlank(q, [{ gapId: 'zz', value: 'x' }], 1)).toThrow(/not on component/);
+  });
+});
+
+describe('scoreMatchPairs', () => {
+  const m = {
+    id: 'm1',
+    type: 'matchPairs' as const,
+    prompt: 'Match each lever to what it does.',
+    pairs: [
+      { id: 'a', left: 'Acid', right: 'Cuts sweetness', explanation: 'Acid is the lever that cuts sweetness.' },
+      { id: 'b', left: 'Sugar', right: 'Adds body', explanation: 'Sugar adds weight and body.' },
+      { id: 'c', left: 'Ice', right: 'Chills and dilutes', explanation: 'Ice chills and dilutes.' },
+    ],
+  };
+  it('counts agreeing matches and is correct only when all agree', () => {
+    const scored = scoreMatchPairs(m, [{ pairId: 'a', chosenPairId: 'a' }, { pairId: 'b', chosenPairId: 'b' }, { pairId: 'c', chosenPairId: 'c' }], 1);
+    expect(scored.result).toEqual({
+      type: 'matchPairs',
+      componentId: 'm1',
+      matches: [
+        { pairId: 'a', chosenPairId: 'a', correct: true },
+        { pairId: 'b', chosenPairId: 'b', correct: true },
+        { pairId: 'c', chosenPairId: 'c', correct: true },
+      ],
+      correctCount: 3,
+      correct: true,
+      attempt: 1,
+    });
+    expect(scored.explanations).toEqual([]);
+  });
+  it('explains each wrong match in component order, whatever order the matches arrived in', () => {
+    const scored = scoreMatchPairs(m, [{ pairId: 'c', chosenPairId: 'c' }, { pairId: 'b', chosenPairId: 'a' }, { pairId: 'a', chosenPairId: 'b' }], 2);
+    expect(scored.result.correctCount).toBe(1);
+    expect(scored.result.correct).toBe(false);
+    expect(scored.result.matches.map((x) => x.pairId)).toEqual(['a', 'b', 'c']);
+    expect(scored.explanations.map((e) => e.pairId)).toEqual(['a', 'b']);
+  });
+  it('throws on an unknown id or a pair that is not matched exactly once', () => {
+    expect(() => scoreMatchPairs(m, [{ pairId: 'a', chosenPairId: 'zz' }], 1)).toThrow(/not on component/);
+    expect(() => scoreMatchPairs(m, [{ pairId: 'a', chosenPairId: 'a' }, { pairId: 'b', chosenPairId: 'b' }], 1)).toThrow(/exactly once/);
   });
 });
 
