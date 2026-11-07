@@ -40,11 +40,11 @@ async function answerSlide(page: Page): Promise<'answered' | 'none'> {
   if ((await radios.count()) === 0 && (await boxes.count()) === 0 && !isMatch) return 'none';
   if (isMatch) {
     // matchPairs: terms are radios, definition rows are buttons (not the footer's). A wrong set is a valid attempt.
-    const slots = page.getByRole('button').filter({ hasNotText: /^(check|check again|previous|continue|finish|skip for now|try again|close lesson)$/i });
+    // Empty definition rows show a "?" badge; filled ones show the term's number.
     const n = await radios.count();
     for (let i = 0; i < n; i++) {
       await radios.nth(i).click();
-      const free = slots.filter({ hasNotText: /holds/ });
+      const free = page.getByRole('button').filter({ hasText: /^\?/ });
       if ((await free.count()) > 0) await free.first().click();
     }
     await page.getByRole('button', { name: /^check( again)?$/i }).first().click();
@@ -149,8 +149,21 @@ async function main() {
     if ((await page.getByRole('progressbar').getAttribute('aria-valuenow')) !== before) continue; // skip moved us on
     const finish = page.getByRole('button', { name: /^finish$/i });
     if ((await finish.count()) > 0) {
+      const at = await page.getByRole('progressbar').getAttribute('aria-valuenow');
       await finish.first().click();
-      await page.getByText(/Lesson complete/).first().waitFor({ timeout: 30_000 }).catch(() => log('no celebration screen seen'));
+      const celebrated = await page
+        .getByText(/Lesson complete|Skill tree finished/)
+        .first()
+        .waitFor({ timeout: 30_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (celebrated) break;
+      // Finish jumps back to an unanswered check; keep going from there.
+      if ((await page.getByRole('progressbar').count()) > 0 && (await page.getByRole('progressbar').getAttribute('aria-valuenow')) !== at) {
+        log('finish sent us back to an open check');
+        continue;
+      }
+      log('no celebration screen seen');
       break;
     }
     await page.getByRole('button', { name: /^continue$/i }).first().click();
