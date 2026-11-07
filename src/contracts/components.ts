@@ -60,9 +60,14 @@ export const RatioBarComponentSchema = z
     }
   });
 
+/** Minimum separation between diagram nodes on the 0-100 grid so labels never overlap. */
+export const DIAGRAM_MIN_DX = 30;
+export const DIAGRAM_MIN_DY = 24;
+
 export const DiagramNodeSchema = z.strictObject({
   id: LocalIdSchema,
-  label: ShortTextSchema.max(40),
+  /** Short: it must fit a small box on a phone. */
+  label: ShortTextSchema.max(28),
   shape: z.enum(['box', 'circle', 'pill']),
   /** Position on a 0-100 grid; the renderer scales to the slide. */
   x: z.int().min(0).max(100),
@@ -75,7 +80,7 @@ export const DiagramEdgeSchema = z.strictObject({
   from: LocalIdSchema,
   to: LocalIdSchema,
   /** Empty string means no label; keeps the field union-free for generation. */
-  label: z.string().trim().max(30).optional(),
+  label: z.string().trim().max(18).optional(),
   style: z.enum(['arrow', 'line', 'dashed']).optional(),
 });
 
@@ -85,8 +90,8 @@ export const DiagramComponentSchema = z
     type: z.literal('diagram'),
     /** Empty string means no title. */
     title: z.string().trim().max(120).optional(),
-    nodes: z.array(DiagramNodeSchema).min(1).max(12),
-    edges: z.array(DiagramEdgeSchema).max(20),
+    nodes: z.array(DiagramNodeSchema).min(1).max(8),
+    edges: z.array(DiagramEdgeSchema).max(12),
     altText: MediumTextSchema,
   })
   .superRefine((value, ctx) => {
@@ -96,8 +101,31 @@ export const DiagramComponentSchema = z
       if (!ids.has(edge.from) || !ids.has(edge.to)) {
         ctx.addIssue({ code: 'custom', message: 'edge references unknown node', path: ['edges', index] });
       }
+      if (edge.from === edge.to) {
+        ctx.addIssue({ code: 'custom', message: 'edge cannot connect a node to itself', path: ['edges', index] });
+      }
     });
+    for (const [a, b] of diagramCollisions(value.nodes)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `nodes "${a}" and "${b}" are too close; keep at least ${DIAGRAM_MIN_DX} apart on x or ${DIAGRAM_MIN_DY} apart on y`,
+        path: ['nodes'],
+      });
+    }
   });
+
+/** Pairs of node ids that would overlap when drawn. Empty means the layout is readable. */
+export function diagramCollisions(nodes: readonly { id: string; x: number; y: number }[]): [string, string][] {
+  const out: [string, string][] = [];
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i]!;
+      const b = nodes[j]!;
+      if (Math.abs(a.x - b.x) < DIAGRAM_MIN_DX && Math.abs(a.y - b.y) < DIAGRAM_MIN_DY) out.push([a.id, b.id]);
+    }
+  }
+  return out;
+}
 
 // ---------- interactive ----------
 

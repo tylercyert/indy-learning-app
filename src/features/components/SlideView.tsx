@@ -59,18 +59,27 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
           <View style={styles.ratioRow}>
             {component.segments.map((seg) => {
               const p = palette[seg.color];
+              const share = seg.parts / total;
+              // Narrow segments show only the number; the legend below carries every label.
               return (
                 <View key={seg.label} style={[styles.ratioSeg, { flex: seg.parts, backgroundColor: p.fill, borderBottomColor: p.shadow }]}>
-                  <Text style={[styles.ratioText, { color: p.text }]} numberOfLines={2}>
-                    {seg.parts} {seg.label}
+                  <Text style={[styles.ratioText, { color: p.text }]} numberOfLines={1}>
+                    {share >= 0.3 ? `${seg.parts} ${seg.label}` : String(seg.parts)}
                   </Text>
                 </View>
               );
             })}
           </View>
-          <Text style={styles.alt}>
-            {component.segments.map((s) => `${s.parts}/${total} ${s.label}`).join(' · ')}
-          </Text>
+          <View style={styles.legend}>
+            {component.segments.map((seg) => (
+              <View key={seg.label} style={styles.legendItem}>
+                <View style={[styles.swatch, { backgroundColor: palette[seg.color].fill }]} />
+                <Text style={styles.legendText}>
+                  {seg.label} · {seg.parts}/{total}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
       );
     }
@@ -113,5 +122,8 @@ const styles = StyleSheet.create({
   ratioRow: { flexDirection: 'row', gap: 6, minHeight: 56 },
   ratioSeg: { minHeight: 56, borderRadius: 16, borderBottomWidth: 5, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   ratioText: { fontFamily: fonts.black, fontSize: 14, textAlign: 'center' },
-  alt: { fontFamily: fonts.bold, fontSize: 13, color: colors.muted },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  swatch: { width: 12, height: 12, borderRadius: 4 },
+  legendText: { fontFamily: fonts.extraBold, fontSize: 13, color: colors.ink },
 });

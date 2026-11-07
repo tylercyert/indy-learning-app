@@ -95,30 +95,77 @@ export default function CourseScreen() {
           {opening ? <Loading message={`${data.course.companion.name} is finishing this lesson for you…`} /> : null}
           {error ? <ErrorBox message={error} /> : null}
 
-          <View style={styles.path}>
-            {current.tree.nodes.map((node, i) => (
-              <NodeCard
-                key={node.id}
-                node={node}
-                index={i}
-                state={current.nodeStates[node.id] ?? 'locked'}
-                isNext={current.nextNodeId === node.id}
-                ready={current.readyNodeIds.includes(node.id)}
-                generating={current.generatingNodeIds.includes(node.id)}
-                disabled={!!opening}
-                onPress={() => void open(node.id)}
-              />
-            ))}
-          </View>
+          <SkillPath tree={current} disabled={!!opening} onOpen={(nodeId) => void open(nodeId)} />
         </>
       ) : null}
     </Screen>
   );
 }
 
-function NodeCard({
+const ROW_H = 116;
+const R = 38;
+/** Horizontal positions (fraction of width) for the winding path: center, left, center, right… */
+const COLS = [0.5, 0.24, 0.5, 0.76];
+
+function SkillPath({ tree, disabled, onOpen }: { tree: TreeView; disabled: boolean; onOpen: (nodeId: string) => void }) {
+  const [width, setWidth] = useState(0);
+  const nodes = tree.tree.nodes;
+  const center = (i: number) => ({ cx: COLS[i % COLS.length]! * width, cy: i * ROW_H + R + 10 });
+
+  return (
+    <View
+      style={{ height: nodes.length * ROW_H + 20, width: '100%' }}
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      accessibilityRole="list"
+    >
+      {width > 0 &&
+        nodes.slice(1).map((_, i) => {
+          const a = center(i);
+          const b = center(i + 1);
+          const dx = b.cx - a.cx;
+          const dy = b.cy - a.cy;
+          const len = Math.hypot(dx, dy);
+          const start = (R + 10) / len;
+          const end = 1 - (R + 10) / len;
+          const doneA = tree.nodeStates[nodes[i]!.id] === 'completed';
+          return [0, 0.5, 1].map((k) => {
+            const t = start + (end - start) * k;
+            return (
+              <View
+                key={`${i}-${k}`}
+                aria-hidden
+                style={[styles.dot, { left: a.cx + dx * t - 5, top: a.cy + dy * t - 5, backgroundColor: doneA ? colors.purple : '#C4B5FD' }]}
+              />
+            );
+          });
+        })}
+      {width > 0 &&
+        nodes.map((node, i) => (
+          <PathNode
+            key={node.id}
+            node={node}
+            cx={center(i).cx}
+            cy={center(i).cy}
+            labelSide={COLS[i % COLS.length]! > 0.5 ? 'left' : 'right'}
+            width={width}
+            state={tree.nodeStates[node.id] ?? 'locked'}
+            isNext={tree.nextNodeId === node.id}
+            ready={tree.readyNodeIds.includes(node.id)}
+            generating={tree.generatingNodeIds.includes(node.id)}
+            disabled={disabled}
+            onPress={() => onOpen(node.id)}
+          />
+        ))}
+    </View>
+  );
+}
+
+function PathNode({
   node,
-  index,
+  cx,
+  cy,
+  labelSide,
+  width,
   state,
   isNext,
   ready,
@@ -127,7 +174,10 @@ function NodeCard({
   onPress,
 }: {
   node: NodeV1;
-  index: number;
+  cx: number;
+  cy: number;
+  labelSide: 'left' | 'right';
+  width: number;
   state: NodeStatus;
   isNext: boolean;
   ready: boolean;
@@ -135,39 +185,42 @@ function NodeCard({
   disabled: boolean;
   onPress: () => void;
 }) {
-  const side = index % 2 === 0 ? 'flex-start' : 'flex-end';
   const locked = state === 'locked';
-  const requires = [...(node.rule.allOf ?? []), ...(node.rule.anyOf ?? []), ...(node.rule.atLeast?.of ?? [])];
-  const statusWord = state === 'completed' ? 'Done.' : locked ? 'Locked.' : isNext ? 'Up next.' : 'Available.';
-  const readiness = state === 'completed' || locked ? '' : ready ? 'Ready to open.' : generating ? 'Being written now.' : 'Will be written when opened.';
+  const done = state === 'completed';
+  const statusWord = done ? 'Done.' : locked ? 'Locked.' : isNext ? 'Up next.' : 'Available.';
+  const readiness = done || locked ? '' : ready ? 'Ready to open.' : generating ? 'Being written now.' : 'Will be written when opened.';
+  const fill = done ? colors.purple : isNext ? colors.yellow : locked ? colors.line : colors.mint;
+  const shadow = done ? colors.purpleDeep : isNext ? colors.yellowDeep : locked ? '#D6D0E8' : colors.mintDeep;
+  const labelW = Math.min(170, width / 2 - R - 24);
+  const labelLeft = labelSide === 'right' ? cx + R + 12 : cx - R - 12 - labelW;
+  const tag = done || locked ? null : ready ? 'Ready' : generating ? 'Writing…' : 'Tap to write';
+
   return (
-    <View style={{ alignItems: side, width: '100%' }}>
+    <>
+      {isNext ? <View aria-hidden style={[styles.ring, { left: cx - R - 7, top: cy - R - 7 }]} /> : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${node.title}. ${statusWord} ${node.required ? '' : 'Optional branch.'} ${readiness}`}
         accessibilityState={{ disabled: locked || disabled }}
         disabled={locked || disabled}
         onPress={onPress}
-        style={[styles.node, state === 'completed' && styles.nodeDone, isNext && styles.nodeNext, locked && styles.nodeLocked, !node.required && styles.nodeOptional]}
+        style={[styles.circle, { left: cx - R, top: cy - R, backgroundColor: fill, borderBottomColor: shadow }, !node.required && styles.circleOptional, locked && styles.circleLocked]}
       >
-        <View style={[styles.dot, state === 'completed' && styles.dotDone, isNext && styles.dotNext, locked && styles.dotLocked]}>
-          <Text style={styles.dotText}>{state === 'completed' ? '✓' : locked ? '🔒' : isNext ? '★' : '•'}</Text>
-        </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={[styles.nodeTitle, locked && { color: colors.muted }]}>{node.title}</Text>
-          <Text style={styles.nodeMeta} numberOfLines={2}>
-            {isNext ? 'UP NEXT · ' : ''}
-            {node.kind === 'orientation' ? 'Start here' : node.required ? 'Core' : 'Optional branch'}
-            {locked && requires.length ? ` · after ${requires.join(node.rule.anyOf ? ' or ' : ', ')}` : ''}
-          </Text>
-        </View>
-        {!locked && state !== 'completed' ? (
+        <Text style={[styles.circleIcon, done && { color: '#FFFFFF' }]}>{done ? '✓' : locked ? '🔒' : isNext ? '★' : '•'}</Text>
+      </Pressable>
+      <View aria-hidden style={[styles.label, { left: labelLeft, width: labelW, top: cy - 36, alignItems: labelSide === 'right' ? 'flex-start' : 'flex-end' }]}>
+        <Text style={[styles.labelTitle, locked && { color: colors.muted }, { textAlign: labelSide }]}>{node.title}</Text>
+        <Text style={[styles.labelMeta, { textAlign: labelSide }]}>
+          {isNext ? 'UP NEXT · ' : ''}
+          {node.kind === 'orientation' ? 'Start here' : node.required ? 'Core' : 'Optional'}
+        </Text>
+        {tag ? (
           <View style={[styles.tag, ready ? styles.tagReady : generating ? styles.tagWriting : styles.tagIdle]}>
-            <Text style={[styles.tagText, ready && { color: colors.mintDeep }]}>{ready ? 'Ready' : generating ? 'Writing…' : 'Tap to write'}</Text>
+            <Text style={[styles.tagText, ready && { color: colors.mintDeep }]}>{tag}</Text>
           </View>
         ) : null}
-      </Pressable>
-    </View>
+      </View>
+    </>
   );
 }
 
@@ -183,22 +236,18 @@ const styles = StyleSheet.create({
   unitEyebrow: { fontFamily: fonts.black, fontSize: 12, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.purpleTint },
   unitTitle: { fontFamily: fonts.black, fontSize: 20, color: '#FFFFFF' },
   unitProgress: { fontFamily: fonts.black, fontSize: 22, color: colors.yellow },
-  path: { gap: 14 },
-  node: { width: '92%', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 22, borderWidth: 3, borderColor: colors.line, borderBottomWidth: 7, backgroundColor: colors.bg },
-  nodeDone: { borderColor: colors.purpleTint, backgroundColor: colors.soft },
-  nodeNext: { borderColor: colors.yellow, borderBottomColor: colors.yellowDeep, backgroundColor: '#FFFBEB' },
-  nodeLocked: { opacity: 0.7 },
-  nodeOptional: { borderStyle: 'dashed' },
-  dot: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
-  dotDone: { backgroundColor: colors.purple },
-  dotNext: { backgroundColor: colors.yellow },
-  dotLocked: { backgroundColor: colors.line },
-  dotText: { fontFamily: fonts.black, fontSize: 18, color: colors.ink },
-  nodeTitle: { fontFamily: fonts.black, fontSize: 17, color: colors.ink },
-  nodeMeta: { fontFamily: fonts.bold, fontSize: 12, color: colors.muted },
-  tag: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  dot: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
+  ring: { position: 'absolute', width: R * 2 + 14, height: R * 2 + 14, borderRadius: R + 7, borderWidth: 4, borderColor: colors.yellowTint },
+  circle: { position: 'absolute', width: R * 2, height: R * 2, borderRadius: R, borderBottomWidth: 7, alignItems: 'center', justifyContent: 'center' },
+  circleOptional: { borderWidth: 3, borderColor: colors.mintDeep, borderStyle: 'dashed' },
+  circleLocked: { opacity: 0.85 },
+  circleIcon: { fontFamily: fonts.black, fontSize: 28, lineHeight: 32, color: colors.ink, marginTop: -4 },
+  label: { position: 'absolute', gap: 2 },
+  labelTitle: { fontFamily: fonts.black, fontSize: 15, lineHeight: 18, color: colors.ink },
+  labelMeta: { fontFamily: fonts.bold, fontSize: 11, color: colors.muted },
+  tag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, marginTop: 2 },
   tagReady: { backgroundColor: colors.mintTint },
   tagWriting: { backgroundColor: colors.yellowTint },
   tagIdle: { backgroundColor: colors.soft },
-  tagText: { fontFamily: fonts.black, fontSize: 11, letterSpacing: 0.4, color: colors.muted },
+  tagText: { fontFamily: fonts.black, fontSize: 10, letterSpacing: 0.4, color: colors.muted },
 });

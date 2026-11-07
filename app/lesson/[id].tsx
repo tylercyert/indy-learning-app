@@ -1,5 +1,5 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BASE_COMPANION, componentRole, type CompanionThemeV1, type ExperienceView, type StreakV1 } from '../../src/contracts';
@@ -47,8 +47,10 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<{ streak: StreakV1; treeCompleted: boolean } | null>(null);
-  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  const [finishing, setFinishing] = useState(false);
   const viewedThisSession = useRef(new Set<string>());
+  /** The most recent slideViewed request, so Finish can wait for the completion it may trigger. */
+  const pendingView = useRef<Promise<unknown>>(Promise.resolve());
 
   const slide = slides[index]!;
   const isLast = index === slides.length - 1;
@@ -57,18 +59,34 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
   useEffect(() => {
     if (viewedThisSession.current.has(slide.id)) return;
     viewedThisSession.current.add(slide.id);
-    api
+    pendingView.current = api
       .sendEvent(view.experience.id, { type: 'slideViewed', slideId: slide.id, localDate: localDate() })
       .then((res) => {
         setView(res.view);
         if (res.lessonCompleted) setCelebration({ streak: res.streak, treeCompleted: res.treeCompleted });
+        return res;
       })
-      .catch(() => {
-        // Non-fatal: the next event will carry the state forward.
-      });
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
+      .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slide.id]);
+
+  const finish = async () => {
+    setFinishing(true);
+    try {
+      await pendingView.current;
+      // If the lesson was completed on an earlier visit, still celebrate briefly rather than exit cold.
+      const latest = await api.getExperience(view.experience.id).catch(() => null);
+      if (latest) setView(latest);
+      if (!celebration && latest?.completed) {
+        const course = await api.getCourse(view.experience.courseId).catch(() => null);
+        setCelebration({ streak: course?.streak ?? { count: 0, lastActiveDate: null }, treeCompleted: course?.trees.at(-1)?.complete ?? false });
+      } else if (!celebration) {
+        onExit();
+      }
+    } finally {
+      setFinishing(false);
+    }
+  };
 
   const assessablesOnSlide = useMemo(() => slide.components.filter((c) => componentRole(c.type) === 'assessable').map((c) => c.id), [slide]);
   const answeredOnSlide = assessablesOnSlide.every((cid) => view.results.some((r) => r.componentId === cid));
@@ -88,7 +106,7 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
     }
   };
 
-  if (celebration && isLast) {
+  if (celebration && isLast && !finishing) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.purple }]}>
         <View style={styles.celebrate}>
@@ -103,7 +121,7 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
           </View>
         </View>
         <View style={styles.footer}>
-          <ChunkyButton label="Continue" onPress={onExit} />
+          <ChunkyButton label="Continue" onPress={onExit} style={{ flex: 1 }} />
         </View>
       </SafeAreaView>
     );
@@ -120,7 +138,8 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
           {index + 1}/{slides.length}
         </Text>
       </View>
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      {/* Keyed per slide so each slide opens scrolled to the top. */}
+      <ScrollView key={slide.id} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <SlideView
           slide={slide}
           companion={companion}
@@ -137,9 +156,10 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
       <View style={styles.footer}>
         {index > 0 ? <ChunkyButton label="Back" variant="ghost" onPress={() => setIndex((i) => i - 1)} style={{ width: 90 }} /> : <View style={{ width: 90 }} />}
         <ChunkyButton
-          label={isLast ? (view.completed || celebration ? 'Finish' : 'Finish') : 'Continue'}
-          onPress={() => (isLast ? (celebration ? setCelebration({ ...celebration }) : onExit()) : setIndex((i) => i + 1))}
+          label={isLast ? 'Finish' : 'Continue'}
+          onPress={() => (isLast ? void finish() : setIndex((i) => i + 1))}
           disabled={!answeredOnSlide}
+          loading={finishing}
           style={{ flex: 1 }}
           accessibilityHint={answeredOnSlide ? undefined : 'Answer the question on this slide first'}
         />

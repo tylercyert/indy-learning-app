@@ -54,3 +54,6 @@ data/
 server/data/
 *.sqlite
 *.sqlite-*
+
+# visual QA output
+qa/out/

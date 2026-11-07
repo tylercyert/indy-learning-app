@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BASE_COMPANION, type IntakeSessionView } from '../../src/contracts';
 import { Companion } from '../../src/features/companion/Companion';
 import { colors, fonts } from '../../src/features/theme';
+import { BeakerLoader } from '../../src/features/ui/BeakerLoader';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
 import { BackButton, ErrorBox, Loading, Screen } from '../../src/features/ui/Screen';
 import { useAsync } from '../../src/features/ui/useAsync';
@@ -55,8 +56,8 @@ export default function IntakeScreen() {
     return (
       <Screen scroll={false}>
         <View style={styles.planning}>
-          <Companion theme={BASE_COMPANION} mood="thinking" size={120} />
-          <Text style={styles.planningTitle}>Planning your course…</Text>
+          <BeakerLoader size={210} />
+          <Text style={styles.planningTitle}>Mixing up your course…</Text>
           <Text style={styles.planningText}>Pip is laying out the path, picking a companion for it, and writing your first lesson. About a minute.</Text>
         </View>
       </Screen>
@@ -68,13 +69,15 @@ export default function IntakeScreen() {
       footer={
         view && turn?.kind === 'ask' ? (
           <View style={{ gap: 10 }}>
-            <View style={styles.chips}>
-              {turn.suggestedAnswers.map((a) => (
-                <Pressable key={a} accessibilityRole="button" disabled={sending} onPress={() => void send(a)} style={styles.chip}>
-                  <Text style={styles.chipText}>{a}</Text>
-                </Pressable>
-              ))}
-            </View>
+            {!sending ? (
+              <View style={styles.chips}>
+                {turn.suggestedAnswers.map((a) => (
+                  <Pressable key={a} testID="intake-chip" accessibilityRole="button" onPress={() => void send(a)} style={styles.chip}>
+                    <Text style={styles.chipText}>{a}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             <View style={styles.row}>
               <TextInput
                 accessibilityLabel="Your answer"
