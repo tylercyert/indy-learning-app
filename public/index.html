@@ -42,20 +42,23 @@
       }
       /* These styles make the root element full-height */
       #root {
+        background: #ffffff;
         display: flex;
         height: 100%;
         flex: 1;
       }
     </style>
     <style id="poko-shell">
-      /* The document never scrolls (the app's ScrollViews do) and never rubber-bands. Any gap
-         around the app is the page white, never a colored strip. */
+      /* The document never scrolls (the app's ScrollViews do) and never rubber-bands. The page
+         background is the app-bar purple (#63): newer Safari tints its own bar and the status-bar
+         area from the page background instead of theme-color, so both match the Poko bar. The app
+         root paints white over it, so the purple shows only in browser chrome. */
       html,
       body {
         margin: 0;
         overscroll-behavior: none;
         -webkit-text-size-adjust: 100%;
-        background: #ffffff;
+        background: #6d28d9;
         overflow-x: hidden;
       }
       /* height:100% already follows Safari's toolbar; dvh says so explicitly where supported. */
