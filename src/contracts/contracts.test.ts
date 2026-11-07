@@ -12,6 +12,7 @@ import {
   SkillTreeV1Schema,
   SlideV1Schema,
   richTextToPlain,
+  ruleReferences,
 } from './index';
 import { examplePlan, exampleSlides, exampleTree } from './examples';
 
@@ -90,6 +91,12 @@ describe('ProgressionRuleV1 and SkillTreeV1', () => {
     expect(
       ProgressionRuleV1Schema.safeParse({ allOf: ['a'], anyOf: ['b', 'c'], atLeast: { count: 1, of: ['d', 'e'] } }).success,
     ).toBe(true);
+  });
+  it('accepts empty clause arrays as a root rule and normalizes them away', () => {
+    const parsed = ProgressionRuleV1Schema.parse({ allOf: [], anyOf: [], atLeast: null });
+    expect(ruleReferences(parsed)).toEqual([]);
+    const plan = { ...examplePlan, nodes: examplePlan.nodes.map((n) => (n.kind === 'orientation' ? { ...n, rule: { allOf: [], anyOf: [] } } : n)) };
+    expect(CoursePlanV1Schema.safeParse(plan).success).toBe(true);
   });
   it('rejects atLeast count above the option count', () => {
     expect(ProgressionRuleV1Schema.safeParse({ atLeast: { count: 3, of: ['a', 'b'] } }).success).toBe(false);

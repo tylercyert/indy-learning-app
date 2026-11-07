@@ -1,14 +1,15 @@
-import type { NodeV1, ProgressionRuleV1, SkillTreeV1 } from '../contracts';
+import { activeClauses, type NodeV1, type ProgressionRuleV1, type SkillTreeV1 } from '../contracts';
 
 export type NodeState = 'locked' | 'available' | 'completed';
 
-/** A rule holds when every present clause holds. An empty rule always holds. */
+/** A rule holds when every active clause holds. An empty rule (or one with only empty arrays) always holds. */
 export function isRuleSatisfied(rule: ProgressionRuleV1, completedNodeIds: ReadonlySet<string>): boolean {
-  if (rule.allOf && !rule.allOf.every((id) => completedNodeIds.has(id))) return false;
-  if (rule.anyOf && !rule.anyOf.some((id) => completedNodeIds.has(id))) return false;
-  if (rule.atLeast) {
-    const hits = rule.atLeast.of.filter((id) => completedNodeIds.has(id)).length;
-    if (hits < rule.atLeast.count) return false;
+  const c = activeClauses(rule);
+  if (c.allOf && !c.allOf.every((id) => completedNodeIds.has(id))) return false;
+  if (c.anyOf && !c.anyOf.some((id) => completedNodeIds.has(id))) return false;
+  if (c.atLeast) {
+    const hits = c.atLeast.of.filter((id) => completedNodeIds.has(id)).length;
+    if (hits < c.atLeast.count) return false;
   }
   return true;
 }

@@ -53,8 +53,15 @@ async function main() {
   }
   await page.waitForTimeout(1200);
   await shot('explore-planning');
-  await page.waitForURL(/\/course\//, { timeout: 180_000 });
-  await page.getByText(/Skill tree 2/).first().waitFor({ timeout: 60_000 });
+  await page.waitForURL(/\/course\//, { timeout: 240_000 });
+  log(`course url: ${page.url()}`);
+  try {
+    await page.getByText(/Skill tree\s*2/).first().waitFor({ timeout: 60_000 });
+  } catch (e) {
+    await shot('course-after-explore-unexpected');
+    log(`body text sample: ${(await page.locator('body').innerText()).slice(0, 400).replace(/\n+/g, ' | ')}`);
+    throw e;
+  }
   await shot('course-with-tree-2');
   await browser.close();
   log(errors.length ? `${errors.length} console/page errors:\n  ${[...new Set(errors)].join('\n  ')}` : 'no console or page errors');

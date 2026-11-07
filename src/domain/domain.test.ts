@@ -35,6 +35,10 @@ describe('isRuleSatisfied', () => {
   it('requires every present clause', () => {
     expect(isRuleSatisfied({ allOf: ['a'], anyOf: ['c', 'd'] }, completed)).toBe(false);
   });
+  it('treats empty arrays and nulls as absent clauses (models send [] for roots)', () => {
+    expect(isRuleSatisfied({ allOf: [], anyOf: [], atLeast: null }, new Set())).toBe(true);
+    expect(isRuleSatisfied({ allOf: ['a'], anyOf: [] }, completed)).toBe(true);
+  });
 });
 
 describe('deriveNodeStates / nextNode / completion', () => {
