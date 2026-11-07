@@ -16,6 +16,7 @@ import {
   isTreeComplete,
   nextNode,
   recordActivity,
+  scoreFillBlank,
   scoreMultipleChoice,
   toLocalDate,
   treeProgress,
@@ -95,6 +96,7 @@ export function recordEvent(learnerId: string, experienceId: string, req: Experi
   if (!slide) throw new repo.NotFoundError('slide');
 
   let scored: ExperienceEventResponse['scored'] = null;
+  let scoredFillBlank: ExperienceEventResponse['scoredFillBlank'] = null;
   const base = { id: randomUUID(), learnerId, courseId: experience.courseId, lessonId: experience.lessonId, experienceId, at: now };
   const priorEvents = repo.eventsForExperience(learnerId, experienceId);
 
@@ -108,6 +110,22 @@ export function recordEvent(learnerId: string, experienceId: string, req: Experi
       priorEvents.filter((e) => e.type === 'componentAnswered' && e.result.componentId === component.id).length + 1;
     const s = scoreMultipleChoice(component, req.selectedOptionId, attempt);
     scored = { correct: s.result.correct, explanation: s.explanation, correctOptionId: s.correctOptionId, attempt };
+    event = { ...base, type: 'componentAnswered', slideId: req.slideId, result: s.result };
+  } else if (req.type === 'fillBlank') {
+    const component = slide.components.find((c) => c.id === req.componentId);
+    if (!component || component.type !== 'fillBlank') throw new repo.NotFoundError('fillBlank component');
+    const attempt =
+      priorEvents.filter((e) => e.type === 'componentAnswered' && e.result.componentId === component.id).length + 1;
+    const s = scoreFillBlank(component, req.answers, attempt);
+    scoredFillBlank = {
+      correct: s.result.correct,
+      attempt,
+      gaps: s.result.answers.map((a) => ({
+        gapId: a.gapId,
+        correct: a.correct,
+        explanation: s.explanations.find((x) => x.gapId === a.gapId)?.explanation ?? '',
+      })),
+    };
     event = { ...base, type: 'componentAnswered', slideId: req.slideId, result: s.result };
   } else {
     const component = slide.components.find((c) => c.id === req.componentId);
@@ -168,6 +186,7 @@ export function recordEvent(learnerId: string, experienceId: string, req: Experi
 
   return {
     scored,
+    scoredFillBlank,
     lessonCompleted,
     treeCompleted,
     streak: repo.getStreak(learnerId),

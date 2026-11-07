@@ -187,4 +187,59 @@ describe('progress service (in-memory SQLite, no model)', () => {
     const exp = repo.findExperience(learnerId, courseId, seeded.lessonIds.get('acidity')!)!;
     expect(() => progress.recordEvent(learnerId, exp.id, { type: 'answer', slideId: 'check', componentId: 'q1', selectedOptionId: 'zz' })).toThrow();
   });
+  it('scores a fillBlank on the server: normalised match, wrong gaps explained, counts toward completion', () => {
+    const lessonId = seeded.lessonIds.get('acidity')!;
+    const exp: LearningExperienceV1 = {
+      ...experienceFor(lessonId),
+      id: randomUUID(),
+      slides: [
+        ...exampleSlides.slides,
+        {
+          id: 'gap-slide',
+          title: 'Name the clause',
+          purpose: 'practice',
+          components: [
+            {
+              id: 'fb',
+              type: 'fillBlank',
+              prompt: 'Complete the rule.',
+              text: 'A sour is ___ parts spirit to ___ part citrus.',
+              gaps: [
+                { id: 'g1', accepted: ['2', 'two'], explanation: 'Classic sours double the spirit.' },
+                { id: 'g2', accepted: ['1', 'one'], explanation: 'One part citrus keeps it bright, not sharp.' },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    repo.saveExperience(exp);
+    const wrong = progress.recordEvent(learnerId, exp.id, {
+      type: 'fillBlank',
+      slideId: 'gap-slide',
+      componentId: 'fb',
+      answers: [{ gapId: 'g1', value: '  TWO ' }, { gapId: 'g2', value: '3' }],
+    });
+    expect(wrong.scored).toBeNull();
+    expect(wrong.scoredFillBlank).toEqual({
+      correct: false,
+      attempt: 1,
+      gaps: [
+        { gapId: 'g1', correct: true, explanation: '' },
+        { gapId: 'g2', correct: false, explanation: 'One part citrus keeps it bright, not sharp.' },
+      ],
+    });
+    const right = progress.recordEvent(learnerId, exp.id, {
+      type: 'fillBlank',
+      slideId: 'gap-slide',
+      componentId: 'fb',
+      answers: [{ gapId: 'g1', value: '2' }, { gapId: 'g2', value: 'one' }],
+    });
+    expect(right.scoredFillBlank?.correct).toBe(true);
+    expect(right.scoredFillBlank?.attempt).toBe(2);
+    expect(right.view.results.find((r) => r.componentId === 'fb')?.type).toBe('fillBlank');
+    expect(() =>
+      progress.recordEvent(learnerId, exp.id, { type: 'fillBlank', slideId: 'gap-slide', componentId: 'fb', answers: [{ gapId: 'nope', value: 'x' }] }),
+    ).toThrow();
+  });
 });

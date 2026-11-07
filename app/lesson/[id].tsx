@@ -4,6 +4,7 @@ import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BASE_COMPANION, componentRole, type CompanionThemeV1, type ExperienceView, type StreakV1 } from '../../src/contracts';
 import { Companion } from '../../src/features/companion/Companion';
+import type { FillBlankFeedback } from '../../src/features/components/FillBlank';
 import type { ChoiceFeedback } from '../../src/features/components/MultipleChoice';
 import { SlideView } from '../../src/features/components/SlideView';
 import { colors, fonts } from '../../src/features/theme';
@@ -46,6 +47,7 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
   const firstUnviewed = slides.findIndex((s) => !view.viewedSlideIds.includes(s.id));
   const [index, setIndex] = useState(view.completed ? 0 : Math.max(0, firstUnviewed));
   const [feedback, setFeedback] = useState<Record<string, ChoiceFeedback | undefined>>({});
+  const [fillBlankFeedback, setFillBlankFeedback] = useState<Record<string, FillBlankFeedback | undefined>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<{ streak: StreakV1; treeCompleted: boolean } | null>(null);
@@ -111,6 +113,12 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
         setFeedback((f) => ({ ...f, [componentId]: res.scored! }));
         setAnnounce(`${res.scored.correct ? 'Correct.' : 'Not quite.'} ${res.scored.explanation}`);
       }
+      if (res.scoredFillBlank) {
+        const fb = res.scoredFillBlank;
+        setFillBlankFeedback((f) => ({ ...f, [componentId]: fb }));
+        const wrong = fb.gaps.filter((g) => !g.correct).map((g) => g.explanation).join(' ');
+        setAnnounce(fb.correct ? 'Correct.' : `Not quite. ${wrong}`);
+      }
       if (res.lessonCompleted) celebrate({ streak: res.streak, treeCompleted: res.treeCompleted });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save that');
@@ -175,6 +183,8 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
             busyComponentId: busy,
             onAnswer: (componentId, optionId) => void send(componentId, { type: 'answer', slideId: slide.id, componentId, selectedOptionId: optionId }),
             onChecklist: (componentId, checkedItemIds, confirmed) => void send(componentId, { type: 'checklist', slideId: slide.id, componentId, checkedItemIds, confirmed }),
+            fillBlankFeedback,
+            onFillBlank: (componentId, answers) => void send(componentId, { type: 'fillBlank', slideId: slide.id, componentId, answers }),
           }}
         />
         {error ? <ErrorBox message={error} /> : null}
