@@ -4,6 +4,17 @@
 
 Read `README.md`, `CONTEXT.md` (vocabulary), `docs/product.md`, `docs/architecture.md`, `docs/implementation-plan.md`, `docs/decisions/` and any nearer `AGENTS.md`. Repo documents must make the project understandable without private chat history. Use the words in `CONTEXT.md`; if you need a new concept, add it there first.
 
+## GitHub is the record (rule, 2026-11-07)
+
+Anyone, human or agent, must be able to open the GitHub repo and see what is going on without this chat. So:
+
+- **Every unit of work has an issue before it starts**: slices, fixes found in testing, QA lanes run by subagents, design changes requested by the owners. One `status:*` label per open issue; `area:*` and `priority:*` as appropriate; the milestone when it belongs to one.
+- **Findings go on issues, not in chat.** A subagent's report is posted verbatim as a comment on its lane's issue the moment it lands. Screenshot-driven bugs become issues (or checkboxes on the slice issue) with the screenshot filename.
+- **Branches have a draft PR from the first push**, linking `Closes #n`, with evidence (commands, results, SHA) kept current in the description. The PR is the observable progress bar; merge still needs an owner's say-so.
+- **Commits reference issues** (`#n`) when they resolve or advance one.
+- **Decisions get an ADR** in `docs/decisions/` when they are hard to reverse; glossary changes go in `CONTEXT.md`.
+- **Session memory is not a tracker.** If something matters past this session and is not on GitHub, it is not tracked.
+
 ## Hackathon working mode (decision 2026-11-07)
 
 Both owners drive one shared Claude Code session on Noir, which owns `src/contracts/**`. Work happens on short-lived branches per vertical slice (`agent/<name>/<n>-<slug>`), verified locally with `npm run verify` and `npm run export:all`, and merged to `main` by that session with an owner's say-so. No PR ceremony or second-account review is required during the hackathon; the local gate is the gate. Sub-agents get their own worktree and branch, one bounded task (typically one educational component), and never touch `src/contracts/**`.

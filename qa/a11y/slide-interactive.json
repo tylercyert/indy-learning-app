@@ -1,0 +1,30 @@
+{
+  "id": "a11y-interactive",
+  "title": "Quick check",
+  "purpose": "assess",
+  "components": [
+    {
+      "id": "q1",
+      "type": "multipleChoice",
+      "prompt": "A guest says their drink tastes flat and syrupy. What's the fix?",
+      "options": [
+        { "id": "a", "text": "Add more of the base spirit", "explanation": "More base adds strength, not brightness. Still syrupy." },
+        { "id": "b", "text": "Add fresh citrus juice", "explanation": "Yes. Acid is the lever that cuts sweetness." },
+        { "id": "c", "text": "A little more simple syrup", "explanation": "That's the opposite direction; sweet is already too high." },
+        { "id": "d", "text": "Shake longer with more ice", "explanation": "Dilution weakens everything but keeps the same sweet-to-sour ratio." }
+      ],
+      "correctOptionId": "b"
+    },
+    {
+      "id": "steps",
+      "type": "checklist",
+      "title": "Tonight, taste it",
+      "items": [
+        { "id": "mix", "text": "Mix 2:1:1 with cold tea as the base" },
+        { "id": "taste", "text": "Taste, then add a squeeze of lime" },
+        { "id": "notice", "text": "Notice what changed" }
+      ],
+      "confirmLabel": "I tried it"
+    }
+  ]
+}

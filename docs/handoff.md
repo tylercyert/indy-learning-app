@@ -2,11 +2,19 @@
 
 ## State on 2026-11-07
 
-Slice 1 (foundation) is on branch `agent/claude/1-foundation`: contracts, domain rules with 51 tests, SQLite schema and migration, API server skeleton with anonymous learner auth, Claude client with structured output, Expo Router shell. `npm run verify` and `npm run export:all` pass. The server was smoke-tested against a scratch database (health, learner bootstrap, bearer auth, 401/404). No screen beyond the shell exists yet; slice 2 builds the first complete loop. See `docs/implementation-plan.md`.
+Slice 1 (foundation) is merged to `main` (`41d745b`, issue #1). Slice 2 (first complete loop, issue #2) is on branch `agent/claude/2-first-loop`: intake, planning, on-demand experience generation, events with deterministic scoring and completion, and the client screens (home, intake chat, course, lesson player with all six components, celebration). `npm run verify` (62 tests) and `npm run export:all` pass.
+
+**Live end-to-end verified** with the real API via `server/scripts/smoke.ts`: goal → 3 intake questions → 5-node plan with companion → 6-slide orientation lesson (diagram, two multiple-choice checks, checklist) → wrong answers teach, right answers score → completion → streak 1 → next node unlocked. About 60 seconds wall clock. Device QA on phones is issue #9 and has not been done.
+
+Work tracking lives in GitHub Issues (#1–#12, milestone "First complete learning loop"). Update the issue when a slice lands; this document is a snapshot, not the tracker.
+
+## Structured outputs: what the live API taught us (issue #7)
+
+The API compiles output schemas to a grammar with limits: no `oneOf`, at most 24 optional and 16 union-typed properties, no `$defs` under `anyOf`, and a size cap the slide schema exceeds. `server/src/ai/output-format.ts` reshapes schemas (oneOf→anyOf, every property required, constraints stripped), and `server/src/ai/claude.ts` falls back to prompt-guided JSON when the API rejects a schema, remembering the mode per schema. Full Zod validation and one issue-fed retry run in both modes. Today planning uses grammar mode; intake and slides use prompt mode.
 
 The mockup that drives the UI is a Design artifact (link in the owners' session; ask Tyler). It shows home, intake, skill path, slides, correction, application question, celebration and the companion system.
 
-## Run on Noir
+## Run on Noir and open over Tailscale
 
 ```sh
 export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH
@@ -15,11 +23,25 @@ cd ~/projects/indy-learning-app
 n24 npm ci
 cp server/.env.example server/.env            # then set ANTHROPIC_API_KEY
 printf 'EXPO_PUBLIC_API_URL=http://%s:8787\n' "$(tailscale ip -4)" > .env.local
-n24 npm run server:dev
-n24 npm start -- --port 8081
 ```
 
-Use a unique Metro port per workspace. `ALLOW_NO_AI=1` runs the server without a key for non-generation work.
+**Stable URL for laptops and phones on the tailnet** (exported web app served by the API server, same origin):
+
+```sh
+n24 npm run serve        # expo export --platform web, then the API server on 0.0.0.0:8787
+# open http://100.75.97.3:8787 in any browser on the tailnet
+```
+
+Re-run `n24 npm run web:export` after client changes; the server picks up `dist/` on restart. All API routes live under `/api/`; the web app owns the root and deep links fall back to `index.html`.
+
+**Dev server with hot reload** (Metro advertised on the Tailscale IP, also for Expo Go):
+
+```sh
+n24 npm run start:tailscale        # Metro on :8081, QR and URLs use the tailscale IP
+# web: http://100.75.97.3:8081 · phone: scan the QR in Expo Go (SDK 58)
+```
+
+Use a unique Metro port per workspace. `ALLOW_NO_AI=1` runs the server without a key for non-generation work. If a tailnet device cannot reach :8787 or :8081, Noir's firewall is blocking the `tailscale0` interface; an admin can trust it with `sudo firewall-cmd --zone=trusted --add-interface=tailscale0 --permanent && sudo firewall-cmd --reload` (verified from Noir itself only; the firewall was not checked because that needs sudo).
 
 ## What is deliberately not configured
 

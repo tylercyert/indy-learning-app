@@ -1,0 +1,123 @@
+{
+  "id": "diagram-zigzag",
+  "title": "Diagram with eight distinct rows (height cap)",
+  "purpose": "teach",
+  "components": [
+    {
+      "id": "d",
+      "type": "diagram",
+      "title": "Zigzag chain",
+      "nodes": [
+        {
+          "id": "z1",
+          "label": "Base spirit or strong tea xx",
+          "shape": "circle",
+          "x": 0,
+          "y": 0,
+          "color": "accent"
+        },
+        {
+          "id": "z2",
+          "label": "Fresh squeezed citrus acid!!",
+          "shape": "pill",
+          "x": 100,
+          "y": 14,
+          "color": "neutral"
+        },
+        {
+          "id": "z3",
+          "label": "Simple syrup or honey water!",
+          "shape": "box",
+          "x": 0,
+          "y": 29,
+          "color": "highlight"
+        },
+        {
+          "id": "z4",
+          "label": "Dilution: ice, shake, stir..",
+          "shape": "circle",
+          "x": 100,
+          "y": 43,
+          "color": "primary"
+        },
+        {
+          "id": "z5",
+          "label": "Aromatics, bitters, herbs...",
+          "shape": "pill",
+          "x": 0,
+          "y": 57,
+          "color": "secondary"
+        },
+        {
+          "id": "z6",
+          "label": "Temperature and glassware...",
+          "shape": "box",
+          "x": 100,
+          "y": 71,
+          "color": "accent"
+        },
+        {
+          "id": "z7",
+          "label": "Garnish, salt, sugar rims...",
+          "shape": "circle",
+          "x": 0,
+          "y": 86,
+          "color": "neutral"
+        },
+        {
+          "id": "z8",
+          "label": "Supercalifragilisticexpiali!",
+          "shape": "pill",
+          "x": 100,
+          "y": 100,
+          "color": "highlight"
+        }
+      ],
+      "edges": [
+        {
+          "from": "z1",
+          "to": "z2",
+          "label": "balances against x",
+          "style": "arrow"
+        },
+        {
+          "from": "z2",
+          "to": "z3",
+          "label": "cuts sweetness fas",
+          "style": "arrow"
+        },
+        {
+          "from": "z3",
+          "to": "z4",
+          "label": "softens the acid!!",
+          "style": "arrow"
+        },
+        {
+          "from": "z4",
+          "to": "z5",
+          "label": "opens up aroma....",
+          "style": "arrow"
+        },
+        {
+          "from": "z5",
+          "to": "z6",
+          "label": "chills and dilutes",
+          "style": "arrow"
+        },
+        {
+          "from": "z6",
+          "to": "z7",
+          "label": "needs a cold glass",
+          "style": "arrow"
+        },
+        {
+          "from": "z7",
+          "to": "z8",
+          "label": "finishes the drink",
+          "style": "arrow"
+        }
+      ],
+      "altText": "Eight steps alternate left and right down the page."
+    }
+  ]
+}

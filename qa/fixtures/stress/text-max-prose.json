@@ -1,0 +1,453 @@
+{
+  "id": "text-max-prose",
+  "title": "Text block: headings, 2000-char paragraph, 60 inlines, callouts",
+  "purpose": "teach",
+  "components": [
+    {
+      "id": "body",
+      "type": "text",
+      "content": {
+        "blocks": [
+          {
+            "type": "heading",
+            "level": 1,
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "level": 2,
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "level": 3,
+            "inlines": [
+              {
+                "text": "SupercalifragilisticexpialidociousSupercalifragilisticexpial"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "Balance",
+                "marks": [
+                  "bold"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "italic"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "code"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "bold",
+                  "italic",
+                  "code"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": []
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "bold"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "italic"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "code"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "bold",
+                  "italic",
+                  "code"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": []
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "bold"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "italic"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "code"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "bold",
+                  "italic",
+                  "code"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": []
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "bold"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "italic"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "code"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "bold",
+                  "italic",
+                  "code"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": []
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "bold"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "italic"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "code"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "bold",
+                  "italic",
+                  "code"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": []
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "bold"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "italic"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "code"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "bold",
+                  "italic",
+                  "code"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": []
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "bold"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "italic"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "code"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "bold",
+                  "italic",
+                  "code"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": []
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "bold"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "italic"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "code"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "bold",
+                  "italic",
+                  "code"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": []
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "bold"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "italic"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "code"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "bold",
+                  "italic",
+                  "code"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": []
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "bold"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "italic"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "code"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "bold",
+                  "italic",
+                  "code"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": []
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "bold"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "italic"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "code"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "bold",
+                  "italic",
+                  "code"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": []
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "bold"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "italic"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": [
+                  "code"
+                ]
+              },
+              {
+                "text": "Balance",
+                "marks": [
+                  "bold",
+                  "italic",
+                  "code"
+                ]
+              },
+              {
+                "text": " Balance i ",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "type": "callout",
+            "tone": "tip",
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balancex"
+              }
+            ]
+          },
+          {
+            "type": "callout",
+            "tone": "warning",
+            "inlines": [
+              {
+                "text": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifra"
+              }
+            ]
+          },
+          {
+            "type": "callout",
+            "tone": "note",
+            "inlines": [
+              {
+                "text": "Short note."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidoc",
+                "marks": [
+                  "code"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

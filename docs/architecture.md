@@ -12,7 +12,7 @@ One npm package, two runtimes:
 
 ## Contracts
 
-`src/contracts` is owned by the shared owners' session. Every document a model returns (intake turn, course plan, slides, companion theme) is requested as structured output against a contract and validated by that same contract before anything else sees it. Every stored document carries `schemaVersion`; readers validate on load. Breaking changes get a new version and a migration.
+`src/contracts` is owned by the shared owners' session. Every document a model returns (intake turn, course plan, slides, companion theme) is requested as structured output against a contract and validated by that same contract before anything else sees it. Every stored JSON document (course, skill tree, lesson, learning experience, history event) carries `schemaVersion` and is validated on load; plain column tables (completions, streaks, intake sessions) are versioned by migration. Breaking changes get a new version and a migration.
 
 Hierarchy: Course → Skill Tree → Node → Lesson → Learning Experience → Slide → Component.
 

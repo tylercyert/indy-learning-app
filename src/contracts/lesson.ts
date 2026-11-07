@@ -44,7 +44,7 @@ export type GeneratedSlidesV1 = z.infer<typeof GeneratedSlidesV1Schema>;
 
 /**
  * LearningExperienceV1: the instructional run of a lesson for one learner in one course.
- * Generated on demand when the node becomes available; validated before storage.
+ * Generated on demand when the learner first opens the node; validated before storage.
  */
 export const LearningExperienceV1Schema = z.strictObject({
   schemaVersion: z.literal(1),

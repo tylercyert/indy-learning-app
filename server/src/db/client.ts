@@ -6,8 +6,9 @@ import path from 'node:path';
 import { env } from '../env';
 import * as schema from './schema';
 
-const dbPath = path.resolve(process.cwd(), env.DATABASE_PATH);
-fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+const inMemory = env.DATABASE_PATH === ':memory:';
+const dbPath = inMemory ? ':memory:' : path.resolve(process.cwd(), env.DATABASE_PATH);
+if (!inMemory) fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 const sqlite = new Database(dbPath);
 sqlite.pragma('journal_mode = WAL');

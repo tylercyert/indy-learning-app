@@ -1,0 +1,62 @@
+{
+  "id": "Invalid_ID With Spaces",
+  "title": "",
+  "purpose": "teach-me",
+  "components": [
+    {
+      "id": "x",
+      "type": "texts",
+      "content": "just a string"
+    },
+    {
+      "id": "y",
+      "type": "multipleChoice",
+      "prompt": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance i",
+      "options": {
+        "a": "not an array"
+      },
+      "correctOptionId": "nope",
+      "extra": true
+    },
+    {
+      "id": "y",
+      "type": "ratioBar",
+      "title": "dupe id",
+      "segments": [
+        {
+          "label": "a",
+          "parts": 0,
+          "color": "#ff0000"
+        }
+      ],
+      "altText": ""
+    },
+    {
+      "id": "z",
+      "type": "callout",
+      "speaker": "narrator",
+      "tone": "explain",
+      "content": {
+        "blocks": [
+          {
+            "type": "markdown",
+            "text": "**bold**"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w",
+      "type": "text",
+      "content": {
+        "blocks": [
+          {
+            "type": "link",
+            "label": "http link",
+            "href": "http://example.com"
+          }
+        ]
+      }
+    }
+  ]
+}

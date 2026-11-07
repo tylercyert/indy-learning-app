@@ -21,7 +21,7 @@ Expo app (iOS / iPad / Android / web)          server/ (Hono, Node 24, this repo
 
 Contracts for rich text, six components, slides, lessons, learning experiences, skill trees with `allOf` / `anyOf` / `atLeast` rules, courses, learner context, learning history, companion, intake turn and course plan. Domain rules with tests. Server skeleton: env validation, SQLite schema and migration, health, anonymous learner bootstrap, bearer auth. Claude client with structured output, validation and one issue-fed retry. Expo Router shell. `npm run verify` and `npm run export:all` pass.
 
-## Slice 2 — first complete loop
+## Slice 2 — first complete loop (server live-verified 2026-11-07; device QA pending, issue #2)
 
 Learner types a goal → intake conversation (companion asks only what it needs, max 4 questions) → course plan → orientation lesson generated → learner completes it → celebration.
 

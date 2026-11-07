@@ -1,0 +1,75 @@
+{
+  "id": "diagram-two",
+  "title": "Two-node diagram",
+  "purpose": "teach",
+  "components": [
+    {
+      "id": "d",
+      "type": "diagram",
+      "title": "",
+      "nodes": [
+        {
+          "id": "a",
+          "label": "Supercalifragilisticexpiali!",
+          "shape": "circle",
+          "x": 0,
+          "y": 50,
+          "color": "primary"
+        },
+        {
+          "id": "b",
+          "label": "Fresh squeezed citrus acid!!",
+          "shape": "pill",
+          "x": 100,
+          "y": 50,
+          "color": "accent"
+        }
+      ],
+      "edges": [
+        {
+          "from": "a",
+          "to": "b",
+          "label": "balances against x",
+          "style": "arrow"
+        },
+        {
+          "from": "b",
+          "to": "a",
+          "label": "too much = flat...",
+          "style": "dashed"
+        }
+      ],
+      "altText": "Two nodes joined by two opposite edges."
+    },
+    {
+      "id": "d2",
+      "type": "diagram",
+      "title": "Vertical pair, labelled edge too short to show?",
+      "nodes": [
+        {
+          "id": "top",
+          "label": "Top",
+          "shape": "pill",
+          "x": 50,
+          "y": 0
+        },
+        {
+          "id": "bottom",
+          "label": "Bottom",
+          "shape": "circle",
+          "x": 50,
+          "y": 100
+        }
+      ],
+      "edges": [
+        {
+          "from": "top",
+          "to": "bottom",
+          "label": "chills and dilutes",
+          "style": "arrow"
+        }
+      ],
+      "altText": "Top points to bottom."
+    }
+  ]
+}

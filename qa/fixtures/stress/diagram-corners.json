@@ -1,0 +1,105 @@
+{
+  "id": "diagram-corners",
+  "title": "Diagram with nodes at the grid corners",
+  "purpose": "teach",
+  "components": [
+    {
+      "id": "d",
+      "type": "diagram",
+      "title": "Corners",
+      "nodes": [
+        {
+          "id": "tl",
+          "label": "Base spirit or strong tea xx",
+          "shape": "box",
+          "x": 0,
+          "y": 0,
+          "color": "primary"
+        },
+        {
+          "id": "tr",
+          "label": "Fresh squeezed citrus acid!!",
+          "shape": "circle",
+          "x": 100,
+          "y": 0,
+          "color": "secondary"
+        },
+        {
+          "id": "bl",
+          "label": "Simple syrup or honey water!",
+          "shape": "pill",
+          "x": 0,
+          "y": 100,
+          "color": "accent"
+        },
+        {
+          "id": "br",
+          "label": "Dilution: ice, shake, stir..",
+          "shape": "box",
+          "x": 100,
+          "y": 100,
+          "color": "highlight"
+        },
+        {
+          "id": "c",
+          "label": "Aromatics, bitters, herbs...",
+          "shape": "circle",
+          "x": 50,
+          "y": 50,
+          "color": "neutral"
+        }
+      ],
+      "edges": [
+        {
+          "from": "tl",
+          "to": "br",
+          "label": "balances against x",
+          "style": "arrow"
+        },
+        {
+          "from": "tr",
+          "to": "bl",
+          "label": "cuts sweetness fas",
+          "style": "dashed"
+        },
+        {
+          "from": "tl",
+          "to": "tr",
+          "label": "softens the acid!!",
+          "style": "line"
+        },
+        {
+          "from": "bl",
+          "to": "br",
+          "label": "opens up aroma....",
+          "style": "arrow"
+        },
+        {
+          "from": "tl",
+          "to": "c",
+          "label": "chills and dilutes",
+          "style": "arrow"
+        },
+        {
+          "from": "c",
+          "to": "br",
+          "label": "needs a cold glass",
+          "style": "arrow"
+        },
+        {
+          "from": "tl",
+          "to": "bl",
+          "label": "finishes the drink",
+          "style": "arrow"
+        },
+        {
+          "from": "tr",
+          "to": "br",
+          "label": "supports the base.",
+          "style": "arrow"
+        }
+      ],
+      "altText": "Four corner nodes and a center node joined by every diagonal and side."
+    }
+  ]
+}

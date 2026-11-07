@@ -9,3 +9,4 @@ export * from './learner';
 export * from './course';
 export * from './history';
 export * from './generation';
+export * from './api';
