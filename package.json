@@ -49,7 +49,8 @@
     "server:dev": "tsx watch server/src/index.ts",
     "server:start": "tsx server/src/index.ts",
     "db:generate": "drizzle-kit generate --config server/drizzle.config.ts",
-    "db:studio": "drizzle-kit studio --config server/drizzle.config.ts"
+    "db:studio": "drizzle-kit studio --config server/drizzle.config.ts",
+    "linear:sync": "tsx scripts/linear/sync.ts"
   },
   "private": true,
   "engines": {
