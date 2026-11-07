@@ -20,6 +20,9 @@ export default function HomeScreen() {
   const courses = useAsync(() => api.listCourses(), []);
   const discover = useAsync(() => api.discover(), []);
   const [startingDiscovered, setStartingDiscovered] = useState<string | null>(null);
+  const [showAllDiscover, setShowAllDiscover] = useState(false);
+  /** Home stays short: three recommended courses, the rest behind one tap. */
+  const DISCOVER_PREVIEW = 3;
 
   const startDiscovered = async (courseId: string) => {
     setStartingDiscovered(courseId);
@@ -158,9 +161,9 @@ export default function HomeScreen() {
       ) : null}
       {discover.data && discover.data.courses.length > 0 ? (
         <View style={styles.section}>
-          <Eyebrow>Discover courses others built</Eyebrow>
+          <Eyebrow>Recommended for you</Eyebrow>
           <Text style={styles.empty}>Same path, your own lessons: everything is written fresh for you as you go.</Text>
-          {discover.data.courses.map((c) => (
+          {(showAllDiscover ? discover.data.courses : discover.data.courses.slice(0, DISCOVER_PREVIEW)).map((c) => (
             <View key={c.courseId} style={styles.courseCard}>
               <Companion theme={c.companion} size={56} />
               <View style={{ flex: 1, gap: 4 }}>
@@ -175,6 +178,14 @@ export default function HomeScreen() {
               </View>
             </View>
           ))}
+          {discover.data.courses.length > DISCOVER_PREVIEW ? (
+            <ChunkyButton
+              label={showAllDiscover ? 'Show fewer' : `Show ${discover.data.courses.length - DISCOVER_PREVIEW} more`}
+              variant="ghost"
+              onPress={() => setShowAllDiscover((v) => !v)}
+              accessibilityHint="Expands or collapses the list of courses others built"
+            />
+          ) : null}
         </View>
       ) : null}
       {__DEV__ ? <Text style={styles.foot}>{api.baseUrl}</Text> : null}
