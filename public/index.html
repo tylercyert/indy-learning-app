@@ -12,16 +12,17 @@
       serve.) Metro does not write a manifest from app.json, so public/manifest.json and
       public/icons/ are the manifest and icons; Expo copies public/ to the site root.
 
-      viewport-fit=cover makes the iOS safe-area insets non-zero, so the purple app bar can run under
-      the translucent status bar (apple-mobile-web-app-status-bar-style=black-translucent draws white
-      status text over whatever is beneath: our purple).
+      Status bar (#59): the standard style. iOS draws its own status bar and the app starts below it,
+      so nothing depends on reading safe-area insets in JavaScript. black-translucent with
+      viewport-fit=cover put the Poko bar under the clock on a real iPhone (insets read as 0) and
+      left a strip at the bottom of the Home Screen app.
     -->
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <title>%WEB_TITLE%</title>
     <meta name="application-name" content="Poko" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Poko" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="/manifest.json" />
@@ -47,14 +48,14 @@
       }
     </style>
     <style id="poko-shell">
-      /* The document never scrolls (the app's ScrollViews do), never rubber-bands, and any gap
-         around the app, including the iOS status-bar area before the bar paints, is purple. */
+      /* The document never scrolls (the app's ScrollViews do) and never rubber-bands. Any gap
+         around the app is the page white, never a colored strip. */
       html,
       body {
         margin: 0;
         overscroll-behavior: none;
         -webkit-text-size-adjust: 100%;
-        background: #6d28d9;
+        background: #ffffff;
         overflow-x: hidden;
       }
       /* height:100% already follows Safari's toolbar; dvh says so explicitly where supported. */
