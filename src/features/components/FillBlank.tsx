@@ -6,6 +6,7 @@ import { ChunkyButton } from '../ui/ChunkyButton';
 import { colors, fonts } from '../theme';
 
 type FillBlankComponent = Extract<ComponentV1, { type: 'fillBlank' }>;
+const NBSP = ' ';
 type Result = z.infer<typeof FillBlankResultSchema>;
 
 export interface FillBlankFeedback {
@@ -53,10 +54,11 @@ export function FillBlank({
             <Text key={i}>
               {piece}
               {gap ? (
+                // Non-breaking padding keeps the slot one unit so it never splits across a line break.
                 <Text style={[styles.slot, state && (state.correct ? styles.slotRight : styles.slotWrong)]}>
-                  {' '}
-                  {(values[gap.id] ?? '').trim() || `${i + 1}`.padStart(2, ' ').padEnd(6, ' ')}
-                  {' '}
+                  {NBSP}
+                  {(values[gap.id] ?? '').trim().replace(/ /g, NBSP) || `${NBSP}${i + 1}${NBSP.repeat(4)}`}
+                  {NBSP}
                 </Text>
               ) : null}
             </Text>
