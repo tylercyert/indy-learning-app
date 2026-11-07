@@ -1,6 +1,6 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BASE_COMPANION, componentRole, type CompanionThemeV1, type ExperienceView, type StreakV1 } from '../../src/contracts';
 import { Companion } from '../../src/features/companion/Companion';
@@ -8,6 +8,8 @@ import type { ChoiceFeedback } from '../../src/features/components/MultipleChoic
 import { SlideView } from '../../src/features/components/SlideView';
 import { colors, fonts } from '../../src/features/theme';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
+import { Confetti } from '../../src/features/ui/Confetti';
+import * as Haptics from 'expo-haptics';
 import { BackButton, CONTENT_MAX_WIDTH, ErrorBox, Loading } from '../../src/features/ui/Screen';
 import { useAsync } from '../../src/features/ui/useAsync';
 import { api, localDate } from '../../src/services/api';
@@ -48,6 +50,14 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
   const [error, setError] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<{ streak: StreakV1; treeCompleted: boolean } | null>(null);
   const [finishing, setFinishing] = useState(false);
+  /** One always-mounted polite region: screen readers hear feedback and completion reliably. */
+  const [announce, setAnnounce] = useState('');
+
+  const celebrate = (c: { streak: StreakV1; treeCompleted: boolean }) => {
+    setCelebration(c);
+    setAnnounce(c.treeCompleted ? 'Lesson complete. Skill tree finished.' : 'Lesson complete. The next lesson is unlocked.');
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+  };
   const viewedThisSession = useRef(new Set<string>());
   /** The most recent slideViewed request, so Finish can wait for the completion it may trigger. */
   const pendingView = useRef<Promise<unknown>>(Promise.resolve());
@@ -63,7 +73,7 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
       .sendEvent(view.experience.id, { type: 'slideViewed', slideId: slide.id, localDate: localDate() })
       .then((res) => {
         setView(res.view);
-        if (res.lessonCompleted) setCelebration({ streak: res.streak, treeCompleted: res.treeCompleted });
+        if (res.lessonCompleted) celebrate({ streak: res.streak, treeCompleted: res.treeCompleted });
         return res;
       })
       .catch(() => undefined);
@@ -79,7 +89,7 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
       if (latest) setView(latest);
       if (!celebration && latest?.completed) {
         const course = await api.getCourse(view.experience.courseId).catch(() => null);
-        setCelebration({ streak: course?.streak ?? { count: 0, lastActiveDate: null }, treeCompleted: course?.trees.at(-1)?.complete ?? false });
+        celebrate({ streak: course?.streak ?? { count: 0, lastActiveDate: null }, treeCompleted: course?.trees.at(-1)?.complete ?? false });
       } else if (!celebration) {
         onExit();
       }
@@ -97,8 +107,11 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
     try {
       const res = await api.sendEvent(view.experience.id, { ...event, localDate: localDate() });
       setView(res.view);
-      if (res.scored) setFeedback((f) => ({ ...f, [componentId]: res.scored! }));
-      if (res.lessonCompleted) setCelebration({ streak: res.streak, treeCompleted: res.treeCompleted });
+      if (res.scored) {
+        setFeedback((f) => ({ ...f, [componentId]: res.scored! }));
+        setAnnounce(`${res.scored.correct ? 'Correct.' : 'Not quite.'} ${res.scored.explanation}`);
+      }
+      if (res.lessonCompleted) celebrate({ streak: res.streak, treeCompleted: res.treeCompleted });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save that');
     } finally {
@@ -109,6 +122,7 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
   if (celebration && isLast && !finishing) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.purple }]}>
+        <Confetti />
         <View style={styles.celebrate}>
           <Companion theme={companion} mood="cheering" size={150} />
           <Text style={styles.celebrateEyebrow}>Lesson complete</Text>
@@ -127,6 +141,9 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
 
   return (
     <SafeAreaView style={styles.safe}>
+      <Text accessibilityLiveRegion="polite" style={styles.srOnly}>
+        {announce}
+      </Text>
       <View style={styles.header}>
         <View style={styles.headerColumn}>
           <BackButton label="Close lesson" onPress={onExit} />
@@ -187,6 +204,7 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  srOnly: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
   header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
   headerColumn: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 12 },
   progress: { flex: 1, height: 16, borderRadius: 8, backgroundColor: colors.line, overflow: 'hidden' },

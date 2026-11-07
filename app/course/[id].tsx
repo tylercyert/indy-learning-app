@@ -153,6 +153,22 @@ export default function CourseScreen() {
           </Text>
           <Text style={styles.summary}>{data.course.summary}</Text>
 
+          {data.trees.length > 1 ? (
+            <View style={styles.priorTrees} accessibilityRole="summary">
+              {data.trees.slice(0, -1).map((t) => (
+                <View key={t.tree.id} style={styles.priorTree}>
+                  <Text style={styles.priorCheck}>{t.complete ? '✓' : '•'}</Text>
+                  <Text style={styles.priorTitle} numberOfLines={1}>
+                    Skill tree {t.tree.sequence + 1} · {t.tree.title}
+                  </Text>
+                  <Text style={styles.priorProgress}>
+                    {t.progress.completed}/{t.progress.required}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
           <View style={styles.unit}>
             <View style={{ flex: 1 }}>
               <Text style={styles.unitEyebrow}>Skill tree {current.tree.sequence + 1}</Text>
@@ -336,6 +352,11 @@ const styles = StyleSheet.create({
   completeText: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.ink },
   title: { fontFamily: fonts.black, fontSize: 28, lineHeight: 33, color: colors.ink },
   summary: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 21, color: colors.muted },
+  priorTrees: { gap: 6 },
+  priorTree: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: colors.soft },
+  priorCheck: { fontFamily: fonts.black, fontSize: 14, color: colors.purple, width: 16, textAlign: 'center' },
+  priorTitle: { flex: 1, fontFamily: fonts.extraBold, fontSize: 13, color: colors.ink },
+  priorProgress: { fontFamily: fonts.black, fontSize: 13, color: colors.purple },
   unit: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, backgroundColor: colors.purple, borderBottomWidth: 6, borderBottomColor: colors.purpleDeep },
   unitEyebrow: { fontFamily: fonts.black, fontSize: 12, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.purpleTint },
   unitTitle: { fontFamily: fonts.black, fontSize: 20, color: '#FFFFFF' },

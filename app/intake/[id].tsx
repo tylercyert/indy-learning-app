@@ -85,15 +85,6 @@ export default function IntakeScreen() {
       footer={
         view && turn?.kind === 'ask' ? (
           <View style={{ gap: 10 }}>
-            {!sending ? (
-              <View style={styles.chips}>
-                {turn.suggestedAnswers.map((a) => (
-                  <Pressable key={a} testID="intake-chip" accessibilityRole="button" onPress={() => void send(a)} style={styles.chip}>
-                    <Text style={styles.chipText}>{a}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
             <View style={styles.row}>
               <TextInput
                 accessibilityLabel="Your answer"
@@ -153,6 +144,17 @@ export default function IntakeScreen() {
           </View>
         );
       })}
+
+      {/* Quick answers sit right under the question (not pinned to the footer), so the eye never travels. */}
+      {view && turn?.kind === 'ask' && !sending ? (
+        <View style={[styles.chips, { paddingLeft: 66 }]}>
+          {turn.suggestedAnswers.map((a) => (
+            <Pressable key={a} testID="intake-chip" accessibilityRole="button" onPress={() => void send(a)} style={styles.chip}>
+              <Text style={styles.chipText}>{a}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
 
       {sending ? (
         <View style={styles.companionRow}>

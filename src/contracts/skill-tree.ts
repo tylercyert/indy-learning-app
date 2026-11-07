@@ -8,10 +8,14 @@ import { EntityIdSchema, LocalIdSchema, MediumTextSchema, ShortTextSchema, asser
  *   anyOf:   at least one listed node completed
  *   atLeast: `count` of the listed nodes completed
  */
+/**
+ * Clauses may be absent, null or an EMPTY array: all three mean "no clause". Models asked for
+ * every property tend to send `[]` for a root node, and rejecting that costs a retry.
+ */
 export const ProgressionRuleV1Schema = z
   .strictObject({
-    allOf: z.array(LocalIdSchema).min(1).max(8).nullish(),
-    anyOf: z.array(LocalIdSchema).min(2).max(8).nullish(),
+    allOf: z.array(LocalIdSchema).max(8).nullish(),
+    anyOf: z.array(LocalIdSchema).max(8).nullish(),
     atLeast: z
       .strictObject({ count: z.int().min(1).max(8), of: z.array(LocalIdSchema).min(2).max(8) })
       .refine((v) => v.count <= v.of.length, { message: 'count cannot exceed the number of options' })
@@ -24,13 +28,26 @@ export const ProgressionRuleV1Schema = z
         ctx.addIssue({ code: 'custom', message: 'duplicate node id in rule', path: [key] });
       }
     }
+    if (rule.anyOf && rule.anyOf.length === 1) {
+      ctx.addIssue({ code: 'custom', message: 'anyOf with one node is just allOf; use allOf', path: ['anyOf'] });
+    }
   });
 export type ProgressionRuleV1 = z.infer<typeof ProgressionRuleV1Schema>;
 
 export const EMPTY_RULE: ProgressionRuleV1 = {};
 
+/** The clauses that actually constrain: empty arrays and nulls are dropped. */
+export function activeClauses(rule: ProgressionRuleV1): { allOf?: string[]; anyOf?: string[]; atLeast?: { count: number; of: string[] } } {
+  const out: { allOf?: string[]; anyOf?: string[]; atLeast?: { count: number; of: string[] } } = {};
+  if (rule.allOf && rule.allOf.length > 0) out.allOf = rule.allOf;
+  if (rule.anyOf && rule.anyOf.length > 0) out.anyOf = rule.anyOf;
+  if (rule.atLeast) out.atLeast = rule.atLeast;
+  return out;
+}
+
 export function ruleReferences(rule: ProgressionRuleV1): string[] {
-  return [...(rule.allOf ?? []), ...(rule.anyOf ?? []), ...(rule.atLeast?.of ?? [])];
+  const c = activeClauses(rule);
+  return [...(c.allOf ?? []), ...(c.anyOf ?? []), ...(c.atLeast?.of ?? [])];
 }
 
 /** How a node is used in this tree. Display and planning only; progression comes from `rule`. */
