@@ -1,6 +1,6 @@
 {
   "id": "diagram-zigzag",
-  "title": "Diagram with eight distinct rows (height cap)",
+  "title": "Zigzag chain over three rows (height cap)",
   "purpose": "teach",
   "components": [
     {
@@ -10,7 +10,7 @@
       "nodes": [
         {
           "id": "z1",
-          "label": "Base spirit or strong tea xx",
+          "label": "Supercalifragi listicexpial!",
           "shape": "circle",
           "x": 0,
           "y": 0,
@@ -21,7 +21,7 @@
           "label": "Fresh squeezed citrus acid!!",
           "shape": "pill",
           "x": 100,
-          "y": 14,
+          "y": 0,
           "color": "neutral"
         },
         {
@@ -29,7 +29,7 @@
           "label": "Simple syrup or honey water!",
           "shape": "box",
           "x": 0,
-          "y": 29,
+          "y": 50,
           "color": "highlight"
         },
         {
@@ -37,7 +37,7 @@
           "label": "Dilution: ice, shake, stir..",
           "shape": "circle",
           "x": 100,
-          "y": 43,
+          "y": 50,
           "color": "primary"
         },
         {
@@ -45,7 +45,7 @@
           "label": "Aromatics, bitters, herbs...",
           "shape": "pill",
           "x": 0,
-          "y": 57,
+          "y": 100,
           "color": "secondary"
         },
         {
@@ -53,24 +53,8 @@
           "label": "Temperature and glassware...",
           "shape": "box",
           "x": 100,
-          "y": 71,
-          "color": "accent"
-        },
-        {
-          "id": "z7",
-          "label": "Garnish, salt, sugar rims...",
-          "shape": "circle",
-          "x": 0,
-          "y": 86,
-          "color": "neutral"
-        },
-        {
-          "id": "z8",
-          "label": "Supercalifragilisticexpiali!",
-          "shape": "pill",
-          "x": 100,
           "y": 100,
-          "color": "highlight"
+          "color": "accent"
         }
       ],
       "edges": [
@@ -101,23 +85,29 @@
         {
           "from": "z5",
           "to": "z6",
-          "label": "chills and dilutes",
+          "label": "",
           "style": "arrow"
         },
         {
-          "from": "z6",
-          "to": "z7",
-          "label": "needs a cold glass",
-          "style": "arrow"
+          "from": "z1",
+          "to": "z3",
+          "label": "",
+          "style": "dashed"
         },
         {
-          "from": "z7",
-          "to": "z8",
-          "label": "finishes the drink",
-          "style": "arrow"
+          "from": "z2",
+          "to": "z4",
+          "label": "",
+          "style": "dashed"
+        },
+        {
+          "from": "z4",
+          "to": "z6",
+          "label": "",
+          "style": "line"
         }
       ],
-      "altText": "Eight steps alternate left and right down the page."
+      "altText": "Six steps alternate left and right down the page; four edges carry labels."
     }
   ]
 }

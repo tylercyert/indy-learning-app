@@ -1,6 +1,6 @@
 {
-  "id": "title-120",
-  "title": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilist",
+  "id": "title-60",
+  "title": "SupercalifragilisticexpialidociousSupercalifragilisticexpial",
   "purpose": "orient",
   "components": [
     {
@@ -22,14 +22,14 @@
     {
       "id": "c",
       "type": "checklist",
-      "title": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilist",
+      "title": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifra",
       "items": [
         {
           "id": "one",
           "text": "One short item"
         }
       ],
-      "confirmLabel": "Supercalifragilisticexpialidoc"
+      "confirmLabel": "Supercalifragilisticex"
     }
   ]
 }

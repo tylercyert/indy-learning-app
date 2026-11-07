@@ -1,6 +1,6 @@
 {
   "id": "diagram-two",
-  "title": "Two-node diagram",
+  "title": "Two-node diagrams: horizontal, vertical, diagonal",
   "purpose": "teach",
   "components": [
     {
@@ -10,7 +10,7 @@
       "nodes": [
         {
           "id": "a",
-          "label": "Supercalifragilisticexpiali!",
+          "label": "Supercalifragi listicexpial!",
           "shape": "circle",
           "x": 0,
           "y": 50,
@@ -31,20 +31,14 @@
           "to": "b",
           "label": "balances against x",
           "style": "arrow"
-        },
-        {
-          "from": "b",
-          "to": "a",
-          "label": "too much = flat...",
-          "style": "dashed"
         }
       ],
-      "altText": "Two nodes joined by two opposite edges."
+      "altText": "Two nodes joined by one labeled edge."
     },
     {
       "id": "d2",
       "type": "diagram",
-      "title": "Vertical pair, labelled edge too short to show?",
+      "title": "Vertical pair: the labeled edge is short",
       "nodes": [
         {
           "id": "top",
@@ -70,6 +64,38 @@
         }
       ],
       "altText": "Top points to bottom."
+    },
+    {
+      "id": "d3",
+      "type": "diagram",
+      "title": "Balance is the whole game: base gives body, acid brightens,x",
+      "nodes": [
+        {
+          "id": "tl",
+          "label": "Simple syrup or honey water!",
+          "shape": "box",
+          "x": 0,
+          "y": 0,
+          "color": "highlight"
+        },
+        {
+          "id": "br",
+          "label": "Dilution: ice, shake, stir..",
+          "shape": "box",
+          "x": 100,
+          "y": 100,
+          "color": "neutral"
+        }
+      ],
+      "edges": [
+        {
+          "from": "tl",
+          "to": "br",
+          "label": "",
+          "style": "line"
+        }
+      ],
+      "altText": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and d"
     }
   ]
 }

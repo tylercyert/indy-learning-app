@@ -1,24 +1,31 @@
 {
   "id": "floor-counts",
-  "title": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx",
+  "title": "Balance is the whole game: base gives body, acid brightens,x",
   "purpose": "teach",
   "components": [
     {
       "id": "d",
       "type": "diagram",
-      "title": "One node",
+      "title": "Two nodes, no edges",
       "nodes": [
         {
-          "id": "only",
-          "label": "Temperature and glassware...",
+          "id": "a",
+          "label": "A",
           "shape": "pill",
           "x": 100,
           "y": 100,
           "color": "secondary"
+        },
+        {
+          "id": "b",
+          "label": "B",
+          "shape": "box",
+          "x": 0,
+          "y": 100
         }
       ],
       "edges": [],
-      "altText": "A single node in the bottom-right corner."
+      "altText": "Two unconnected nodes."
     },
     {
       "id": "r",
@@ -37,6 +44,34 @@
         }
       ],
       "altText": "One to one."
+    },
+    {
+      "id": "t",
+      "type": "text",
+      "content": {
+        "blocks": [
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c",
+      "type": "checklist",
+      "title": "T",
+      "items": [
+        {
+          "id": "one",
+          "text": "x"
+        }
+      ],
+      "confirmLabel": "Ok"
     },
     {
       "id": "q",
