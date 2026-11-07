@@ -58,7 +58,30 @@ export const RatioBarComponentSchema = z
     if (labels.size !== value.segments.length) {
       ctx.addIssue({ code: 'custom', message: 'segment labels must be unique', path: ['segments'] });
     }
+    const parts = value.segments.map((s) => s.parts);
+    const total = parts.reduce((a, b) => a + b, 0);
+    const divisor = parts.reduce(gcd);
+    if (divisor > 1) {
+      ctx.addIssue({ code: 'custom', message: `parts must be in lowest terms: divide every segment's parts by ${divisor}`, path: ['segments'] });
+    }
+    if (total > RATIO_MAX_TOTAL_PARTS) {
+      ctx.addIssue({ code: 'custom', message: `total parts must be ≤ ${RATIO_MAX_TOTAL_PARTS} (got ${total}); use the recipe's own small whole numbers`, path: ['segments'] });
+    }
+    if (Math.max(...parts) > RATIO_MAX_SPREAD * Math.min(...parts)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `the largest segment must be at most ${RATIO_MAX_SPREAD}× the smallest; a trace amount (a squeeze, dash, pinch, garnish) is not a segment, mention it in the title or text instead`,
+        path: ['segments'],
+      });
+    }
   });
+
+/** A ratio bar shows a few comparable parts; these keep "4 : 9 : 1" (a squeeze of lime as 1/14) out. */
+export const RATIO_MAX_TOTAL_PARTS = 16;
+export const RATIO_MAX_SPREAD = 6;
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
+}
 
 /**
  * Minimum separation between diagram nodes on the 0-100 grid. The renderer lays nodes out
@@ -232,7 +255,7 @@ export const COMPONENT_MANIFESTS: Readonly<Record<ComponentType, ComponentManife
   ratioBar: {
     type: 'ratioBar',
     role: 'presentational',
-    whenToUse: 'Show proportions between 2-6 parts of a whole (recipes, budgets, time splits).',
+    whenToUse: 'Show proportions between 2-6 comparable parts of a whole (recipes, budgets, time splits), in lowest terms; trace amounts are not segments.',
   },
   diagram: {
     type: 'diagram',

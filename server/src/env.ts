@@ -11,6 +11,8 @@ const EnvSchema = z.object({
   DATABASE_PATH: z.string().min(1).default('./data/indy.sqlite'),
   /** Set to "1" to boot without a key for schema/migration work. Generation routes then return 503. */
   ALLOW_NO_AI: z.enum(['0', '1']).default('0'),
+  /** Anthropic fast mode (research preview, Opus 5.5): ~2.5x output speed at 2x price. "0" to disable. */
+  ANTHROPIC_FAST_MODE: z.enum(['0', '1']).default('1'),
 });
 
 const parsed = EnvSchema.safeParse({

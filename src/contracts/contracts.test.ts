@@ -64,6 +64,19 @@ describe('components', () => {
     const bad = { ...bar, segments: [{ ...bar.segments[0], color: '#FF0000' }, bar.segments[1]] };
     expect(ComponentV1Schema.safeParse(bad).success).toBe(false);
   });
+  it('keeps ratio bars to comparable parts in lowest terms', () => {
+    const bar = exampleSlides.slides[0]!.components[2] as any;
+    const withParts = (parts: number[]) => ({
+      ...bar,
+      segments: parts.map((p, i) => ({ label: `part ${i}`, parts: p, color: 'primary' })),
+    });
+    const issues = (parts: number[]) => ComponentV1Schema.safeParse(withParts(parts)).error?.issues.map((i) => i.message).join(' ') ?? '';
+    expect(ComponentV1Schema.safeParse(withParts([2, 1, 1])).success).toBe(true);
+    expect(ComponentV1Schema.safeParse(withParts([8, 4, 3])).success).toBe(true); // 2 oz, 1 oz, 3/4 oz
+    expect(issues([8, 4, 4])).toMatch(/lowest terms: divide every segment's parts by 4/);
+    expect(issues([4, 9, 1])).toMatch(/trace amount/); // a squeeze of lime as 1/14
+    expect(issues([10, 7, 1])).toMatch(/total parts must be ≤ 16/);
+  });
   it('allows at most one assessable component per slide', () => {
     const slide = exampleSlides.slides[1]!;
     const two = { ...slide, components: [slide.components[0], { ...slide.components[0], id: 'q2' }] };
