@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ComponentRef, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,17 +6,49 @@ import { colors, fonts } from '../theme';
 import { BeakerLoader } from './BeakerLoader';
 import { ChunkyButton } from './ChunkyButton';
 
-export function Screen({ children, scroll = true, footer }: { children: ReactNode; scroll?: boolean; footer?: ReactNode }) {
+/**
+ * Reading surfaces live in one centered column so tablets and desktops keep a readable measure
+ * (about 70–80 characters) instead of stretching edge to edge. Backgrounds stay full-bleed.
+ */
+export const CONTENT_MAX_WIDTH = 680;
+
+export function Column({ children, style }: { children: ReactNode; style?: object }) {
+  return <View style={[styles.column, style]}>{children}</View>;
+}
+
+export function Screen({
+  children,
+  scroll = true,
+  footer,
+  scrollToEndKey,
+}: {
+  children: ReactNode;
+  scroll?: boolean;
+  footer?: ReactNode;
+  /** When this value changes, the scroll view scrolls to its end (chat-style screens). */
+  scrollToEndKey?: unknown;
+}) {
+  const ref = useRef<ComponentRef<typeof ScrollView>>(null);
+  useEffect(() => {
+    if (scrollToEndKey === undefined) return;
+    const t = setTimeout(() => ref.current?.scrollToEnd({ animated: true }), 50);
+    return () => clearTimeout(t);
+  }, [scrollToEndKey]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
       {scroll ? (
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          {children}
+        <ScrollView ref={ref} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Column>{children}</Column>
         </ScrollView>
       ) : (
-        <View style={[styles.content, { flex: 1 }]}>{children}</View>
+        <Column style={{ flex: 1 }}>{children}</Column>
       )}
-      {footer ? <View style={styles.footer}>{footer}</View> : null}
+      {footer ? (
+        <View style={styles.footer}>
+          <View style={styles.footerColumn}>{footer}</View>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -67,8 +99,10 @@ export function Title({ children }: { children: string }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: 20, gap: 18, paddingBottom: 32 },
-  footer: { padding: 20, paddingTop: 10, gap: 10, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.bg },
+  scroll: { flexGrow: 1 },
+  column: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', padding: 20, paddingBottom: 32, gap: 18 },
+  footer: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.bg },
+  footerColumn: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', padding: 20, paddingTop: 10, gap: 10 },
   back: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' },
   backText: { fontFamily: fonts.black, fontSize: 28, lineHeight: 32, color: colors.ink, marginTop: -4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 },

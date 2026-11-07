@@ -68,9 +68,9 @@ export default function CourseScreen() {
       {data && current ? (
         <>
           <View style={styles.hero}>
-            <Companion theme={data.course.companion} mood={current.complete ? 'cheering' : nextReady ? 'happy' : 'thinking'} size={88} />
+            <Companion theme={data.course.companion} mood={current.complete ? 'cheering' : nextReady ? 'happy' : 'thinking'} size={72} />
             <View style={{ flex: 1, gap: 6 }}>
-              <Eyebrow color={colors.coralDeep}>{`${data.course.companion.name} says`}</Eyebrow>
+              <Eyebrow color={colors.coralDeep}>{`${data.course.companion.name} · your guide, picked by Pip`}</Eyebrow>
               <Text style={styles.greeting} accessibilityLiveRegion="polite">
                 {companionLine()}
               </Text>
@@ -104,20 +104,20 @@ export default function CourseScreen() {
 
 const ROW_H = 116;
 const R = 38;
-/** Horizontal positions (fraction of width) for the winding path: center, left, center, right… */
+/** The path winds inside a fixed-width lane so it reads the same on a phone and a laptop. */
+const LANE_MAX = 520;
+/** Horizontal positions (fraction of lane) for the winding path: center, left, center, right… */
 const COLS = [0.5, 0.24, 0.5, 0.76];
 
 function SkillPath({ tree, disabled, onOpen }: { tree: TreeView; disabled: boolean; onOpen: (nodeId: string) => void }) {
   const [width, setWidth] = useState(0);
   const nodes = tree.tree.nodes;
-  const center = (i: number) => ({ cx: COLS[i % COLS.length]! * width, cy: i * ROW_H + R + 10 });
+  const lane = Math.min(width, LANE_MAX);
+  const offset = (width - lane) / 2;
+  const center = (i: number) => ({ cx: offset + COLS[i % COLS.length]! * lane, cy: i * ROW_H + R + 10 });
 
   return (
-    <View
-      style={{ height: nodes.length * ROW_H + 20, width: '100%' }}
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      accessibilityRole="list"
-    >
+    <View style={{ height: nodes.length * ROW_H + 20, width: '100%' }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       {width > 0 &&
         nodes.slice(1).map((_, i) => {
           const a = center(i);
@@ -147,7 +147,7 @@ function SkillPath({ tree, disabled, onOpen }: { tree: TreeView; disabled: boole
             cx={center(i).cx}
             cy={center(i).cy}
             labelSide={COLS[i % COLS.length]! > 0.5 ? 'left' : 'right'}
-            width={width}
+            width={lane}
             state={tree.nodeStates[node.id] ?? 'locked'}
             isNext={tree.nextNodeId === node.id}
             ready={tree.readyNodeIds.includes(node.id)}
@@ -191,17 +191,21 @@ function PathNode({
   const readiness = done || locked ? '' : ready ? 'Ready to open.' : generating ? 'Being written now.' : 'Will be written when opened.';
   const fill = done ? colors.purple : isNext ? colors.yellow : locked ? colors.line : colors.mint;
   const shadow = done ? colors.purpleDeep : isNext ? colors.yellowDeep : locked ? '#D6D0E8' : colors.mintDeep;
-  const labelW = Math.min(170, width / 2 - R - 24);
+  const labelW = Math.min(190, width / 2 - R - 24);
   const labelLeft = labelSide === 'right' ? cx + R + 12 : cx - R - 12 - labelW;
-  const tag = done || locked ? null : ready ? 'Ready' : generating ? 'Writing…' : 'Tap to write';
+  // Text aligns toward the circle: left-aligned when the label sits to the right of it, and vice versa.
+  const textAlign = labelSide === 'right' ? 'left' : 'right';
+  // Only the next node advertises generation progress; other available nodes just say Ready when they are.
+  const tag = done || locked ? null : ready ? 'Ready' : isNext && generating ? 'Writing…' : isNext ? 'Tap to write' : null;
+  const meta = done ? 'Done' : node.kind === 'orientation' ? 'Start here' : node.required ? 'Core' : 'Optional';
 
   return (
     <>
       {isNext ? <View aria-hidden style={[styles.ring, { left: cx - R - 7, top: cy - R - 7 }]} /> : null}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${node.title}. ${statusWord} ${node.required ? '' : 'Optional branch.'} ${readiness}`}
-        accessibilityState={{ disabled: locked || disabled }}
+        accessibilityLabel={`${node.title}. ${statusWord} ${meta}. ${readiness}`}
+        aria-disabled={locked || disabled}
         disabled={locked || disabled}
         onPress={onPress}
         style={[styles.circle, { left: cx - R, top: cy - R, backgroundColor: fill, borderBottomColor: shadow }, !node.required && styles.circleOptional, locked && styles.circleLocked]}
@@ -209,10 +213,10 @@ function PathNode({
         <Text style={[styles.circleIcon, done && { color: '#FFFFFF' }]}>{done ? '✓' : locked ? '🔒' : isNext ? '★' : '•'}</Text>
       </Pressable>
       <View aria-hidden style={[styles.label, { left: labelLeft, width: labelW, top: cy - 36, alignItems: labelSide === 'right' ? 'flex-start' : 'flex-end' }]}>
-        <Text style={[styles.labelTitle, locked && { color: colors.muted }, { textAlign: labelSide }]}>{node.title}</Text>
-        <Text style={[styles.labelMeta, { textAlign: labelSide }]}>
+        <Text style={[styles.labelTitle, locked && { color: colors.muted }, { textAlign, width: '100%' }]}>{node.title}</Text>
+        <Text style={[styles.labelMeta, { textAlign, width: '100%' }]}>
           {isNext ? 'UP NEXT · ' : ''}
-          {node.kind === 'orientation' ? 'Start here' : node.required ? 'Core' : 'Optional'}
+          {meta}
         </Text>
         {tag ? (
           <View style={[styles.tag, ready ? styles.tagReady : generating ? styles.tagWriting : styles.tagIdle]}>
@@ -249,5 +253,5 @@ const styles = StyleSheet.create({
   tagReady: { backgroundColor: colors.mintTint },
   tagWriting: { backgroundColor: colors.yellowTint },
   tagIdle: { backgroundColor: colors.soft },
-  tagText: { fontFamily: fonts.black, fontSize: 10, letterSpacing: 0.4, color: colors.muted },
+  tagText: { fontFamily: fonts.black, fontSize: 10, letterSpacing: 0.4, color: '#5B5370' },
 });

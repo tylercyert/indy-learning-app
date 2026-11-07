@@ -1,0 +1,173 @@
+{
+  "id": "mixed-five",
+  "title": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx",
+  "purpose": "practice",
+  "components": [
+    {
+      "id": "c1",
+      "type": "callout",
+      "speaker": "companion",
+      "tone": "celebrate",
+      "content": {
+        "blocks": [
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Bala"
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "items": [
+              [
+                {
+                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the"
+                }
+              ],
+              [
+                {
+                  "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c2",
+      "type": "text",
+      "content": {
+        "blocks": [
+          {
+            "type": "heading",
+            "level": 2,
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution open"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c3",
+      "type": "ratioBar",
+      "title": "Five segments including two singletons",
+      "segments": [
+        {
+          "label": "Base",
+          "parts": 4,
+          "color": "primary"
+        },
+        {
+          "label": "Sour",
+          "parts": 1,
+          "color": "accent"
+        },
+        {
+          "label": "Sweet",
+          "parts": 1,
+          "color": "secondary"
+        },
+        {
+          "label": "Dilution water",
+          "parts": 5,
+          "color": "neutral"
+        },
+        {
+          "label": "Bitters",
+          "parts": 2,
+          "color": "highlight"
+        }
+      ],
+      "altText": "Four parts base, one sour, one sweet, five dilution, two bitters."
+    },
+    {
+      "id": "c4",
+      "type": "diagram",
+      "title": "Cycle",
+      "nodes": [
+        {
+          "id": "a",
+          "label": "Taste",
+          "shape": "circle",
+          "x": 50,
+          "y": 0,
+          "color": "primary"
+        },
+        {
+          "id": "b",
+          "label": "Adjust one lever",
+          "shape": "pill",
+          "x": 100,
+          "y": 100,
+          "color": "accent"
+        },
+        {
+          "id": "c",
+          "label": "Taste again",
+          "shape": "box",
+          "x": 0,
+          "y": 100,
+          "color": "highlight"
+        }
+      ],
+      "edges": [
+        {
+          "from": "a",
+          "to": "b",
+          "label": "too sweet?",
+          "style": "arrow"
+        },
+        {
+          "from": "b",
+          "to": "c",
+          "label": "stir",
+          "style": "arrow"
+        },
+        {
+          "from": "c",
+          "to": "a",
+          "label": "repeat",
+          "style": "dashed"
+        }
+      ],
+      "altText": "Taste, adjust one lever, taste again, repeat."
+    },
+    {
+      "id": "c5",
+      "type": "multipleChoice",
+      "prompt": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid bri",
+      "options": [
+        {
+          "id": "a",
+          "text": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and",
+          "explanation": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and d"
+        },
+        {
+          "id": "b",
+          "text": "Balance is the whole game: base gives body, acid brightens,x",
+          "explanation": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and d"
+        },
+        {
+          "id": "c",
+          "text": "Balance is the whole game: bas",
+          "explanation": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything up so the flavors can breathe. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and d"
+        }
+      ],
+      "correctOptionId": "b"
+    }
+  ]
+}

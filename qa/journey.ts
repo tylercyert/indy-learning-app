@@ -44,7 +44,7 @@ async function answerSlide(page: Page): Promise<'answered' | 'none'> {
     const check = page.getByRole('button', { name: /^check( again)?$/i });
     if ((await check.count()) === 0) return 'answered';
     await check.first().click();
-    await page.getByText(/Nice!|Close!/).first().waitFor({ timeout: 20_000 });
+    await page.getByText(/Nice!|Not quite/).first().waitFor({ timeout: 20_000 });
     await shot(page, `lesson-feedback-${i + 1}`);
     if ((await page.getByText('Nice!').count()) > 0) return 'answered';
   }

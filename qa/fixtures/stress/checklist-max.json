@@ -1,0 +1,47 @@
+{
+  "id": "checklist-max",
+  "title": "Checklist at maximum bounds",
+  "purpose": "wrapUp",
+  "components": [
+    {
+      "id": "steps",
+      "type": "checklist",
+      "title": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx",
+      "items": [
+        {
+          "id": "s1",
+          "text": "1. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everythingx"
+        },
+        {
+          "id": "s2",
+          "text": "2. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everythingx"
+        },
+        {
+          "id": "s3",
+          "text": "3. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everythingx"
+        },
+        {
+          "id": "s4",
+          "text": "4. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everythingx"
+        },
+        {
+          "id": "s5",
+          "text": "5. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everythingx"
+        },
+        {
+          "id": "s6",
+          "text": "6. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everythingx"
+        },
+        {
+          "id": "s7",
+          "text": "7. Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everythingx"
+        },
+        {
+          "id": "s8",
+          "text": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilist"
+        }
+      ],
+      "confirmLabel": "I did every one of these steps"
+    }
+  ]
+}

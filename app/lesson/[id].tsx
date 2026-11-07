@@ -8,7 +8,7 @@ import type { ChoiceFeedback } from '../../src/features/components/MultipleChoic
 import { SlideView } from '../../src/features/components/SlideView';
 import { colors, fonts } from '../../src/features/theme';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
-import { BackButton, ErrorBox, Loading } from '../../src/features/ui/Screen';
+import { BackButton, CONTENT_MAX_WIDTH, ErrorBox, Loading } from '../../src/features/ui/Screen';
 import { useAsync } from '../../src/features/ui/useAsync';
 import { api, localDate } from '../../src/services/api';
 
@@ -119,9 +119,7 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
           <View style={styles.streakPill}>
             <Text style={styles.streakPillText}>🔥 {celebration.streak.count}-day streak</Text>
           </View>
-        </View>
-        <View style={styles.footer}>
-          <ChunkyButton label="Continue" onPress={onExit} style={{ flex: 1 }} />
+          <ChunkyButton label="Continue" onPress={onExit} style={{ width: '100%', maxWidth: 420, marginTop: 24 }} />
         </View>
       </SafeAreaView>
     );
@@ -130,16 +128,27 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <BackButton label="Close lesson" onPress={onExit} />
-        <View style={styles.progress} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: slides.length, now: index + 1 }}>
-          <View style={[styles.progressFill, { width: `${((index + 1) / slides.length) * 100}%` }]} />
+        <View style={styles.headerColumn}>
+          <BackButton label="Close lesson" onPress={onExit} />
+          <View
+            style={styles.progress}
+            accessibilityRole="progressbar"
+            aria-label="Lesson progress"
+            aria-valuemin={0}
+            aria-valuemax={slides.length}
+            aria-valuenow={index + 1}
+            aria-valuetext={`Slide ${index + 1} of ${slides.length}`}
+          >
+            <View style={[styles.progressFill, { width: `${((index + 1) / slides.length) * 100}%` }]} />
+          </View>
+          <Text style={styles.count} aria-hidden>
+            {index + 1}/{slides.length}
+          </Text>
         </View>
-        <Text style={styles.count}>
-          {index + 1}/{slides.length}
-        </Text>
       </View>
       {/* Keyed per slide so each slide opens scrolled to the top. */}
-      <ScrollView key={slide.id} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView key={slide.id} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <View style={styles.content}>
         <SlideView
           slide={slide}
           companion={companion}
@@ -152,17 +161,25 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
           }}
         />
         {error ? <ErrorBox message={error} /> : null}
+        </View>
       </ScrollView>
       <View style={styles.footer}>
-        {index > 0 ? <ChunkyButton label="Back" variant="ghost" onPress={() => setIndex((i) => i - 1)} style={{ width: 90 }} /> : <View style={{ width: 90 }} />}
-        <ChunkyButton
-          label={isLast ? 'Finish' : 'Continue'}
-          onPress={() => (isLast ? void finish() : setIndex((i) => i + 1))}
-          disabled={!answeredOnSlide}
-          loading={finishing}
-          style={{ flex: 1 }}
-          accessibilityHint={answeredOnSlide ? undefined : 'Answer the question on this slide first'}
-        />
+        <View style={styles.footerColumn}>
+          {index > 0 ? <ChunkyButton label="Back" variant="ghost" onPress={() => setIndex((i) => i - 1)} style={{ width: 90 }} /> : <View style={{ width: 90 }} />}
+          {answeredOnSlide ? (
+            <ChunkyButton
+              label={isLast ? 'Finish' : 'Continue'}
+              onPress={() => (isLast ? void finish() : setIndex((i) => i + 1))}
+              loading={finishing}
+              style={{ flex: 1 }}
+            />
+          ) : (
+            // One call to action at a time: the Check button inside the slide is the primary until answered.
+            <Text style={styles.footerHint} accessibilityLiveRegion="polite">
+              Answer the question to continue
+            </Text>
+          )}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -170,13 +187,17 @@ function Player({ initial, companion, onExit }: { initial: ExperienceView; compa
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, paddingBottom: 8 },
+  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+  headerColumn: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 12 },
   progress: { flex: 1, height: 16, borderRadius: 8, backgroundColor: colors.line, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: colors.yellow, borderRadius: 8 },
-  count: { fontFamily: fonts.black, fontSize: 13, color: colors.muted, width: 44, textAlign: 'right' },
-  content: { padding: 20, gap: 18, paddingBottom: 40 },
-  footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.bg },
-  celebrate: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 28 },
+  count: { fontFamily: fonts.black, fontSize: 13, color: colors.muted, minWidth: 44, textAlign: 'right' },
+  scroll: { flexGrow: 1 },
+  content: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', padding: 20, gap: 18, paddingBottom: 40 },
+  footer: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.bg },
+  footerColumn: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16 },
+  footerHint: { flex: 1, textAlign: 'center', fontFamily: fonts.extraBold, fontSize: 14, color: colors.muted },
+  celebrate: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 28, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   celebrateEyebrow: { fontFamily: fonts.black, fontSize: 13, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.purpleTint },
   celebrateTitle: { fontFamily: fonts.black, fontSize: 36, color: '#FFFFFF', textAlign: 'center' },
   celebrateText: { fontFamily: fonts.extraBold, fontSize: 16, lineHeight: 23, color: '#EDE9FE', textAlign: 'center', maxWidth: 320 },

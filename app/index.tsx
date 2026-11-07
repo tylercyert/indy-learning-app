@@ -54,12 +54,14 @@ export default function HomeScreen() {
         </View>
         <TextInput
           accessibilityLabel="What do you want to learn?"
-          placeholder="e.g. make great cocktails for Saturday"
-          placeholderTextColor="#9B94B3"
+          placeholder="e.g. make great cocktails for a party"
+          placeholderTextColor="#7E76A0"
           value={goal}
           onChangeText={setGoal}
           onSubmitEditing={() => void start(goal)}
           returnKeyType="go"
+          blurOnSubmit
+          multiline
           style={styles.input}
           editable={!starting}
         />
@@ -101,7 +103,7 @@ export default function HomeScreen() {
           </Pressable>
         ))}
       </View>
-      <Text style={styles.foot}>{api.baseUrl}</Text>
+      {__DEV__ ? <Text style={styles.foot}>{api.baseUrl}</Text> : null}
     </Screen>
   );
 }
@@ -115,9 +117,9 @@ const styles = StyleSheet.create({
   speech: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   bubble: { flex: 1, backgroundColor: colors.bg, padding: 14, borderRadius: 20, borderBottomLeftRadius: 6 },
   bubbleText: { fontFamily: fonts.extraBold, fontSize: 17, lineHeight: 23, color: colors.ink },
-  input: { minHeight: 56, borderWidth: 3, borderColor: '#C4B5FD', borderRadius: 18, paddingHorizontal: 16, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
+  input: { minHeight: 56, maxHeight: 120, borderWidth: 3, borderColor: '#C4B5FD', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, lineHeight: 22, color: colors.ink, textAlignVertical: 'top' },
   examples: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  example: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.bg, borderWidth: 2, borderColor: colors.line },
+  example: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.bg, borderWidth: 2, borderColor: colors.line, flexShrink: 1, maxWidth: '100%' },
   exampleText: { fontFamily: fonts.extraBold, fontSize: 13, color: colors.purple },
   section: { gap: 12 },
   empty: { fontFamily: fonts.bold, fontSize: 15, color: colors.muted },

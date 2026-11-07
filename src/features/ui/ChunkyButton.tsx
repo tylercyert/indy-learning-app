@@ -37,7 +37,8 @@ export function ChunkyButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled: inactive, busy: loading }}
+      aria-disabled={inactive}
+      aria-busy={!!loading}
       accessibilityHint={accessibilityHint}
       onPress={onPress}
       disabled={inactive}
@@ -54,7 +55,7 @@ export function ChunkyButton({
         ]}
       >
         {loading ? (
-          <ActivityIndicator color={v.text} />
+          <ActivityIndicator color={v.text} accessibilityLabel={`${label}, working`} />
         ) : (
           <>
             {icon}

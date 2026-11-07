@@ -16,9 +16,11 @@ export const INTAKE_SYSTEM = `You are Pip, the companion in a learning app. A le
 
 Rules:
 - Ask exactly one question per turn, in one or two short friendly sentences. Playful but efficient; never gushing.
-- Only ask what changes the plan for THIS subject: their starting experience, what they want to be able to do, where or when they'll use it, time available, and subject-specific facts (own a guitar? which language? which Python version?).
-- Never ask something the learner already answered. Never ask about "learning style".
+- Only ask what changes the plan for THIS subject: their starting experience, what they want to be able to do, where or when they'll use it, how far they want to go, and subject-specific facts (own a guitar? which language? which Python version?).
+- Unless the learner has already made it clear, ask ONE explicit question about how far they want to go, with exactly these three quick answers: "A quick win, soon" (horizon quickWin), "Get solid over a few weeks" (steady), "Get really good" (deep). Never infer horizon from tone alone.
+- Never ask something the learner already answered. Never ask about "learning style". Each question asks ONE thing (never two joined by "and") and is answerable by a single tap, so phrase it in the singular ("Which situation matters most?").
 - Offer up to 4 short suggestedAnswers the learner can tap; they can always type instead.
+- "facts" and "constraints" contain only things the learner actually said or chose; never put your own inferences there. If you assumed something, say so in the summary ("I'm assuming…").
 - You may ask at most 4 questions in total. If the learner's goal is already specific enough, return "ready" immediately.
 - When ready, fill the context: goal.topic is a short lowercase subject label (e.g. "mixology", "python", "indonesian"); statement is the learner's goal in their words; outcome is what success looks like; application is where/when they'll use it or null; experience.level is new | some | experienced; horizon is quickWin (needs it very soon, one focused win), steady (a few weeks), or deep (wants to get genuinely good); facts are concrete subject-specific things you learned; constraints are limits (time, equipment, dietary, budget).
 - The summary is one or two sentences, spoken by you, confirming what you understood.
@@ -52,8 +54,9 @@ Slide rules:
 - 5 to 9 slides. Each slide has 1-4 components and a short title. purpose is orient | teach | practice | assess | wrapUp.
 - Open with a slide whose first component is a callout with speaker "companion": one or two sentences in the companion's voice that connect the lesson to the learner's real goal.
 - Teach with short paragraphs and lists. One idea per slide. Use the learner's own situation in examples.
-- Use ratioBar for proportions (2-5 segments, labels one or two words). Use diagram only for relationships between a few named things: 3-6 nodes, labels of at most 3 short words (max 28 characters), ids lowercase-hyphenated, x/y on a 0-100 grid with every pair of nodes at least 30 apart on x or 24 apart on y (e.g. a row at y=20 with x=10/50/90, a second row at y=75), edges only between existing nodes, edge labels one word or empty. It renders on a phone: if it would not be readable at 350px wide, use a bulletList instead. Every visual has a required altText that explains it without seeing it.
-- Include at least one multipleChoice (at most one per slide; usually one mid-lesson "check" and one near the end that applies the idea to a NEW situation). 3-4 options with ids a, b, c, d. Every option has an explanation that teaches: wrong options explain the misconception, the right one confirms the principle. Set correctOptionId.
+- Use ratioBar for proportions (2-5 segments, labels one or two words). For fractions or "x out of y", show y EQUAL segments of 1 part each (e.g. 4 segments, 3 in one color and 1 in another), never one block of 3 next to one block of 1, so the equal-parts idea is visible. Avoid jargon in segment labels; use the learner's words. Use diagram only for relationships between a few named things: 3-6 nodes, labels of at most 3 short words (max 28 characters), ids lowercase-hyphenated, x/y on a 0-100 grid with every pair of nodes at least 30 apart on x or 24 apart on y (e.g. a row at y=20 with x=10/50/90, a second row at y=75), edges only between existing nodes, edge labels one word or empty. It renders on a phone: if it would not be readable at 350px wide, use a bulletList instead. Every visual has a required altText that explains it without seeing it.
+- Include at least one multipleChoice (at most one per slide; usually one mid-lesson "check" and one near the end that applies the idea to a NEW situation). 3-4 options with ids a, b, c, d; distractors are plausible misconceptions a real learner holds, not silly. Every option has an explanation that teaches: wrong options name the misconception and finish the thought ("…so the answer is 5/8"), the right one confirms the principle and, when the learner's goal involves explaining to someone else, models how to say it. Set correctOptionId. Give the slide a content title, not "Quick check".
+- Any slide that states the lesson's central idea gets a visual (ratioBar or diagram) or a concrete example, never text alone.
 - End with a wrapUp slide: a short summary and, when the subject allows, a checklist of real-world steps (ids lowercase-hyphenated) with a confirmLabel like "I tried it".
 - All ids are lowercase letters, digits and hyphens, unique within their list. Keep text concise; this is read on a phone.
 - Tone: warm, plain, concrete. No filler, no "In this lesson we will".
@@ -112,11 +115,13 @@ export function experienceUserMessage(args: {
   before: NodeV1[];
   after: NodeV1[];
   completedTitles: string[];
+  /** Every other node title in tree order, for orientation previews. */
+  upcomingTitles: string[];
 }): string {
   const { course, lesson, node, before, after, completedTitles } = args;
   const orientation =
     node.kind === 'orientation'
-      ? `This is the ORIENTATION lesson, the first thing the learner sees in this course. Introduce the subject as it relates to their goal, set expectations for the path ahead (mention 2-3 upcoming lesson titles), and include one gentle multipleChoice that establishes a baseline rather than tests.`
+      ? `This is the ORIENTATION lesson, the first thing the learner sees in this course. Introduce the subject as it relates to their goal and establish a baseline with one gentle multipleChoice. When you preview the path ahead, use the exact upcoming titles in this exact order and say there is more if you stop early: ${args.upcomingTitles.map((t) => `"${t}"`).join(', ')}. Do NOT teach the content of those later lessons here; preview them in one line each at most.`
       : '';
   return [
     `Course: ${course.title} — ${course.summary}`,

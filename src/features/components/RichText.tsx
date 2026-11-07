@@ -11,7 +11,8 @@ export function RichText({ doc, color = colors.ink, size = 16 }: { doc: RichText
           case 'heading': {
             const fontSize = block.level === 1 ? size + 10 : block.level === 2 ? size + 6 : size + 2;
             return (
-              <Text key={i} accessibilityRole="header" style={[styles.heading, { color, fontSize }]}>
+              // Slide titles are level 1, so rich-text headings start at level 2.
+              <Text key={i} accessibilityRole="header" aria-level={block.level + 1} style={[styles.heading, { color, fontSize }]}>
                 <Inlines inlines={block.inlines} color={color} />
               </Text>
             );
@@ -27,7 +28,7 @@ export function RichText({ doc, color = colors.ink, size = 16 }: { doc: RichText
             return (
               <View key={i} style={styles.list} accessibilityRole="list">
                 {block.items.map((item, j) => (
-                  <View key={j} style={styles.listItem}>
+                  <View key={j} style={styles.listItem} role="listitem">
                     <Text style={[styles.bullet, { color, fontSize: size }]}>{block.type === 'bulletList' ? '•' : `${j + 1}.`}</Text>
                     <Text style={[styles.paragraph, styles.listText, { color, fontSize: size, lineHeight: size * 1.5 }]}>
                       <Inlines inlines={item} color={color} />

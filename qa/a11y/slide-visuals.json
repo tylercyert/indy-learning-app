@@ -1,0 +1,55 @@
+{
+  "id": "a11y-visuals",
+  "title": "Sour keeps sweet from tasting flat",
+  "purpose": "teach",
+  "components": [
+    {
+      "id": "body",
+      "type": "text",
+      "content": {
+        "blocks": [
+          { "type": "heading", "level": 2, "inlines": [{ "text": "Why acid matters" }] },
+          {
+            "type": "paragraph",
+            "inlines": [
+              { "text": "Sugar makes a drink feel heavy. Acid cuts through it so flavors taste bright instead of syrupy. " },
+              { "text": "It's the ratio that matters.", "marks": ["bold"] }
+            ]
+          },
+          { "type": "bulletList", "items": [[{ "text": "Base gives strength" }], [{ "text": "Sour gives brightness" }], [{ "text": "Sweet rounds it off" }]] },
+          { "type": "callout", "tone": "tip", "inlines": [{ "text": "Taste before you pour more syrup." }] },
+          { "type": "link", "label": "Read more about sours", "href": "https://example.com/sours" }
+        ]
+      }
+    },
+    {
+      "id": "ratio",
+      "type": "ratioBar",
+      "title": "A classic sour, by volume",
+      "segments": [
+        { "label": "base", "parts": 2, "color": "primary" },
+        { "label": "sour", "parts": 1, "color": "accent" },
+        { "label": "sweet", "parts": 1, "color": "secondary" }
+      ],
+      "altText": "Bar showing two parts base, one part sour, one part sweet."
+    },
+    {
+      "id": "flow",
+      "type": "diagram",
+      "title": "How the parts relate",
+      "nodes": [
+        { "id": "base", "label": "Base", "shape": "box", "x": 0, "y": 0, "color": "primary" },
+        { "id": "sour", "label": "Sour", "shape": "circle", "x": 100, "y": 0, "color": "accent" },
+        { "id": "sweet", "label": "Sweet", "shape": "pill", "x": 0, "y": 100, "color": "secondary" },
+        { "id": "balance", "label": "Balanced drink", "shape": "box", "x": 100, "y": 100, "color": "highlight" }
+      ],
+      "edges": [
+        { "from": "base", "to": "balance", "label": "strength", "style": "arrow" },
+        { "from": "sour", "to": "balance", "label": "brightness", "style": "arrow" },
+        { "from": "sweet", "to": "balance", "style": "dashed" },
+        { "from": "sour", "to": "sweet", "label": "offsets", "style": "line" }
+      ],
+      "altText": "Base, sour and sweet all feed into a balanced drink; sour and sweet offset each other."
+    }
+  ]
+}

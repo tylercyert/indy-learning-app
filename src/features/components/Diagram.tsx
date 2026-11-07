@@ -29,9 +29,9 @@ export function Diagram({ component }: { component: DiagramComponent }) {
   const byId = new Map(nodes.map((n) => [n.id, n] as const));
 
   return (
-    <View style={styles.card} accessible accessibilityLabel={component.altText}>
+    <View style={styles.card}>
       {component.title ? <Text style={styles.title}>{component.title}</Text> : null}
-      <View style={{ height }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      <View style={{ height }} role="img" aria-label={component.altText} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
         {width > 0 &&
           component.edges.map((edge, i) => {
             const a = byId.get(edge.from);

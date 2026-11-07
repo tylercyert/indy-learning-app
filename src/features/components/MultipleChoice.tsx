@@ -46,13 +46,17 @@ export function MultipleChoice({
       <View accessibilityRole="radiogroup" style={styles.options}>
         {component.options.map((option, i) => {
           const isSelected = selected === option.id;
-          const isCorrect = showFeedback && option.id === feedback.correctOptionId;
+          // The correct option is highlighted only once the learner has found it; a wrong pick
+          // shows its explanation and invites another try without giving the answer away.
+          const isCorrect = showFeedback && feedback.correct && option.id === feedback.correctOptionId;
           const isWrongPick = showFeedback && isSelected && !feedback.correct;
           return (
             <Pressable
               key={option.id}
               accessibilityRole="radio"
-              accessibilityState={{ selected: isSelected, disabled: locked }}
+              // aria-* props reach both web (react-native-web ignores accessibilityState) and native.
+              aria-checked={isSelected}
+              aria-disabled={locked}
               accessibilityLabel={`${LETTERS[i]}. ${option.text}`}
               disabled={locked}
               onPress={() => setSelected(option.id)}
@@ -74,9 +78,9 @@ export function MultipleChoice({
 
       {showFeedback ? (
         <View style={[styles.feedback, feedback.correct ? styles.feedbackRight : styles.feedbackWrong]} accessibilityLiveRegion="polite">
-          <Text style={styles.feedbackTitle}>{feedback.correct ? 'Nice!' : 'Close! Here’s the idea'}</Text>
+          <Text style={styles.feedbackTitle}>{feedback.correct ? 'Nice!' : 'Not quite. Here’s the idea'}</Text>
           <Text style={styles.feedbackText}>{feedback.explanation}</Text>
-          {!feedback.correct && <Text style={styles.retry}>Pick another answer to try again. No penalty.</Text>}
+          {!feedback.correct && <Text style={styles.retry}>Want another go? Pick a different answer and check again. No penalty either way.</Text>}
         </View>
       ) : null}
 
@@ -103,7 +107,7 @@ const styles = StyleSheet.create({
   optionWrong: { borderColor: colors.orangeLine, backgroundColor: colors.coralTint },
   letter: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' },
   letterSelected: { backgroundColor: colors.purple },
-  letterCorrect: { backgroundColor: colors.green },
+  letterCorrect: { backgroundColor: colors.mintDeep },
   letterText: { fontFamily: fonts.black, fontSize: 13, color: colors.muted },
   letterTextSelected: { color: '#FFFFFF' },
   optionText: { flex: 1, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },

@@ -19,7 +19,7 @@ export interface SlideInteractions {
 export function SlideView({ slide, companion, interactions }: { slide: SlideV1; companion: CompanionThemeV1; interactions: SlideInteractions }) {
   return (
     <View style={styles.slide}>
-      <Text accessibilityRole="header" style={styles.title}>
+      <Text accessibilityRole="header" aria-level={1} style={styles.title}>
         {slide.title}
       </Text>
       {slide.components.map((component) => (
@@ -54,9 +54,9 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
     case 'ratioBar': {
       const total = component.segments.reduce((sum, s) => sum + s.parts, 0);
       return (
-        <View style={styles.card} accessible accessibilityLabel={component.altText}>
+        <View style={styles.card}>
           <Text style={styles.cardTitle}>{component.title}</Text>
-          <View style={styles.ratioRow}>
+          <View style={styles.ratioRow} role="img" aria-label={component.altText}>
             {component.segments.map((seg) => {
               const p = palette[seg.color];
               const share = seg.parts / total;

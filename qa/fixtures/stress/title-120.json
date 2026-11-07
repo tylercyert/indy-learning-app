@@ -1,0 +1,35 @@
+{
+  "id": "title-120",
+  "title": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilist",
+  "purpose": "orient",
+  "components": [
+    {
+      "id": "t",
+      "type": "text",
+      "content": {
+        "blocks": [
+          {
+            "type": "paragraph",
+            "inlines": [
+              {
+                "text": "A short body under a title with no break opportunities."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c",
+      "type": "checklist",
+      "title": "SupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilisticexpialidociousSupercalifragilist",
+      "items": [
+        {
+          "id": "one",
+          "text": "One short item"
+        }
+      ],
+      "confirmLabel": "Supercalifragilisticexpialidoc"
+    }
+  ]
+}

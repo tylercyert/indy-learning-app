@@ -45,12 +45,13 @@ async function generate(learnerId: string, course: CourseV1, tree: SkillTreeV1, 
   const before = tree.nodes.filter((n) => refs.has(n.id));
   const after = tree.nodes.filter((n) => ruleReferences(n.rule).includes(node.id));
   const completedTitles = tree.nodes.filter((n) => completed.has(n.lessonId)).map((n) => n.title);
+  const upcomingTitles = tree.nodes.filter((n) => n.id !== node.id).map((n) => n.title);
 
   const { data, model } = await generateStructured({
     task: `experience:${lesson.title}`,
     schema: GeneratedSlidesV1Schema,
     system: EXPERIENCE_SYSTEM,
-    messages: [{ role: 'user', content: experienceUserMessage({ course, lesson, node, before, after, completedTitles }) }],
+    messages: [{ role: 'user', content: experienceUserMessage({ course, lesson, node, before, after, completedTitles, upcomingTitles }) }],
     effort: 'medium',
     maxTokens: 24_000,
   });

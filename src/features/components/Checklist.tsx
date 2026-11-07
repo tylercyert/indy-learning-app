@@ -42,7 +42,8 @@ export function Checklist({
             <Pressable
               key={item.id}
               accessibilityRole="checkbox"
-              accessibilityState={{ checked: on, disabled: confirmed }}
+              aria-checked={on}
+              aria-disabled={confirmed}
               accessibilityLabel={item.text}
               onPress={() => toggle(item.id)}
               style={[styles.item, on && styles.itemOn]}

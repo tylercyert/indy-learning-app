@@ -1,0 +1,50 @@
+{
+  "id": "invalid-nodes-close",
+  "title": "Invalid: nodes too close",
+  "purpose": "teach",
+  "components": [
+    {
+      "id": "d",
+      "type": "diagram",
+      "title": "Overlap",
+      "nodes": [
+        {
+          "id": "a",
+          "label": "Base",
+          "shape": "box",
+          "x": 50,
+          "y": 50
+        },
+        {
+          "id": "b",
+          "label": "Sour",
+          "shape": "box",
+          "x": 60,
+          "y": 60
+        },
+        {
+          "id": "c",
+          "label": "Sweet",
+          "shape": "box",
+          "x": 79,
+          "y": 73
+        }
+      ],
+      "edges": [
+        {
+          "from": "a",
+          "to": "b"
+        },
+        {
+          "from": "b",
+          "to": "zzz"
+        },
+        {
+          "from": "c",
+          "to": "c"
+        }
+      ],
+      "altText": "Three overlapping nodes."
+    }
+  ]
+}

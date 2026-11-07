@@ -1,0 +1,60 @@
+{
+  "id": "floor-counts",
+  "title": "Balance is the whole game: base gives body, acid brightens, sweetness rounds the edges and dilution opens everything upx",
+  "purpose": "teach",
+  "components": [
+    {
+      "id": "d",
+      "type": "diagram",
+      "title": "One node",
+      "nodes": [
+        {
+          "id": "only",
+          "label": "Temperature and glassware...",
+          "shape": "pill",
+          "x": 100,
+          "y": 100,
+          "color": "secondary"
+        }
+      ],
+      "edges": [],
+      "altText": "A single node in the bottom-right corner."
+    },
+    {
+      "id": "r",
+      "type": "ratioBar",
+      "title": "Two equal parts",
+      "segments": [
+        {
+          "label": "A",
+          "parts": 1,
+          "color": "primary"
+        },
+        {
+          "label": "B",
+          "parts": 1,
+          "color": "accent"
+        }
+      ],
+      "altText": "One to one."
+    },
+    {
+      "id": "q",
+      "type": "multipleChoice",
+      "prompt": "Short?",
+      "options": [
+        {
+          "id": "a",
+          "text": "A",
+          "explanation": "No."
+        },
+        {
+          "id": "b",
+          "text": "B",
+          "explanation": "Yes."
+        }
+      ],
+      "correctOptionId": "b"
+    }
+  ]
+}

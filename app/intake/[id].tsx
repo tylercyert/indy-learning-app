@@ -22,6 +22,16 @@ export default function IntakeScreen() {
   const view: IntakeSessionView | null = session.data;
   const lastCompanion = view?.transcript.filter((m) => m.role === 'companion').at(-1);
   const turn = view?.turn;
+  const headerText = !view
+    ? ''
+    : view.status === 'ready'
+      ? 'Ready to build'
+      : view.status === 'planned'
+        ? 'Course built'
+        : `Question ${Math.min(view.questionsAsked, 4)} of up to 4`;
+  const horizonLabel = { quickWin: 'A quick win, soon', steady: 'Over a few weeks', deep: 'Going deep' } as const;
+  const levelLabel = { new: 'Brand new to this', some: 'Some experience', experienced: 'Experienced' } as const;
+  const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
   const send = async (text: string) => {
     const answer = text.trim();
@@ -66,6 +76,7 @@ export default function IntakeScreen() {
 
   return (
     <Screen
+      scrollToEndKey={`${view?.transcript.length ?? 0}-${sending}-${view?.status ?? ''}`}
       footer={
         view && turn?.kind === 'ask' ? (
           <View style={{ gap: 10 }}>
@@ -82,7 +93,7 @@ export default function IntakeScreen() {
               <TextInput
                 accessibilityLabel="Your answer"
                 placeholder="Type your answer"
-                placeholderTextColor="#9B94B3"
+                placeholderTextColor="#7E76A0"
                 value={draft}
                 onChangeText={setDraft}
                 onSubmitEditing={() => void send(draft)}
@@ -94,13 +105,27 @@ export default function IntakeScreen() {
             </View>
           </View>
         ) : view && view.status === 'ready' ? (
-          <ChunkyButton label="Build my course" onPress={() => void build()} />
+          <View style={{ gap: 10 }}>
+            <View style={styles.row}>
+              <TextInput
+                accessibilityLabel="Correct something before building"
+                placeholder="Anything to correct? (optional)"
+                placeholderTextColor="#7E76A0"
+                value={draft}
+                onChangeText={setDraft}
+                editable={!sending}
+                style={styles.input}
+              />
+            </View>
+            <ChunkyButton label="Build my course" onPress={() => void build()} disabled={draft.trim().length > 0} />
+            {draft.trim().length > 0 ? <ChunkyButton label="Send correction" variant="outline" onPress={() => void send(draft)} loading={sending} /> : null}
+          </View>
         ) : null
       }
     >
       <View style={styles.header}>
         <BackButton label="Back to home" onPress={() => router.replace('/')} />
-        <Text style={styles.headerText}>{view ? `Question ${Math.min(view.questionsAsked, 4)} of up to 4` : ''}</Text>
+        <Text style={styles.headerText}>{headerText}</Text>
       </View>
 
       {session.loading && !view ? <Loading message="Pip is thinking…" /> : null}
@@ -136,16 +161,43 @@ export default function IntakeScreen() {
       {view?.status === 'ready' && view.context ? (
         <View style={styles.summary}>
           <Text style={styles.summaryTitle}>What Pip understood</Text>
-          <Text style={styles.summaryLine}>Topic: {view.context.goal.topic}</Text>
-          <Text style={styles.summaryLine}>Outcome: {view.context.goal.outcome}</Text>
-          <Text style={styles.summaryLine}>Experience: {view.context.experience.level} · Horizon: {view.context.horizon}</Text>
-          {view.context.facts.length ? <Text style={styles.summaryLine}>Facts: {view.context.facts.join('; ')}</Text> : null}
-          {view.context.constraints.length ? <Text style={styles.summaryLine}>Constraints: {view.context.constraints.join('; ')}</Text> : null}
+          <SummaryRow label="Topic" value={titleCase(view.context.goal.topic)} />
+          <SummaryRow label="You want to" value={view.context.goal.outcome} />
+          {view.context.goal.application ? <SummaryRow label="Where" value={view.context.goal.application} /> : null}
+          <SummaryRow label="Starting point" value={levelLabel[view.context.experience.level]} />
+          <SummaryRow label="Pace" value={horizonLabel[view.context.horizon]} />
+          {view.context.facts.length ? <SummaryList label="You told me" items={view.context.facts} /> : null}
+          {view.context.constraints.length ? <SummaryList label="Keeping in mind" items={view.context.constraints} /> : null}
+          <Text style={styles.summaryNote}>Not right? Type a correction below before building.</Text>
         </View>
       ) : null}
 
       {error ? <ErrorBox message={error} /> : null}
     </Screen>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
+}
+
+function SummaryList({ label, items }: { label: string; items: string[] }) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <View style={{ flex: 1, gap: 2 }}>
+        {items.map((item) => (
+          <Text key={item} style={styles.summaryValue}>
+            • {item}
+          </Text>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -163,9 +215,12 @@ const styles = StyleSheet.create({
   chipText: { fontFamily: fonts.black, fontSize: 14, color: colors.purple },
   row: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   input: { flex: 1, minHeight: 56, borderWidth: 3, borderColor: '#C4B5FD', borderRadius: 18, paddingHorizontal: 16, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
-  summary: { padding: 16, borderRadius: 22, backgroundColor: colors.mintTint, gap: 6 },
+  summary: { padding: 16, borderRadius: 22, backgroundColor: colors.mintTint, gap: 8 },
   summaryTitle: { fontFamily: fonts.black, fontSize: 14, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.mintDeep },
-  summaryLine: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink },
+  summaryRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  summaryLabel: { width: 112, fontFamily: fonts.black, fontSize: 13, color: colors.mintDeep, paddingTop: 1 },
+  summaryValue: { flex: 1, fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.ink },
+  summaryNote: { fontFamily: fonts.bold, fontSize: 12, color: colors.muted, marginTop: 4 },
   planning: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
   planningTitle: { fontFamily: fonts.black, fontSize: 24, color: colors.ink, textAlign: 'center' },
   planningText: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 22, color: colors.muted, textAlign: 'center' },
