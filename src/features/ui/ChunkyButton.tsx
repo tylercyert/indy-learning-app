@@ -7,7 +7,8 @@ type Variant = 'primary' | 'secondary' | 'outline' | 'ghost';
 const variants: Record<Variant, { fill: string; shadow: string; text: string; border?: string }> = {
   primary: { fill: colors.yellow, shadow: colors.yellowDeep, text: colors.ink },
   secondary: { fill: colors.purple, shadow: colors.purpleDeep, text: '#FFFFFF' },
-  outline: { fill: colors.bg, shadow: '#C4B5FD', text: colors.ink, border: '#C4B5FD' },
+  // White face on a white page: the edge is what makes it a button, so it meets 3:1 (WCAG 1.4.11, #20).
+  outline: { fill: colors.bg, shadow: colors.control, text: colors.ink, border: colors.control },
   ghost: { fill: 'transparent', shadow: 'transparent', text: colors.muted },
 };
 

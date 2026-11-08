@@ -7,7 +7,10 @@
  *   QA_BASE_URL=http://127.0.0.1:8787 npx tsx qa/a11y/audit.ts
  *
  * Fixtures: qa/a11y/slide-visuals.json (text + ratioBar + diagram), qa/a11y/slide-interactive.json
- * (multipleChoice + checklist), rendered through /dev/slide. The script reports; it never asserts.
+ * (multipleChoice + checklist), qa/a11y/slide-match.json (companion callout + matchPairs) and
+ * qa/a11y/slide-fill.json (text with a link + fillBlank), rendered through /dev/slide. The script
+ * reports and never exits non-zero on a finding; the CHECKS section lists PASS/FAIL for the #20
+ * behaviours (keyboard, live regions, focus on arrival, decorative avatars, link names).
  */
 import { AxeBuilder } from '@axe-core/playwright';
 import fs from 'node:fs';
@@ -85,6 +88,61 @@ async function focused(page: Page): Promise<FocusInfo> {
   });
 }
 
+const checks: { name: string; ok: boolean; detail: string }[] = [];
+/** Records one PASS/FAIL line for the CHECKS summary and prints it where it happened. */
+function check(name: string, ok: boolean, detail = '') {
+  checks.push({ name, ok, detail });
+  console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`);
+}
+
+/** The text in the app's live regions, by politeness. */
+async function liveRegions(page: Page) {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll('[aria-live]')).map((e) => ({ live: e.getAttribute('aria-live') ?? '', text: (e.textContent ?? '').trim() })),
+  );
+}
+
+/** Live regions settle 60 ms after an announcement; poll until the polite one matches `pattern`. */
+async function politeSays(page: Page, pattern: RegExp, timeout = 2000): Promise<string> {
+  const end = Date.now() + timeout;
+  let last = '';
+  while (Date.now() < end) {
+    last = (await liveRegions(page)).filter((r) => r.live === 'polite').map((r) => r.text).join(' | ');
+    if (pattern.test(last)) return last;
+    await page.waitForTimeout(100);
+  }
+  return last;
+}
+
+/** Page-level structure every screen should have after #20. */
+async function structureChecks(page: Page, name: string, expectFocus: RegExp | null) {
+  section(`STRUCTURE: ${name}`);
+  const regions = await liveRegions(page);
+  const polite = regions.filter((r) => r.live === 'polite').length;
+  const assertive = regions.filter((r) => r.live === 'assertive').length;
+  check(`${name}: one persistent polite and one assertive live region`, polite === 1 && assertive === 1, `polite=${polite} assertive=${assertive}`);
+  const nested = await page.evaluate(() => document.querySelectorAll('h1 h1, h1 h2, h1 h3, [role=heading] [role=heading]').length);
+  check(`${name}: no heading inside another heading`, nested === 0, `nested=${nested}`);
+  const companions = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('[role=img][aria-label*="your companion"]'))
+      .filter((e) => !e.closest('[aria-hidden=true]'))
+      .map((e) => e.getAttribute('aria-label') ?? ''),
+  );
+  check(
+    `${name}: at most one companion image exposed, in human words`,
+    companions.length <= 1 && companions.every((l) => !/, (happy|curious|thinking|cheering)(,|$)/.test(l)),
+    companions.join(' / ') || 'none',
+  );
+  if (expectFocus) {
+    await page.waitForTimeout(150);
+    const f = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      return { tag: el?.tagName.toLowerCase() ?? 'none', text: (el?.textContent ?? '').trim().slice(0, 60) };
+    });
+    check(`${name}: focus starts at the heading`, /^h\d$/.test(f.tag) && expectFocus.test(f.text), `${f.tag} "${f.text}"`);
+  }
+}
+
 const fmt = (f: FocusInfo) =>
   `${f.tag}${f.role ? `[role=${f.role}]` : ''} "${f.label}"  focus-visible=${f.focusVisible}  outline=${f.outline}${f.boxShadow !== 'none' ? `  shadow=${f.boxShadow}` : ''}`;
 
@@ -142,60 +200,132 @@ async function slideKeyboard(page: Page) {
   section('KEYBOARD ACTIVATION: multipleChoice');
   const radios = page.getByRole('radio');
   const n = await radios.count();
-  console.log(`- radios in DOM: ${n}; focusable radios in tab order: ${order.filter((f) => f.role === 'radio').length}`);
-  const first = radios.nth(0);
-  const stateOf = async () => ({
-    checked: await first.getAttribute('aria-checked'),
-    selected: await first.getAttribute('aria-selected'),
-    disabled: await first.getAttribute('aria-disabled'),
-  });
-  await first.focus();
-  console.log(`- radio A focused: ${fmt(await focused(page))}`);
-  console.log(`- before: ${JSON.stringify(await stateOf())}`);
-  await page.keyboard.press(' ');
-  console.log(`- after Space: ${JSON.stringify(await stateOf())}`);
-  await page.keyboard.press('Enter');
-  console.log(`- after Enter: ${JSON.stringify(await stateOf())}`);
-  await page.keyboard.press('ArrowDown');
-  console.log(`- after ArrowDown, focus on: ${fmt(await focused(page))}`);
-  const second = radios.nth(1);
-  await second.focus();
-  await page.keyboard.press('Enter');
-  console.log(`- radio B + Enter: aria-selected=${await second.getAttribute('aria-selected')} aria-checked=${await second.getAttribute('aria-checked')}; radio A aria-selected=${await first.getAttribute('aria-selected')}`);
+  const radioStops = order.filter((f) => f.role === 'radio').length;
+  check('radio group is one tab stop (roving tabindex)', radioStops === 1, `radios=${n}, in tab order=${radioStops}`);
+  const checked = async () => Promise.all(Array.from({ length: n }, (_, i) => radios.nth(i).getAttribute('aria-checked')));
+  const focusLabel = async () => (await focused(page)).label;
 
-  const check = page.getByRole('button', { name: /^check$/i });
-  console.log(`- "Check" button present: ${await check.count()}; aria-disabled=${await check.getAttribute('aria-disabled')}`);
-  // Tab from radio B forward until we land on Check.
+  await radios.nth(0).focus();
+  await page.keyboard.press(' ');
+  check('Space selects the focused radio', (await checked())[0] === 'true', JSON.stringify(await checked()));
+  await page.keyboard.press('ArrowDown');
+  check('ArrowDown moves focus to the next radio and selects it', (await focusLabel()).startsWith('B.') && (await checked())[1] === 'true' && (await checked())[0] === 'false', `${await focusLabel()} ${JSON.stringify(await checked())}`);
+  await page.keyboard.press('ArrowRight');
+  check('ArrowRight moves on too', (await focusLabel()).startsWith('C.') && (await checked())[2] === 'true', await focusLabel());
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  check('ArrowUp wraps from the first radio to the last', (await focusLabel()).startsWith('D.') && (await checked())[3] === 'true', await focusLabel());
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  check('ArrowLeft moves back', (await focusLabel()).startsWith('B.') && (await checked())[1] === 'true', await focusLabel());
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  check('Tab back into the group lands on the checked radio', (await focusLabel()).startsWith('B.'), await focusLabel());
+  const scrollY = await page.evaluate(() => window.scrollY);
+  await page.keyboard.press(' ');
+  check('Space on a radio does not scroll the page', (await page.evaluate(() => window.scrollY)) === scrollY);
+
+  const checkButton = page.getByRole('button', { name: /^check$/i });
   let reached = false;
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 4 && !reached; i++) {
     await page.keyboard.press('Tab');
-    const f = await focused(page);
-    if (/^check$/i.test(f.label)) {
-      reached = true;
-      console.log(`- reached "Check" after ${i + 1} Tab(s): ${fmt(f)}`);
-      break;
-    }
+    reached = /^check$/i.test(await focusLabel());
   }
-  if (!reached) console.log('- "Check" NOT reached by Tab within 8 presses');
+  check('Tab from the group reaches Check', reached, `aria-disabled=${await checkButton.getAttribute('aria-disabled')}`);
   await page.keyboard.press('Enter');
-  const fb = page.getByText(/Nice!|Close!/);
+  const fb = page.getByText(/Nice!|Not quite/);
   await fb.first().waitFor({ timeout: 5000 }).catch(() => undefined);
-  const fbCount = await fb.count();
-  console.log(`- Enter on "Check" → feedback shown: ${fbCount > 0 ? await fb.first().textContent() : 'NO'}`);
-  const live = await page.evaluate(() => Array.from(document.querySelectorAll('[aria-live]')).map((e) => `${e.getAttribute('aria-live')}:${(e.textContent ?? '').trim().slice(0, 40)}`));
-  console.log(`- aria-live regions now in DOM: ${JSON.stringify(live)}`);
-  const radioAfter = await page.evaluate(() => Array.from(document.querySelectorAll('[role="radio"]')).map((e) => `${e.getAttribute('aria-label')?.slice(0, 2)} sel=${e.getAttribute('aria-selected')} chk=${e.getAttribute('aria-checked')} dis=${e.getAttribute('aria-disabled')}`));
-  console.log(`- radio states after feedback: ${JSON.stringify(radioAfter)}`);
+  check('Enter on Check shows the feedback', (await fb.count()) > 0);
+  const said = await politeSays(page, /Correct\./);
+  check('feedback is announced through the persistent polite region', /Correct\. Yes\. Acid/.test(said), said.slice(0, 80));
 
   section('KEYBOARD ACTIVATION: checklist');
-  const boxes = page.getByRole('checkbox');
-  const box = boxes.nth(0);
+  // Use an item no earlier step could have touched, and compare with its starting state.
+  const box = page.getByRole('checkbox').last();
   await box.focus();
-  console.log(`- checkbox focused: ${fmt(await focused(page))}  aria-checked=${await box.getAttribute('aria-checked')}`);
+  const start = await box.getAttribute('aria-checked');
   await page.keyboard.press(' ');
-  console.log(`- after Space: aria-checked=${await box.getAttribute('aria-checked')}`);
+  const afterSpace = await box.getAttribute('aria-checked');
+  check('Space toggles a checklist item', afterSpace !== start, `${start} → ${afterSpace}`);
+  await page.keyboard.press(' ');
+  check('Space again toggles it back', (await box.getAttribute('aria-checked')) === start);
   await page.keyboard.press('Enter');
-  console.log(`- after Enter: aria-checked=${await box.getAttribute('aria-checked')}`);
+  check('Enter still toggles it', (await box.getAttribute('aria-checked')) !== start);
+  if ((await box.getAttribute('aria-checked')) !== 'true') await page.keyboard.press('Enter');
+  const tick = await box.evaluate((el) => el.textContent ?? '');
+  check('a ticked item has a drawn tick, not a font glyph read aloud', (await box.getAttribute('aria-checked')) === 'true' && !tick.includes('✓'), JSON.stringify(tick.slice(0, 40)));
+}
+
+async function matchKeyboard(page: Page) {
+  const order = await tabOrder(page, 'Slide: matchPairs', 14);
+  section('KEYBOARD ACTIVATION: matchPairs');
+  const chipStops = order.filter((f) => f.role === 'radio').length;
+  check('terms are one tab stop (roving tabindex)', chipStops === 1, `in tab order=${chipStops}`);
+  const chip = (name: string) => page.getByRole('radio', { name: new RegExp(`^${name}`) });
+  const row = (name: string) => page.getByRole('button', { name: new RegExp(`^${name}`) });
+  const focusLabel = async () => (await focused(page)).label;
+
+  await chip('Acid').focus();
+  await page.keyboard.press(' ');
+  check('Space picks a term', (await chip('Acid').getAttribute('aria-checked')) === 'true');
+  const hint = await politeSays(page, /Now choose where Acid belongs/);
+  check('picking is announced with what to do next', /Now choose where Acid belongs/.test(hint), hint.slice(0, 60));
+  await page.keyboard.press('Tab');
+  const tabbed = await focused(page);
+  check('Tab from the picked term goes to the rows', tabbed.role === 'button' && tabbed.label !== '', tabbed.label);
+  await row('Brightens and cuts sweetness').focus();
+  await page.keyboard.press(' ');
+  check('Space on a row places the picked term', /matched with Brightens/.test((await chip('Acid').getAttribute('aria-label')) ?? ''));
+  check('focus returns to the next term without a row', (await focusLabel()).startsWith('Sugar'), await focusLabel());
+  await page.keyboard.press('Enter');
+  check('Enter picks a term too', (await chip('Sugar').getAttribute('aria-checked')) === 'true');
+  await row('Rounds off sharp edges').focus();
+  await page.keyboard.press('Enter');
+  check('Enter on a row places it', /matched with Rounds/.test((await chip('Sugar').getAttribute('aria-label')) ?? ''));
+  check('focus moves to the last unmatched term', (await focusLabel()).startsWith('Dilution'), await focusLabel());
+  await page.keyboard.press('ArrowUp');
+  check('ArrowUp moves to and picks the previous term', (await focusLabel()).startsWith('Sugar') && (await chip('Sugar').getAttribute('aria-checked')) === 'true', await focusLabel());
+  await page.keyboard.press('ArrowDown');
+  check('ArrowDown moves back and picks', (await focusLabel()).startsWith('Dilution') && (await chip('Dilution').getAttribute('aria-checked')) === 'true', await focusLabel());
+  await row('Opens up the flavors').focus();
+  await page.keyboard.press(' ');
+  const checkButton = page.getByRole('button', { name: /^check$/i });
+  check('all placed: Check is enabled', (await checkButton.getAttribute('aria-disabled')) !== 'true');
+  await checkButton.focus();
+  await page.keyboard.press('Enter');
+  const said = await politeSays(page, /All matched/);
+  check('the result is announced', /All matched/.test(said), said.slice(0, 60));
+}
+
+async function fillKeyboard(page: Page) {
+  await tabOrder(page, 'Slide: fillBlank', 10);
+  section('KEYBOARD ACTIVATION: fillBlank + link');
+  const link = page.getByRole('link');
+  const name = (await link.getAttribute('aria-label')) ?? '';
+  check('link says it opens in the browser in its name', /\(opens in browser\)$/.test(name), name);
+  const arrowHidden = await link.evaluate((el) => Array.from(el.querySelectorAll('[aria-hidden=true]')).some((e) => e.textContent?.includes('↗')));
+  check('the ↗ is hidden from screen readers', arrowHidden);
+
+  const gap1 = page.getByLabel('Gap 1 of 2');
+  const gap2 = page.getByLabel('Gap 2 of 2');
+  await gap1.focus();
+  await page.keyboard.type('2');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(100);
+  check('Enter in gap 1 moves to gap 2', (await focused(page)).label === 'Gap 2 of 2', (await focused(page)).label);
+  await page.keyboard.type('3');
+  await page.keyboard.press('Enter');
+  const fb = page.getByText(/Not quite|Nice!/);
+  await fb.first().waitFor({ timeout: 5000 }).catch(() => undefined);
+  check('Enter in the last gap checks the answer', (await fb.count()) > 0);
+  const said = await politeSays(page, /Not quite/);
+  check('the wrong gap is announced with its explanation', /Not quite\. One part sour/.test(said), said.slice(0, 80));
+  await gap2.fill('1');
+  await gap2.focus();
+  await page.keyboard.press('Enter');
+  const right = await politeSays(page, /Correct\./);
+  check('a corrected answer can be rechecked from the keyboard', /Correct\./.test(right), right.slice(0, 40));
 }
 
 async function ariaDump(page: Page, name: string) {
@@ -244,6 +374,9 @@ function contrastTable() {
     ['celebrateText #EDE9FE', '#EDE9FE', 'purple #6D28D9', '#6D28D9'],
     ['ring/dots #C4B5FD (non-text)', '#C4B5FD', 'bg #FFFFFF', '#FFFFFF'],
     ['line #E9E5F5 border (non-text)', '#E9E5F5', 'bg #FFFFFF', '#FFFFFF'],
+    ['control #8F82C4 edge (non-text)', '#8F82C4', 'bg #FFFFFF', '#FFFFFF'],
+    ['control #8F82C4 edge (non-text)', '#8F82C4', 'soft #F3F0FA', '#F3F0FA'],
+    ['purple #6D28D9 picked/target edge', '#6D28D9', 'bg #FFFFFF', '#FFFFFF'],
   ];
   for (const [fgName, fg, bgName, bg] of pairs) {
     const r = contrast(fg, bg);
@@ -266,6 +399,7 @@ async function main() {
   await page.getByText('What do you want to learn?').first().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(500);
   log('home loaded');
+  await structureChecks(page, 'Home', /^Poko$/);
   summary.home = await axe(page, 'Home /');
   await hitTargets(page, 'Home');
   await ariaDump(page, 'Home');
@@ -295,6 +429,8 @@ async function main() {
   for (const [file, label] of [
     ['slide-visuals.json', 'Slide: text + ratioBar + diagram'],
     ['slide-interactive.json', 'Slide: multipleChoice + checklist'],
+    ['slide-match.json', 'Slide: matchPairs'],
+    ['slide-fill.json', 'Slide: fillBlank'],
   ] as const) {
     const json = fs.readFileSync(path.join(here, file), 'utf8');
     await page.goto(`${base}/dev/slide?doc=${encodeURIComponent(JSON.stringify(JSON.parse(json)))}`);
@@ -302,10 +438,13 @@ async function main() {
     await page.waitForTimeout(600);
     const invalid = (await page.getByText('Slide did not validate').count()) > 0;
     log(`${file} ${invalid ? 'DID NOT VALIDATE' : 'rendered'}`);
+    await structureChecks(page, label, new RegExp(`^${(JSON.parse(json) as { title: string }).title}$`));
     summary[file] = await axe(page, label);
     await hitTargets(page, label);
     await ariaDump(page, label);
     if (file === 'slide-interactive.json') await slideKeyboard(page);
+    if (file === 'slide-match.json') await matchKeyboard(page);
+    if (file === 'slide-fill.json') await fillKeyboard(page);
   }
 
   contrastTable();
@@ -315,6 +454,8 @@ async function main() {
     const total = vs.reduce((n, v) => n + v.nodes.length, 0);
     console.log(`- ${name}: ${vs.length} rule(s), ${total} node(s)${vs.length ? ' → ' + vs.map((v) => `${v.id}[${v.impact}]x${v.nodes.length}`).join(', ') : ''}`);
   }
+  section(`CHECKS (#20): ${checks.filter((c) => c.ok).length}/${checks.length} pass`);
+  for (const c of checks) console.log(`- ${c.ok ? 'PASS' : 'FAIL'}  ${c.name}${c.ok ? '' : `  (${c.detail})`}`);
   if (errors.length) {
     console.log(`\n${errors.length} console/page errors:`);
     for (const e of [...new Set(errors)].slice(0, 8)) console.log('  ' + e);

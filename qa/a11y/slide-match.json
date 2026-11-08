@@ -1,0 +1,24 @@
+{
+  "id": "a11y-match",
+  "title": "Match the levers",
+  "purpose": "practice",
+  "components": [
+    {
+      "id": "callout",
+      "type": "callout",
+      "speaker": "companion",
+      "tone": "encourage",
+      "content": { "blocks": [{ "type": "paragraph", "inlines": [{ "text": "Three levers, three jobs. Match each one to what it does." }] }] }
+    },
+    {
+      "id": "m",
+      "type": "matchPairs",
+      "prompt": "Match each lever to what it does to the drink.",
+      "pairs": [
+        { "id": "acid", "left": "Acid", "right": "Brightens and cuts sweetness", "explanation": "Citrus is the brightener: it keeps sugar from tasting flat." },
+        { "id": "sugar", "left": "Sugar", "right": "Rounds off sharp edges", "explanation": "Sweetness softens acid and alcohol; it rounds, it does not brighten." },
+        { "id": "ice", "left": "Dilution", "right": "Opens up the flavors", "explanation": "Melted ice is an ingredient: a little water lets the flavors breathe." }
+      ]
+    }
+  ]
+}

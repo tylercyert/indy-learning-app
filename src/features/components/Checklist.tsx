@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PixelRatio, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { z } from 'zod';
 import type { ChecklistResultSchema, ComponentV1 } from '../../contracts/components';
+import { glyphBoxSize, isSpaceKey } from '../ui/a11y';
 import { ChunkyButton } from '../ui/ChunkyButton';
+import { CheckIcon } from '../ui/icons';
+import { isRepeat } from '../ui/useRadioKeys';
 import { colors, fonts } from '../theme';
 
 type ChecklistComponent = Extract<ComponentV1, { type: 'checklist' }>;
@@ -30,6 +33,10 @@ export function Checklist({
     else next.add(id);
     setChecked(next);
   };
+  // The box and its tick follow the OS text size, so the tick keeps its margin at 200%.
+  const fontScale = PixelRatio.getFontScale();
+  const box = glyphBoxSize(26, fontScale);
+  const tick = glyphBoxSize(16, fontScale);
 
   return (
     <View style={styles.wrap}>
@@ -46,9 +53,22 @@ export function Checklist({
               aria-disabled={confirmed}
               accessibilityLabel={item.text}
               onPress={() => toggle(item.id)}
+              // Space toggles a checkbox (Enter already does, through Pressable). Web only: native
+              // screen readers and switch access toggle with their own gestures.
+              onKeyDown={
+                Platform.OS === 'web'
+                  ? (e) => {
+                      if (!isSpaceKey(e.nativeEvent.key)) return;
+                      e.preventDefault(); // no page scroll
+                      if (!isRepeat(e)) toggle(item.id);
+                    }
+                  : undefined
+              }
               style={[styles.item, on && styles.itemOn]}
             >
-              <View style={[styles.box, on && styles.boxOn]}>{on ? <Text style={styles.tick}>✓</Text> : null}</View>
+              <View style={[styles.box, { width: box, height: box, borderRadius: Math.round(box * 0.3) }, on && styles.boxOn]}>
+                {on ? <CheckIcon color="#FFFFFF" size={tick} /> : null}
+              </View>
               <Text style={styles.itemText}>{item.text}</Text>
             </Pressable>
           );
@@ -69,12 +89,11 @@ const styles = StyleSheet.create({
   badge: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, backgroundColor: colors.mintTint, color: colors.mintDeep, fontFamily: fonts.black, fontSize: 12, letterSpacing: 0.8, textTransform: 'uppercase' },
   title: { fontFamily: fonts.black, fontSize: 20, color: colors.ink },
   items: { gap: 8 },
-  item: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, padding: 12, borderRadius: 16, borderWidth: 3, borderColor: colors.line, backgroundColor: colors.bg },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, padding: 12, borderRadius: 16, borderWidth: 3, borderColor: colors.control, backgroundColor: colors.bg },
   itemOn: { borderColor: colors.mint, backgroundColor: colors.mintTint },
-  // Minimum, not fixed: the box grows with large accessibility text so the tick is never clipped.
-  box: { minWidth: 26, minHeight: 26, paddingHorizontal: 3, borderRadius: 8, borderWidth: 3, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  // Width and height come from the OS text scale at render (glyphBoxSize); the tick is drawn, not a font glyph.
+  box: { borderWidth: 3, borderColor: colors.control, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   boxOn: { borderColor: colors.mintDeep, backgroundColor: colors.mintDeep },
-  tick: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 15 },
   itemText: { flex: 1, minWidth: 0, flexShrink: 1, fontFamily: fonts.extraBold, fontSize: 15, color: colors.ink },
   done: { fontFamily: fonts.extraBold, fontSize: 15, color: colors.mintDeep },
   note: { fontFamily: fonts.bold, fontSize: 12, color: colors.muted },

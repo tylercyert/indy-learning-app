@@ -59,11 +59,16 @@ export function RichText({ doc, color = colors.ink, size = 16 }: { doc: RichText
               <Pressable
                 key={i}
                 accessibilityRole="link"
-                accessibilityHint="Opens in your browser"
+                // In the name, not a hint: web drops hints, and the learner should know before leaving the lesson.
+                accessibilityLabel={`${block.label} (opens in browser)`}
                 onPress={() => void Linking.openURL(block.href)}
                 style={styles.link}
               >
-                <Text style={[styles.linkText, { fontSize: size - 1 }]}>{block.label} ↗</Text>
+                <Text style={[styles.linkText, { fontSize: size - 1 }]}>
+                  {block.label}{' '}
+                  {/* The arrow says the same thing visually; a screen reader would read it as "north east arrow". */}
+                  <Text aria-hidden>↗</Text>
+                </Text>
               </Pressable>
             );
         }

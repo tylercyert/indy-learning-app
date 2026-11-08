@@ -5,6 +5,7 @@ import { BASE_COMPANION } from '../src/contracts';
 import { Companion } from '../src/features/companion/Companion';
 import { colors, fonts } from '../src/features/theme';
 import { ChunkyButton } from '../src/features/ui/ChunkyButton';
+import { useFocusOnChange, useScreenVisits } from '../src/features/ui/focus';
 import { ProgressGlass } from '../src/features/ui/ProgressGlass';
 import { AppBar, ErrorBox, Eyebrow, Screen } from '../src/features/ui/Screen';
 import { useAsync } from '../src/features/ui/useAsync';
@@ -69,9 +70,11 @@ export default function HomeScreen() {
     return [...(active.length ? active : list)].sort((a, b) => b.course.updatedAt.localeCompare(a.course.updatedAt))[0] ?? null;
   }, [courses.data]);
   const otherCourses = (courses.data?.courses ?? []).filter((c) => c.course.id !== featured?.course.id);
+  // Arriving on Home (or coming back to it), focus starts at its heading, the Poko wordmark (#20).
+  const titleRef = useFocusOnChange(useScreenVisits() || null);
 
   return (
-    <Screen header={<AppBar streak={streak} />}>
+    <Screen header={<AppBar streak={streak} titleRef={titleRef} />}>
       <View style={styles.hero}>
         <View style={styles.speech}>
           <Companion theme={featured ? featured.course.companion : BASE_COMPANION} mood={featured ? 'happy' : 'curious'} size={88} />
@@ -146,7 +149,7 @@ export default function HomeScreen() {
             onPress={() => router.push({ pathname: '/course/[id]', params: { id: course.id } })}
             style={styles.courseCard}
           >
-            <Companion theme={course.companion} size={56} />
+            <Companion theme={course.companion} size={56} decorative />
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={styles.courseTitle}>{course.title}</Text>
               <Text style={styles.courseMeta}>
@@ -166,7 +169,7 @@ export default function HomeScreen() {
           <Text style={styles.empty}>Same path, your own lessons: everything is written fresh for you as you go.</Text>
           {(showAllDiscover ? discover.data.courses : discover.data.courses.slice(0, DISCOVER_PREVIEW)).map((c) => (
             <View key={c.courseId} style={styles.courseCard}>
-              <Companion theme={c.companion} size={56} />
+              <Companion theme={c.companion} size={56} decorative />
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={styles.courseTitle}>{c.title}</Text>
                 <Text style={styles.courseMeta} numberOfLines={3}>
@@ -216,9 +219,9 @@ const styles = StyleSheet.create({
   speech: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   bubble: { flex: 1, backgroundColor: colors.bg, padding: 14, borderRadius: 20, borderBottomLeftRadius: 6 },
   bubbleText: { fontFamily: fonts.extraBold, fontSize: 17, lineHeight: 23, color: colors.ink },
-  input: { minHeight: 56, maxHeight: 120, borderWidth: 3, borderColor: '#C4B5FD', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, lineHeight: 22, color: colors.ink, textAlignVertical: 'top' },
+  input: { minHeight: 56, maxHeight: 120, borderWidth: 3, borderColor: colors.control, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, lineHeight: 22, color: colors.ink, textAlignVertical: 'top' },
   examples: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  example: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.bg, borderWidth: 2, borderColor: colors.line, flexShrink: 1, maxWidth: '100%' },
+  example: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.bg, borderWidth: 2, borderColor: colors.control, flexShrink: 1, maxWidth: '100%' },
   exampleText: { fontFamily: fonts.extraBold, fontSize: 13, color: colors.purple },
   section: { gap: 12 },
   empty: { fontFamily: fonts.bold, fontSize: 15, color: colors.muted },
