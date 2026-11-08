@@ -92,6 +92,19 @@ export const PlannedNodeV1Schema = z
   .refine(kindMatchesRequired, { message: 'kind "optional" must have required=false and every other kind required=true', path: ['required'] });
 export type PlannedNodeV1 = z.infer<typeof PlannedNodeV1Schema>;
 
+/** A plan this size must offer a choice: at least one optional side branch (#20). */
+export const PLAN_NODES_NEEDING_OPTIONAL = 5;
+
+function assertLearnerChoice(nodes: readonly { required: boolean }[], ctx: z.RefinementCtx): void {
+  if (nodes.length >= PLAN_NODES_NEEDING_OPTIONAL && !nodes.some((n) => !n.required)) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `a plan with ${PLAN_NODES_NEEDING_OPTIONAL} or more nodes needs at least one optional node (kind "optional", required: false) so the learner has a choice`,
+      path: ['nodes'],
+    });
+  }
+}
+
 /** CoursePlanV1: the structure of a new course or of an additional skill tree. */
 export const CoursePlanV1Schema = z
   .strictObject({
@@ -104,6 +117,7 @@ export const CoursePlanV1Schema = z
   })
   .superRefine((plan, ctx) => {
     assertTreeShape(plan.nodes, ctx);
+    assertLearnerChoice(plan.nodes, ctx);
     const orientation = plan.nodes.filter((n) => n.kind === 'orientation');
     if (orientation.length !== 1) {
       ctx.addIssue({ code: 'custom', message: 'a plan needs exactly one orientation node', path: ['nodes'] });
@@ -119,5 +133,8 @@ export const TreePlanV1Schema = z
     treeTitle: ShortTextSchema.max(80),
     nodes: z.array(PlannedNodeV1Schema).min(2).max(20),
   })
-  .superRefine((plan, ctx) => assertTreeShape(plan.nodes, ctx));
+  .superRefine((plan, ctx) => {
+    assertTreeShape(plan.nodes, ctx);
+    assertLearnerChoice(plan.nodes, ctx);
+  });
 export type TreePlanV1 = z.infer<typeof TreePlanV1Schema>;
