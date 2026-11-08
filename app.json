@@ -1,12 +1,14 @@
 {
   "expo": {
-    "name": "Poko: Learn Anything",
+    "name": "Poko",
     "slug": "poko",
     "scheme": "poko",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "primaryColor": "#6D28D9",
+    "backgroundColor": "#FFFFFF",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.tylercyert.poko",
