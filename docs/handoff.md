@@ -88,6 +88,6 @@ No Supabase, EAS, hosting, CI runners, branch protections, analytics or store si
 - #21 orientation lesson shape enforced at the contract (≤ 5 slides, ≤ 1 teach slide): prompt-only today.
 - #8 component folder contract for sub-agents: components still live as flat files in `src/features/components/` with manifests in `src/contracts/components.ts`; the per-folder layout described in the plan is not implemented.
 - #10 `npm audit`: 12 moderate advisories via Expo/ESLint tooling (glob/minimatch). Assess exposure; do not force-downgrade Expo.
-- #11 licensing of the application code is undecided; the starter's MIT notice is preserved.
+- #11 licensing: MIT, decided 2026-11-08 (`docs/decisions/0003-mit-license.md`).
 - #12 hosting beyond Tailscale: undecided.
 - Structured-output observability (from #7): no validation-failure-rate tracking beyond server warnings; per-slide generation remains a fallback idea if prompt-mode validity drops.
