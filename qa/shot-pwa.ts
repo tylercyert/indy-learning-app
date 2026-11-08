@@ -23,7 +23,7 @@ async function openAs(browser: Browser, options: BrowserContextOptions): Promise
   const context = await browser.newContext(options);
   const page = await context.newPage();
   await page.goto(base);
-  await page.evaluate((t) => window.localStorage.setItem('indy.learnerToken', t), token!);
+  await page.evaluate((t) => window.localStorage.setItem('poko.learnerToken', t), token!);
   return page;
 }
 

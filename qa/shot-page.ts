@@ -17,7 +17,7 @@ async function main(): Promise<void> {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 2 });
   await page.goto(base);
-  await page.evaluate((t) => window.localStorage.setItem('indy.learnerToken', t), token);
+  await page.evaluate((t) => window.localStorage.setItem('poko.learnerToken', t), token);
   await page.goto(`${base}${route}`);
   await page.waitForTimeout(2500);
   await page.screenshot({ path: out });

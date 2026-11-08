@@ -57,6 +57,7 @@ server/data/
 
 # visual QA output
 qa/out/
+qa/out-*.log
 
 # agent worktrees
 .claude/worktrees/

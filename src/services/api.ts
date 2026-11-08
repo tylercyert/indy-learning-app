@@ -31,7 +31,9 @@ function resolveBaseUrl(): string {
   return 'http://localhost:8787';
 }
 const baseUrl = resolveBaseUrl();
-const TOKEN_KEY = 'indy.learnerToken';
+const TOKEN_KEY = 'poko.learnerToken';
+/** The key used before the rename to Poko (#71). Read once and moved, so existing learners keep their courses. */
+const LEGACY_TOKEN_KEY = 'indy.learnerToken';
 
 export interface Health {
   ok: boolean;
@@ -52,7 +54,14 @@ export class ApiError extends Error {
 
 async function readToken(): Promise<string | null> {
   try {
-    return await AsyncStorage.getItem(TOKEN_KEY);
+    const current = await AsyncStorage.getItem(TOKEN_KEY);
+    if (current) return current;
+    const legacy = await AsyncStorage.getItem(LEGACY_TOKEN_KEY);
+    if (legacy) {
+      await AsyncStorage.setItem(TOKEN_KEY, legacy);
+      await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
+    }
+    return legacy;
   } catch {
     return null;
   }
@@ -113,7 +122,7 @@ export function ensureToken(): Promise<string> {
 export async function resetLearner(): Promise<void> {
   tokenPromise = null;
   try {
-    await AsyncStorage.removeItem(TOKEN_KEY);
+    await AsyncStorage.multiRemove([TOKEN_KEY, LEGACY_TOKEN_KEY]);
   } catch {
     // Nothing stored or storage unavailable: the in-memory token is already gone.
   }

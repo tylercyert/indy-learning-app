@@ -97,7 +97,7 @@ async function main() {
 
   if (process.env.QA_TOKEN) {
     await page.goto(base);
-    await page.evaluate((token) => window.localStorage.setItem('indy.learnerToken', token), process.env.QA_TOKEN);
+    await page.evaluate((token) => window.localStorage.setItem('poko.learnerToken', token), process.env.QA_TOKEN);
   }
 
   if (process.env.QA_COURSE) {

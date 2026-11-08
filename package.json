@@ -1,6 +1,26 @@
 {
-  "name": "indy-learning-app",
+  "name": "poko",
   "version": "0.1.0",
+  "description": "Poko: Learn Anything. Tell Poko what you want to learn and why, and get a personal skill path of short interactive lessons.",
+  "license": "MIT",
+  "author": "Tyler Cyert",
+  "homepage": "https://github.com/tylercyert/indy-learning-app#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tylercyert/indy-learning-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tylercyert/indy-learning-app/issues"
+  },
+  "keywords": [
+    "learning",
+    "education",
+    "expo",
+    "react-native",
+    "claude",
+    "anthropic",
+    "skill-tree"
+  ],
   "main": "expo-router/entry",
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
@@ -17,6 +37,7 @@
     "expo-haptics": "~58.0.7",
     "expo-linking": "~58.0.16",
     "expo-router": "~58.0.30",
+    "expo-splash-screen": "~58.0.13",
     "expo-status-bar": "~58.0.4",
     "hono": "^4.13.17",
     "react": "19.3.0",
