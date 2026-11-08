@@ -13,6 +13,7 @@ import { colors, fonts } from '../../src/features/theme';
 import { announce } from '../../src/features/ui/announce';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
 import { focusWhenShown } from '../../src/features/ui/focus';
+import { KEYBOARD_DISMISS_MODE, KeyboardAware } from '../../src/features/ui/KeyboardAware';
 import { Confetti } from '../../src/features/ui/Confetti';
 import { ProgressGlass } from '../../src/features/ui/ProgressGlass';
 import * as Haptics from 'expo-haptics';
@@ -338,12 +339,13 @@ function Player({
           <View style={[styles.progressFill, { width: `${((index + 1) / slides.length) * 100}%` }]} />
         </View>
       </AppBar>
+      <KeyboardAware>
       {/* Keyed per slide so each slide opens scrolled to the top. */}
       <ScrollView
         ref={scrollRef}
         key={slide.id}
         contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="handled" keyboardDismissMode={KEYBOARD_DISMISS_MODE}
         scrollEventThrottle={32}
         onScroll={(e) => {
           metrics.current.scrollY = e.nativeEvent.contentOffset.y;
@@ -445,6 +447,7 @@ function Player({
           )}
         </View>
       </View>
+      </KeyboardAware>
     </SafeAreaView>
   );
 }
