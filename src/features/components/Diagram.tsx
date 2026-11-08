@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { PixelRatio, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import type { ComponentV1 } from '../../contracts/components';
 import { colors, fonts, palette } from '../theme';
-import { LABEL_FONT, LABEL_LINE_H, edgeInset, fitLabel, labelWidth, nodeWidthFor, overlaps, type Rect } from './diagram-layout';
+import { LABEL_FONT, LABEL_LINE_H, columnWidths, edgeInset, fitLabel, labelWidth, overlaps, type Rect } from './diagram-layout';
 
 type DiagramComponent = Extract<ComponentV1, { type: 'diagram' }>;
 
@@ -55,12 +55,20 @@ export function Diagram({ component }: { component: DiagramComponent }) {
     return { nodes, cols: Math.min(maxCols, ordered.length), rows: Math.ceil(ordered.length / maxCols) };
   }, [component.nodes, width]);
 
-  const nodeW = width > 0 ? nodeWidthFor(width, layout.cols, PAD, MIN_COL_GAP) : 100;
+  // Each column is as wide as its labels need (one line when it fits, never splitting a word if it
+  // can be helped); the space left over goes between the columns (#20).
+  const colW = useMemo(() => {
+    const labelsByColumn = Array.from({ length: layout.cols }, (_, c) => layout.nodes.filter((n) => n.col === c).map((n) => n.label));
+    return width > 0 ? columnWidths(labelsByColumn, width, PAD, MIN_COL_GAP) : labelsByColumn.map(() => 100);
+  }, [layout, width]);
+  const usedW = colW.reduce((a, b) => a + b, 0);
+  const gapX = layout.cols > 1 ? (width - PAD * 2 - usedW) / (layout.cols - 1) : 0;
+  const nodeWOf = (n: { col: number }) => colW[n.col] ?? 100;
   const nodeH = (id: string) => nodeHeights[id] ?? NODE_H;
   const rowH = Math.max(NODE_H, ...layout.nodes.map((n) => nodeH(n.id)));
   const rowPitch = rowH + ROW_GAP;
   const height = PAD * 2 + rowH + (layout.rows - 1) * rowPitch;
-  const colX = (col: number) => (layout.cols === 1 ? width / 2 : PAD + nodeW / 2 + col * ((width - PAD * 2 - nodeW) / (layout.cols - 1)));
+  const colX = (col: number) => (layout.cols === 1 ? width / 2 : PAD + colW.slice(0, col).reduce((a, b) => a + b, 0) + col * gapX + (colW[col] ?? 0) / 2);
   const rowY = (row: number) => PAD + rowH / 2 + row * rowPitch;
   const byId = new Map(layout.nodes.map((n) => [n.id, n] as const));
   const showAlt = component.altText.length <= 160;
@@ -111,22 +119,23 @@ export function Diagram({ component }: { component: DiagramComponent }) {
     const dx = q.x - p.x;
     const dy = q.y - p.y;
     const len = Math.hypot(dx, dy) || 1;
-    const startInset = edgeInset(dx, dy, nodeW, nodeH(a.id));
-    const endInset = edgeInset(dx, dy, nodeW, nodeH(b.id));
+    const startInset = edgeInset(dx, dy, nodeWOf(a), nodeH(a.id));
+    const endInset = edgeInset(dx, dy, nodeWOf(b), nodeH(b.id));
     const drawn = Math.max(0, len - startInset - endInset);
     // Midpoint of the visible shaft, not of the center-to-center line.
     const mid = { x: p.x + (dx / len) * (startInset + drawn / 2), y: p.y + (dy / len) * (startInset + drawn / 2) };
     return [{ edge, index, p, q, dx, dy, len, drawn, mid, ux: dx / len, uy: dy / len }];
   });
 
-  const nodeRects = layout.nodes.map((n) => ({ x: colX(n.col) - nodeW / 2, y: rowY(n.row) - nodeH(n.id) / 2, w: nodeW, h: nodeH(n.id) }));
+  const nodeRects = layout.nodes.map((n) => ({ x: colX(n.col) - nodeWOf(n) / 2, y: rowY(n.row) - nodeH(n.id) / 2, w: nodeWOf(n), h: nodeH(n.id) }));
   const placed: Rect[] = [];
   const hits = (r: Rect) => nodeRects.some((n) => overlaps(r, n, 4)) || placed.some((l) => overlaps(r, l, 2));
   const labeledEdges = edges.filter((e) => !!e.edge.label);
   const inlineAllowed = width > 0 && labeledEdges.length <= 4;
   const maxLabelW = Math.min(120, Math.max(72, width / 3));
 
-  const inline: { key: string; x: number; y: number; w: number; lines: string[] }[] = [];
+  /** onShaft: the label sits on the line itself, so its background must mask the line behind the text. */
+  const inline: { key: string; x: number; y: number; w: number; lines: string[]; onShaft: boolean }[] = [];
   const legend: typeof labeledEdges = [];
   for (const e of labeledEdges) {
     const label = e.edge.label!;
@@ -151,6 +160,7 @@ export function Diagram({ component }: { component: DiagramComponent }) {
     const along = [0, -0.12, 0.12].map((t) => e.drawn * t);
     const offsets = [...[side, -side].flatMap((s) => [s * tight, s * (extent + 10)]), 0];
     let spot: Rect | null = null;
+    let onShaft = false;
     for (const d of along) {
       for (const off of offsets) {
         const cx = e.mid.x + e.ux * d + nx * off;
@@ -159,6 +169,7 @@ export function Diagram({ component }: { component: DiagramComponent }) {
         if (r.x < 0 || r.x + w > width) continue;
         if (!hits(r)) {
           spot = r;
+          onShaft = off === 0;
           break;
         }
       }
@@ -169,7 +180,7 @@ export function Diagram({ component }: { component: DiagramComponent }) {
       continue;
     }
     placed.push(spot);
-    inline.push({ key: `l${e.index}`, x: spot.x, y: spot.y, w, lines });
+    inline.push({ key: `l${e.index}`, x: spot.x, y: spot.y, w, lines, onShaft });
   }
 
   return (
@@ -205,17 +216,19 @@ export function Diagram({ component }: { component: DiagramComponent }) {
                   styles.node,
                   node.shape === 'circle' && { borderRadius: NODE_H / 2 },
                   node.shape === 'pill' && { borderRadius: 999 },
-                  { width: nodeW, left: colX(node.col) - nodeW / 2, top: rowY(node.row) - nodeH(node.id) / 2, backgroundColor: c.fill, borderBottomColor: c.shadow },
+                  { width: nodeWOf(node), left: colX(node.col) - nodeWOf(node) / 2, top: rowY(node.row) - nodeH(node.id) / 2, backgroundColor: c.fill, borderBottomColor: c.shadow },
                 ]}
               >
-                <Text style={[styles.nodeText, { color: c.text, fontSize: nodeW < 90 ? 11 : 12 }]} numberOfLines={3}>
+                <Text style={[styles.nodeText, { color: c.text, fontSize: nodeWOf(node) < 72 ? 11 : 12 }]} numberOfLines={3}>
                   {node.label}
                 </Text>
               </View>
             );
           })}
         {inline.map((l) => (
-          <View key={l.key} aria-hidden style={[styles.edgeLabelWrap, { left: l.x, top: l.y, width: l.w }]}>
+          // Beside the shaft the label needs no background: an opaque patch there only notched the line
+          // next to the text (#68). On the shaft it keeps one so the line does not run through the words.
+          <View key={l.key} aria-hidden style={[styles.edgeLabelWrap, l.onShaft && styles.edgeLabelOnShaft, { left: l.x, top: l.y, width: l.w }]}>
             {l.lines.map((line, i) => (
               <Text key={i} style={styles.edgeLabel} numberOfLines={1}>
                 {line}
@@ -244,7 +257,8 @@ const styles = StyleSheet.create({
   edge: { position: 'absolute', height: 3, backgroundColor: '#A99DD1', borderRadius: 2, justifyContent: 'center' },
   edgeDashed: { opacity: 0.55 },
   arrowHead: { position: 'absolute', right: -1, top: -4, width: 10, height: 10, borderTopWidth: 3, borderRightWidth: 3, borderColor: '#A99DD1', transform: [{ rotate: '45deg' }] },
-  edgeLabelWrap: { position: 'absolute', alignItems: 'center', backgroundColor: colors.soft, borderRadius: 6 },
+  edgeLabelWrap: { position: 'absolute', alignItems: 'center', borderRadius: 6 },
+  edgeLabelOnShaft: { backgroundColor: colors.soft },
   edgeLabel: { fontFamily: fonts.extraBold, fontSize: LABEL_FONT, lineHeight: LABEL_LINE_H, color: '#4B4365', paddingHorizontal: 5, textAlign: 'center' },
   node: { position: 'absolute', minHeight: NODE_H, borderRadius: 12, borderBottomWidth: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 6 },
   nodeText: { fontFamily: fonts.black, lineHeight: 14, textAlign: 'center' },

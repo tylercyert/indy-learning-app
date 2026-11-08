@@ -1,6 +1,6 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import type { CompanionThemeV1, TreeView } from '../../src/contracts';
 import { Companion } from '../../src/features/companion/Companion';
 import { layoutPath, type PlacedNode } from '../../src/features/course/path-layout';
@@ -14,9 +14,15 @@ import { api } from '../../src/services/api';
 
 type NodeStatus = 'locked' | 'available' | 'completed';
 
+/** At this window width and up, the course screen uses two columns: status on the left, the path on the right (#20). */
+const TWO_COLUMN_MIN = 768;
+const TWO_COLUMN_MAX_WIDTH = 1120;
+
 export default function CourseScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, building } = useLocalSearchParams<{ id: string; building?: string }>();
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const wide = windowWidth >= TWO_COLUMN_MIN;
   const view = useAsync(() => api.getCourse(id), [id]);
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +72,20 @@ export default function CourseScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.tree.id, nextNode?.id, nextReady]);
 
+  // Arriving from a planning screen the learner left (#20): the new skill tree is still being planned.
+  // Refresh until it appears (or three minutes pass).
+  const treeCount = data?.trees.length ?? null;
+  const [firstTreeCount, setFirstTreeCount] = useState<number | null>(null);
+  if (firstTreeCount === null && treeCount !== null) setFirstTreeCount(treeCount);
+  const waitingForTree = building === '1' && treeCount !== null && treeCount <= (firstTreeCount ?? treeCount);
+  const { reload } = view;
+  useEffect(() => {
+    if (!waitingForTree) return;
+    const started = Date.now();
+    const timer = setInterval(() => (Date.now() - started > 180_000 ? clearInterval(timer) : reload()), 4000);
+    return () => clearInterval(timer);
+  }, [waitingForTree, reload]);
+
   const open = async (nodeId: string) => {
     if (opening) return; // one open at a time; a second tap while generating must not race
     setOpening(nodeId);
@@ -80,6 +100,23 @@ export default function CourseScreen() {
     }
   };
 
+  const exploreButton = data ? (
+    <ChunkyButton
+      label="Learn something different"
+      variant="ghost"
+      onPress={async () => {
+        setError(null);
+        try {
+          const session = await api.startIntake(`Within my course "${data.course.title}", I want to go in a new direction.`, id);
+          router.push({ pathname: '/intake/[id]', params: { id: session.id } });
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Could not start that');
+        }
+      }}
+      accessibilityHint="Tell your companion what you want to explore; it becomes a new skill tree in this course"
+    />
+  ) : null;
+
   const companionLine = (): string => {
     if (!data || !current) return '';
     if (current.complete) return 'You did it! Every required lesson is done.';
@@ -87,18 +124,23 @@ export default function CourseScreen() {
       const title = current.tree.nodes.find((n) => n.id === opening)?.title ?? 'your lesson';
       return current.readyNodeIds.includes(opening) ? `Opening "${title}"…` : `Finishing "${title}" for you now…`;
     }
-    if (nextNode && !nextReady) return `Writing "${nextNode.title}" for you now… it'll be ready in a moment.`;
+    // Short enough for three lines on a phone even with a long title (#68).
+    if (nextNode && !nextReady) return `Writing "${nextNode.title}" for you now…`;
     if (nextNode) return `"${nextNode.title}" is ready. Shall we?`;
     return data.course.companion.greeting;
   };
 
   return (
-    <Screen header={<AppBar back={{ label: 'Back to home', onPress: () => router.replace('/') }} streak={data?.streak.count ?? 0} />}>
+    <Screen
+      header={<AppBar back={{ label: 'Back to home', onPress: () => router.replace('/') }} streak={data?.streak.count ?? 0} maxWidth={wide ? TWO_COLUMN_MAX_WIDTH : undefined} />}
+      maxWidth={wide ? TWO_COLUMN_MAX_WIDTH : undefined}
+    >
       {view.loading && !data ? <Loading message="Loading your course…" /> : null}
       {view.error ? <ErrorBox message={view.error} onRetry={view.reload} /> : null}
 
       {data && current ? (
-        <>
+        <View style={wide ? styles.columns : styles.stack}>
+        <View style={wide ? styles.sideColumn : styles.stack}>
           <View style={styles.unit}>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={styles.unitEyebrow} numberOfLines={2}>
@@ -118,7 +160,7 @@ export default function CourseScreen() {
             <Companion theme={data.course.companion} mood={current.complete ? 'cheering' : nextReady ? 'happy' : 'thinking'} size={56} />
             <View style={{ flex: 1, gap: 2 }}>
               <Eyebrow color={colors.coralDeep}>{data.course.companion.name}</Eyebrow>
-              <Text style={styles.greeting} accessibilityLiveRegion="polite" numberOfLines={3}>
+              <Text style={styles.greeting} accessibilityLiveRegion="polite">
                 {companionLine()}
               </Text>
             </View>
@@ -177,25 +219,22 @@ export default function CourseScreen() {
             </View>
           ) : null}
 
+          {waitingForTree ? (
+            <Text style={styles.building} accessibilityLiveRegion="polite">
+              {data.course.companion.name} is still planning your new skill tree. It will appear here in a moment.
+            </Text>
+          ) : null}
+
           {error ? <ErrorBox message={error} /> : null}
+          {wide ? exploreButton : null}
+        </View>
 
-          <SkillPath tree={current} companion={data.course.companion} openingNodeId={opening} onOpen={(nodeId) => void open(nodeId)} />
+          <View style={wide ? styles.pathColumn : undefined}>
+            <SkillPath tree={current} companion={data.course.companion} openingNodeId={opening} onOpen={(nodeId) => void open(nodeId)} />
+          </View>
 
-          <ChunkyButton
-            label="Learn something different"
-            variant="ghost"
-            onPress={async () => {
-              setError(null);
-              try {
-                const session = await api.startIntake(`Within my course "${data.course.title}", I want to go in a new direction.`, id);
-                router.push({ pathname: '/intake/[id]', params: { id: session.id } });
-              } catch (e) {
-                setError(e instanceof Error ? e.message : 'Could not start that');
-              }
-            }}
-            accessibilityHint="Tell your companion what you want to explore; it becomes a new skill tree in this course"
-          />
-        </>
+          {wide ? null : exploreButton}
+        </View>
       ) : null}
     </Screen>
   );
@@ -218,9 +257,15 @@ function SkillPath({
 }) {
   const disabled = !!openingNodeId;
   const [width, setWidth] = useState(0);
+  // Measured label heights: rows grow when large text makes a label taller than a row (#20).
+  const [labelHeights, setLabelHeights] = useState<Record<string, number>>({});
+  const onLabelHeight = useCallback((nodeId: string, h: number) => {
+    const rounded = Math.ceil(h);
+    setLabelHeights((prev) => (Math.abs((prev[nodeId] ?? 0) - rounded) <= 1 ? prev : { ...prev, [nodeId]: rounded }));
+  }, []);
   const lane = Math.min(width, LANE_MAX);
   const offset = (width - lane) / 2;
-  const layout = useMemo(() => layoutPath(tree.tree.nodes, lane, offset), [tree.tree.nodes, lane, offset]);
+  const layout = useMemo(() => layoutPath(tree.tree.nodes, lane, offset, labelHeights), [tree.tree.nodes, lane, offset, labelHeights]);
   const byId = useMemo(() => new Map(layout.nodes.map((p) => [p.node.id, p])), [layout]);
 
   return (
@@ -266,6 +311,7 @@ function SkillPath({
             opening={openingNodeId === placed.node.id}
             disabled={disabled}
             onPress={() => onOpen(placed.node.id)}
+            onLabelHeight={onLabelHeight}
           />
         ))}
     </View>
@@ -282,6 +328,7 @@ function PathNode({
   opening,
   disabled,
   onPress,
+  onLabelHeight,
 }: {
   placed: PlacedNode;
   companion: CompanionThemeV1;
@@ -293,6 +340,7 @@ function PathNode({
   opening: boolean;
   disabled: boolean;
   onPress: () => void;
+  onLabelHeight: (nodeId: string, height: number) => void;
 }) {
   const { node, cx, cy, r, labelMode, labelSide, labelWidth } = placed;
   const locked = state === 'locked';
@@ -358,7 +406,7 @@ function PathNode({
           icon
         )}
       </Pressable>
-      <View aria-hidden style={[styles.label, labelStyle]}>
+      <View aria-hidden style={[styles.label, labelStyle]} onLayout={(e) => onLabelHeight(node.id, e.nativeEvent.layout.height)}>
         <Text style={[styles.labelTitle, (branch || labelMode === 'below') && styles.labelTitleBelow, locked && { color: colors.muted }, { textAlign, width: '100%' }]} numberOfLines={2}>
           {node.title}
         </Text>
@@ -377,6 +425,11 @@ function PathNode({
 }
 
 const styles = StyleSheet.create({
+  stack: { gap: 18 },
+  columns: { flexDirection: 'row', alignItems: 'flex-start', gap: 32 },
+  sideColumn: { width: 360, gap: 18 },
+  pathColumn: { flex: 1, minWidth: 0 },
+  building: { fontFamily: fonts.extraBold, fontSize: 14, lineHeight: 20, color: colors.purple },
   hero: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 22, backgroundColor: colors.coralTint },
   pencil: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   pencilIcon: { fontFamily: fonts.black, fontSize: 20, color: colors.coralDeep },

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { z } from 'zod';
 import type { ComponentV1, MultipleChoiceResultSchema } from '../../contracts/components';
 import { ChunkyButton } from '../ui/ChunkyButton';
@@ -16,6 +16,9 @@ export interface ChoiceFeedback {
 }
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+/** Tablet and up: four short options sit in a 2×2 grid instead of a tall list (#20). */
+const GRID_MIN_WIDTH = 768;
+const GRID_MAX_OPTION_CHARS = 48;
 
 /**
  * Pick → Check → feedback. Scoring happens on the server (pure domain code); this component only
@@ -41,12 +44,14 @@ export function MultipleChoice({
   const answeredCorrectly = feedback?.correct ?? result?.correct ?? false;
   const showFeedback = !!feedback;
   const locked = answeredCorrectly || busy;
+  const { width } = useWindowDimensions();
+  const grid = width >= GRID_MIN_WIDTH && component.options.length === 4 && component.options.every((o) => o.text.length <= GRID_MAX_OPTION_CHARS);
 
   return (
     <View style={styles.wrap}>
       <Text style={styles.badge}>Quick check</Text>
       <Text style={styles.prompt}>{component.prompt}</Text>
-      <View accessibilityRole="radiogroup" style={styles.options}>
+      <View accessibilityRole="radiogroup" style={[styles.options, grid && styles.optionsGrid]}>
         {component.options.map((option, i) => {
           const isSelected = selected === option.id;
           // The correct option is highlighted only once the learner has found it; a wrong pick
@@ -65,6 +70,7 @@ export function MultipleChoice({
               onPress={() => setSelected(option.id)}
               style={[
                 styles.option,
+                grid && styles.optionHalf,
                 isSelected && styles.optionSelected,
                 isCorrect && styles.optionCorrect,
                 isWrongPick && styles.optionWrong,
@@ -104,6 +110,8 @@ const styles = StyleSheet.create({
   badge: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, backgroundColor: colors.yellowTint, color: '#92400E', fontFamily: fonts.black, fontSize: 12, letterSpacing: 0.8, textTransform: 'uppercase' },
   prompt: { fontFamily: fonts.black, fontSize: 20, lineHeight: 26, color: colors.ink },
   options: { gap: 10 },
+  optionsGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  optionHalf: { flexBasis: '45%', flexGrow: 1 },
   option: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, padding: 12, borderRadius: 20, borderWidth: 3, borderColor: colors.line, borderBottomWidth: 6, backgroundColor: colors.bg },
   optionSelected: { borderColor: colors.purple, backgroundColor: colors.soft },
   optionCorrect: { borderColor: colors.green, backgroundColor: colors.greenTint },

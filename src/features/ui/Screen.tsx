@@ -24,6 +24,7 @@ export function Screen({
   header,
   footer,
   scrollToEndKey,
+  maxWidth = CONTENT_MAX_WIDTH,
 }: {
   children: ReactNode;
   scroll?: boolean;
@@ -32,6 +33,8 @@ export function Screen({
   footer?: ReactNode;
   /** When this value changes, the scroll view scrolls to its end (chat-style screens). */
   scrollToEndKey?: unknown;
+  /** A wider column for two-column layouts on tablets and desktops (the course screen). */
+  maxWidth?: number;
 }) {
   const ref = useRef<ComponentRef<typeof ScrollView>>(null);
   const insets = useSafeAreaInsets();
@@ -49,10 +52,10 @@ export function Screen({
       {header}
       {scroll ? (
         <ScrollView ref={ref} contentContainerStyle={[styles.scroll, { paddingBottom: bottomPad }]} keyboardShouldPersistTaps="handled">
-          <Column>{children}</Column>
+          <Column style={{ maxWidth }}>{children}</Column>
         </ScrollView>
       ) : (
-        <Column style={{ flex: 1, paddingBottom: 32 + bottomPad }}>{children}</Column>
+        <Column style={{ flex: 1, maxWidth, paddingBottom: 32 + bottomPad }}>{children}</Column>
       )}
       {footer ? (
         <View style={styles.footer}>
@@ -88,16 +91,19 @@ export function AppBar({
   streak = 0,
   right,
   children,
+  maxWidth,
 }: {
   back?: { label: string; onPress?: () => void };
   streak?: number;
   right?: ReactNode;
   children?: ReactNode;
+  /** Match a screen whose content column is wider than the default (the two-column course). */
+  maxWidth?: number;
 }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.appBar, { paddingTop: insets.top + STANDALONE_TOP_CLEARANCE }]} accessibilityRole="header">
-      <View style={styles.appBarRow}>
+      <View style={[styles.appBarRow, maxWidth ? { maxWidth } : null]}>
         {back ? (
           <BackButton label={back.label} onPress={back.onPress} tone="light" />
         ) : (

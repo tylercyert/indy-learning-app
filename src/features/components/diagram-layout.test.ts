@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { edgeInset, fitLabel, labelWidth, nodeWidthFor, overlaps } from './diagram-layout';
+import { columnWidths, edgeInset, fitLabel, labelNodeWidths, labelWidth, NODE_MAX_W, NODE_MIN_W, nodeWidthFor, overlaps } from './diagram-layout';
 
 describe('fitLabel', () => {
   it('keeps a short label on one line', () => {
@@ -47,5 +47,37 @@ describe('edgeInset', () => {
   it('measures to the side for horizontal edges and to the top for vertical ones', () => {
     expect(edgeInset(100, 0, 120, 48)).toBe(64);
     expect(edgeInset(0, 100, 120, 48)).toBe(28);
+  });
+});
+
+describe('columnWidths (node width from text)', () => {
+  const phone = 318; // 390 phone − 20 padding × 2 − 16 card padding × 2
+  const sum = (ws: number[]) => ws.reduce((a, b) => a + b, 0);
+
+  it('gives short labels narrow nodes and longer labels wider ones, one line each when there is room', () => {
+    const [left, right] = columnWidths([['Your drink'], ['Shaken sour', 'Built highball']], phone, 8, 28);
+    expect(left).toBe(labelNodeWidths('Your drink').want);
+    expect(right).toBe(labelNodeWidths('Built highball').want);
+    expect(left!).toBeLessThan(right!);
+  });
+
+  it('never goes below the minimum or above the maximum', () => {
+    expect(columnWidths([['Ice']], phone, 8, 28)).toEqual([NODE_MIN_W]);
+    expect(columnWidths([['A very long label that would never fit on one line']], 900, 8, 28)).toEqual([NODE_MAX_W]);
+  });
+
+  it('shrinks the widest columns first on a phone, keeping every longest word whole', () => {
+    const labels = [['Carbonation level'], ['Sugar'], ['Citrus and bitters']];
+    const ws = columnWidths(labels, phone, 8, 28);
+    expect(sum(ws) + 16 + 56).toBeLessThanOrEqual(phone);
+    labels.forEach((col, i) => expect(ws[i]).toBeGreaterThanOrEqual(labelNodeWidths(col[0]!).hard));
+    // The short column keeps what it wants; the long ones gave way.
+    expect(ws[1]).toBe(labelNodeWidths('Sugar').want);
+  });
+
+  it('scales everything down only when even whole words cannot fit', () => {
+    const ws = columnWidths([['Supercalifragilistic'], ['Antidisestablishment'], ['Floccinaucinihilipil']], phone, 8, 28);
+    expect(sum(ws) + 16 + 56).toBeLessThanOrEqual(phone);
+    expect(Math.min(...ws)).toBeGreaterThanOrEqual(48);
   });
 });

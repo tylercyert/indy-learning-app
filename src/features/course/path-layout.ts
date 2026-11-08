@@ -14,6 +14,25 @@ export const ROW_SINGLE = 116;
 export const ROW_BRANCH = 104;
 const TOP_PAD = 10;
 const BOTTOM_PAD = 20;
+/** Where a side label starts relative to its circle's top (the renderer puts it at cy - 36). */
+export const SIDE_LABEL_TOP = MAIN_RADIUS - 36;
+/** Clear space kept between one row's label and the next row. */
+const LABEL_GAP = 12;
+/** The tallest side label a fixed road step holds. */
+export const SIDE_LABEL_FIT = ROW_SINGLE - SIDE_LABEL_TOP - LABEL_GAP;
+/** Where a branch's label starts below its row top (the renderer puts it at cy + r + 8). */
+export const BRANCH_LABEL_TOP = BRANCH_RADIUS * 2 + 8;
+/** How far the next row reaches above its own top (the "up next" ring is 7 px outside the circle). */
+const NEXT_OVERHANG = 7;
+/**
+ * A branch label hangs below its circle, so the next row has to start under it. At phone and
+ * two-column tablet lane widths there is no horizontal room for it to hang beside the next step: the
+ * next road node's side label or the companion is always there (#20, seen at 390 px). An unmeasured
+ * label keeps the fixed step until it reports its height.
+ */
+export function branchStep(labelHeight: number): number {
+  return labelHeight > 0 ? Math.max(ROW_BRANCH, BRANCH_LABEL_TOP + labelHeight + LABEL_GAP + NEXT_OVERHANG) : ROW_BRANCH;
+}
 
 /** Road positions as fractions of the lane: center, left, center, right… */
 const WIND = [0.5, 0.24, 0.5, 0.76];
@@ -103,7 +122,12 @@ export function anchorOf(node: NodeV1, nodes: readonly NodeV1[], road: readonly 
   return best >= 0 ? road[best] : road[0];
 }
 
-export function layoutPath(nodes: readonly NodeV1[], laneWidth: number, offsetX = 0): PathLayout {
+/**
+ * `labelHeights` are measured label heights by node id. A row is normally a fixed step, but when a
+ * label is taller than that (large accessibility text, a long title), the row grows to clear it so
+ * labels never run into the next row (#20). Unmeasured labels keep the fixed step.
+ */
+export function layoutPath(nodes: readonly NodeV1[], laneWidth: number, offsetX = 0, labelHeights: Readonly<Record<string, number>> = {}): PathLayout {
   const road = roadOrder(nodes);
   const optional = nodes.filter((n) => !n.required);
   const dependedOn = new Set(nodes.flatMap((n) => ruleReferences(n.rule)));
@@ -138,7 +162,7 @@ export function layoutPath(nodes: readonly NodeV1[], laneWidth: number, offsetX 
     placed.push(p);
     rows.push([p]);
     row++;
-    y += ROW_SINGLE;
+    y += ROW_SINGLE + Math.max(0, (labelHeights[node.id] ?? 0) - SIDE_LABEL_FIT);
     return col;
   };
 
@@ -161,7 +185,7 @@ export function layoutPath(nodes: readonly NodeV1[], laneWidth: number, offsetX 
     rows.push([p]);
     edges.push({ from: anchorId, to: node.id, branch: true, long: false });
     row++;
-    y += ROW_BRANCH;
+    y += branchStep(labelHeights[node.id] ?? 0);
   };
 
   if (road.length === 0 && optional.length > 0) {
