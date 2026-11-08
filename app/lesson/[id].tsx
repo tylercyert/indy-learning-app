@@ -10,7 +10,9 @@ import type { ChoiceFeedback } from '../../src/features/components/MultipleChoic
 import { SlideView } from '../../src/features/components/SlideView';
 import { recapFromObjective } from '../../src/features/lesson/recap';
 import { colors, fonts } from '../../src/features/theme';
+import { announce } from '../../src/features/ui/announce';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
+import { focusWhenShown } from '../../src/features/ui/focus';
 import { Confetti } from '../../src/features/ui/Confetti';
 import { ProgressGlass } from '../../src/features/ui/ProgressGlass';
 import * as Haptics from 'expo-haptics';
@@ -97,8 +99,8 @@ function Player({
   const [celebrating, setCelebrating] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [moreBelow, setMoreBelow] = useState(false);
-  /** One always-mounted polite region: screen readers hear feedback and completion reliably. */
-  const [announce, setAnnounce] = useState('');
+  /** The app's one persistent polite region (AnnouncerHost in the root layout; VoiceOver on iOS). */
+  const setAnnounce = announce;
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const insets = useSafeAreaInsets();
 
@@ -288,16 +290,13 @@ function Player({
     const recap = recapFromObjective(objective);
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.purple }]}>
-        <Text accessibilityLiveRegion="polite" style={styles.srOnly}>
-          {announce}
-        </Text>
         <Confetti />
         {/* Scrolls rather than clips when large text makes the celebration taller than the screen. */}
         <ScrollView contentContainerStyle={styles.celebrateScroll}>
           <View style={styles.celebrate}>
           <Companion theme={companion} mood="cheering" size={140} />
           <Text style={styles.celebrateEyebrow}>{celebration.treeCompleted ? 'Skill tree finished' : 'Lesson complete'}</Text>
-          <Text style={styles.celebrateTitle} accessibilityRole="header">
+          <Text ref={focusWhenShown} style={styles.celebrateTitle} accessibilityRole="header">
             {lessonTitle}!
           </Text>
           {recap ? <Text style={styles.celebrateRecap}>{recap}</Text> : null}
@@ -325,9 +324,6 @@ function Player({
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <Text accessibilityLiveRegion="polite" style={styles.srOnly}>
-        {announce}
-      </Text>
       {/* Same purple bar as every other screen; the progress track takes the wordmark's place. */}
       <AppBar back={{ label: 'Close lesson', onPress: onExit }} right={<Text style={styles.count} aria-hidden>{index + 1}/{slides.length}</Text>}>
         <View
@@ -402,10 +398,11 @@ function Player({
         <View style={[styles.footerColumn, { paddingBottom: 16 + insets.bottom }]}>
           {sheet ? (
             // The correction moment: one explanation, one primary action.
-            <View style={styles.sheet} accessibilityLiveRegion="polite">
+            // Focus moves to its title when it appears; the explanation itself is announced by send().
+            <View style={styles.sheet}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Companion theme={companion} mood={sheet.correct ? 'cheering' : 'thinking'} size={40} />
-                <Text style={styles.sheetTitle}>{sheet.correct ? 'Nice! That’s it.' : 'Close! Here’s the idea'}</Text>
+                <Companion theme={companion} mood={sheet.correct ? 'cheering' : 'thinking'} size={40} decorative />
+                <Text ref={focusWhenShown} style={styles.sheetTitle}>{sheet.correct ? 'Nice! That’s it.' : 'Close! Here’s the idea'}</Text>
               </View>
               {sheet.lines.map((line, i) => (
                 <Text key={i} style={styles.sheetText}>
@@ -440,7 +437,7 @@ function Player({
                 />
               ) : (
                 // One call to action at a time: the Check button inside the slide is the primary until answered.
-                <Text style={styles.footerHint} accessibilityLiveRegion="polite">
+                <Text style={styles.footerHint}>
                   Answer the question to continue
                 </Text>
               )}
@@ -454,7 +451,6 @@ function Player({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  srOnly: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
   progress: { flex: 1, height: 16, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.28)', overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: colors.yellow, borderRadius: 8 },
   count: { fontFamily: fonts.black, fontSize: 13, color: '#FFFFFF', minWidth: 44, textAlign: 'right' },

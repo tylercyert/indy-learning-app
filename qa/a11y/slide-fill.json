@@ -1,0 +1,27 @@
+{
+  "id": "a11y-fill",
+  "title": "Complete the ratio",
+  "purpose": "practice",
+  "components": [
+    {
+      "id": "intro",
+      "type": "text",
+      "content": {
+        "blocks": [
+          { "type": "paragraph", "inlines": [{ "text": "A classic sour is two parts base to one part each of sour and sweet." }] },
+          { "type": "link", "label": "Read more about sours", "href": "https://en.wikipedia.org/wiki/Sour_(cocktail)" }
+        ]
+      }
+    },
+    {
+      "id": "q",
+      "type": "fillBlank",
+      "prompt": "Fill in both numbers.",
+      "text": "A sour is ___ parts base to ___ part sour.",
+      "gaps": [
+        { "id": "g1", "accepted": ["2", "two"], "explanation": "Base is the backbone: two parts, twice the sour." },
+        { "id": "g2", "accepted": ["1", "one"], "explanation": "One part sour balances one part sweet." }
+      ]
+    }
+  ]
+}

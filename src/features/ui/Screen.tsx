@@ -1,8 +1,9 @@
-import { useEffect, useRef, type ComponentRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ComponentRef, type ReactNode, type Ref } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, fonts } from '../theme';
+import { useAnnounce } from './announce';
 import { ChunkyButton } from './ChunkyButton';
 
 /**
@@ -92,6 +93,7 @@ export function AppBar({
   right,
   children,
   maxWidth,
+  titleRef,
 }: {
   back?: { label: string; onPress?: () => void };
   streak?: number;
@@ -99,15 +101,18 @@ export function AppBar({
   children?: ReactNode;
   /** Match a screen whose content column is wider than the default (the two-column course). */
   maxWidth?: number;
+  /** The wordmark is the screen's heading when there is no back control (Home): focus can land on it. */
+  titleRef?: Ref<ComponentRef<typeof Text>>;
 }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.appBar, { paddingTop: insets.top + STANDALONE_TOP_CLEARANCE }]} accessibilityRole="header">
+    // A banner landmark on web, not a heading: the bar holds controls, and the wordmark is the heading.
+    <View style={[styles.appBar, { paddingTop: insets.top + STANDALONE_TOP_CLEARANCE }]} role={Platform.OS === 'web' ? 'banner' : undefined}>
       <View style={[styles.appBarRow, maxWidth ? { maxWidth } : null]}>
         {back ? (
           <BackButton label={back.label} onPress={back.onPress} tone="light" />
         ) : (
-          <Text style={styles.wordmark} accessibilityRole="header" aria-level={1}>
+          <Text ref={titleRef} style={styles.wordmark} accessibilityRole="header" aria-level={1}>
             Poko
           </Text>
         )}
@@ -188,8 +193,10 @@ function CloseGlyph({ light }: { light?: boolean }) {
 
 /** Plain, quiet loading state. The beaker animation is reserved for course creation. */
 export function Loading({ message }: { message: string }) {
+  // Said through the app's persistent live region: a region that mounts already filled is often not read.
+  useAnnounce(message);
   return (
-    <View style={styles.center} accessibilityLiveRegion="polite" accessibilityRole="progressbar" aria-busy>
+    <View style={styles.center} accessibilityRole="progressbar" aria-label={message} aria-busy>
       <ActivityIndicator size="large" color={colors.purple} />
       <Text style={styles.loadingText}>{message}</Text>
     </View>
@@ -197,8 +204,9 @@ export function Loading({ message }: { message: string }) {
 }
 
 export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  useAnnounce(`That didn’t work. ${message}`, 'assertive');
   return (
-    <View style={styles.error} accessibilityLiveRegion="assertive">
+    <View style={styles.error}>
       <Text style={styles.errorTitle}>That didn’t work</Text>
       <Text style={styles.errorText}>{message}</Text>
       {onRetry ? <ChunkyButton label="Try again" variant="outline" onPress={onRetry} /> : null}

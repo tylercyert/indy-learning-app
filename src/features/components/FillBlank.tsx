@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import type { z } from 'zod';
 import { FILL_BLANK_MARKER, type ComponentV1, type FillBlankResultSchema } from '../../contracts/components';
+import { gapEnterAction } from '../ui/a11y';
+import { announce } from '../ui/announce';
 import { ChunkyButton } from '../ui/ChunkyButton';
 import { colors, fonts } from '../theme';
 
@@ -44,6 +46,33 @@ export function FillBlank({
   const pieces = component.text.split(FILL_BLANK_MARKER);
   const filled = component.gaps.every((g) => (values[g.id] ?? '').trim().length > 0);
   const gapState = (gapId: string) => feedback?.gaps.find((g) => g.gapId === gapId);
+  const showCheck = !solved && !(feedback && feedbackInFooter);
+  const submit = () => onSubmit?.(component.gaps.map((g) => ({ gapId: g.id, value: values[g.id] ?? '' })));
+  const inputs = useRef<(ComponentRef<typeof TextInput> | null)[]>([]);
+  /** Enter moves to the next gap; from the last gap it checks, when Check would be enabled. */
+  const onEnter = (i: number) => {
+    if (gapEnterAction(i, component.gaps.length) === 'next') inputs.current[i + 1]?.focus();
+    else if (showCheck && onSubmit && filled && !busy) submit();
+  };
+
+  // Feedback shown here (not in the screen's footer) is announced through the app's live region.
+  useEffect(() => {
+    if (!feedback || feedbackInFooter) return;
+    const wrong = feedback.gaps.filter((g) => !g.correct).map((g) => g.explanation);
+    announce(feedback.correct ? 'Correct.' : `Not quite. ${wrong.join(' ')}`);
+  }, [feedback, feedbackInFooter]);
+  // "Try again" clears the footer's explanation: put the cursor in the first gap to fix.
+  const hadFeedback = useRef(!!feedback);
+  const lastFeedback = useRef(feedback);
+  useEffect(() => {
+    if (hadFeedback.current && !feedback && !locked) {
+      const firstWrong = component.gaps.findIndex((g) => lastFeedback.current?.gaps.some((x) => x.gapId === g.id && !x.correct));
+      inputs.current[Math.max(0, firstWrong)]?.focus();
+    }
+    hadFeedback.current = !!feedback;
+    if (feedback) lastFeedback.current = feedback;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when feedback appears or clears
+  }, [feedback]);
 
   return (
     <View style={styles.wrap}>
@@ -76,13 +105,19 @@ export function FillBlank({
             <View key={gap.id} style={styles.field}>
               <Text style={styles.fieldLabel}>{component.gaps.length > 1 ? `Gap ${i + 1}` : 'Your answer'}</Text>
               <TextInput
+                ref={(el) => {
+                  inputs.current[i] = el;
+                }}
                 accessibilityLabel={`Gap ${i + 1} of ${component.gaps.length}`}
                 value={values[gap.id] ?? ''}
                 onChangeText={(text) => setValues((v) => ({ ...v, [gap.id]: text }))}
                 editable={!locked}
                 autoCapitalize="none"
                 autoCorrect={false}
-                returnKeyType="done"
+                returnKeyType={gapEnterAction(i, component.gaps.length) === 'next' ? 'next' : 'done'}
+                // Keep the keyboard up while moving between gaps; the last gap closes it and checks.
+                submitBehavior={gapEnterAction(i, component.gaps.length) === 'next' ? 'submit' : 'blurAndSubmit'}
+                onSubmitEditing={() => onEnter(i)}
                 maxLength={60}
                 style={[styles.input, state && (state.correct ? styles.inputRight : styles.inputWrong), locked && styles.inputLocked]}
               />
@@ -92,7 +127,7 @@ export function FillBlank({
       </View>
 
       {feedback && !feedbackInFooter ? (
-        <View style={[styles.feedback, feedback.correct ? styles.feedbackRight : styles.feedbackWrong]} accessibilityLiveRegion="polite">
+        <View style={[styles.feedback, feedback.correct ? styles.feedbackRight : styles.feedbackWrong]}>
           <Text style={styles.feedbackTitle}>{feedback.correct ? 'Nice!' : feedback.gaps.length > 1 ? 'Not quite. Check the marked gap' : 'Not quite. Here’s the idea'}</Text>
           {feedback.gaps
             .filter((g) => !g.correct)
@@ -106,10 +141,10 @@ export function FillBlank({
         </View>
       ) : null}
 
-      {!solved && !(feedback && feedbackInFooter) && (
+      {showCheck && (
         <ChunkyButton
           label={feedback ? 'Check again' : 'Check'}
-          onPress={() => onSubmit?.(component.gaps.map((g) => ({ gapId: g.id, value: values[g.id] ?? '' })))}
+          onPress={submit}
           disabled={!onSubmit || !filled}
           loading={busy}
         />
@@ -124,13 +159,13 @@ const styles = StyleSheet.create({
   prompt: { fontFamily: fonts.black, fontSize: 20, lineHeight: 26, color: colors.ink },
   sentence: { fontFamily: fonts.bold, fontSize: 17, lineHeight: 30, color: colors.ink },
   slot: { fontFamily: fonts.black, backgroundColor: colors.soft, color: colors.purple, borderRadius: 6 },
-  slotEmpty: { borderBottomWidth: 3, borderBottomColor: '#C4B5FD', borderRadius: 0, backgroundColor: 'transparent' },
+  slotEmpty: { borderBottomWidth: 3, borderBottomColor: colors.control, borderRadius: 0, backgroundColor: 'transparent' },
   slotRight: { backgroundColor: colors.greenTint, color: colors.mintDeep },
   slotWrong: { backgroundColor: colors.coralTint, color: colors.coralDeep },
   fields: { gap: 10 },
   field: { gap: 4 },
   fieldLabel: { fontFamily: fonts.extraBold, fontSize: 12, letterSpacing: 0.4, textTransform: 'uppercase', color: colors.muted },
-  input: { minHeight: 52, paddingHorizontal: 14, borderRadius: 16, borderWidth: 3, borderColor: colors.line, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 17, color: colors.ink },
+  input: { minHeight: 52, paddingHorizontal: 14, borderRadius: 16, borderWidth: 3, borderColor: colors.control, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 17, color: colors.ink },
   inputRight: { borderColor: colors.green, backgroundColor: colors.greenTint },
   inputWrong: { borderColor: colors.orangeLine, backgroundColor: colors.coralTint },
   inputLocked: { opacity: 0.8 },

@@ -9,6 +9,13 @@ export const colors = {
   bg: '#FFFFFF',
   soft: '#F3F0FA',
   line: '#E9E5F5',
+  /**
+   * The edge of an interactive control at rest: text fields, answer options, checkboxes, match rows,
+   * outline buttons. `line` (1.24:1) and the old lilac `#C4B5FD` (1.85:1) were too faint to find the
+   * control by; this clears WCAG 1.4.11's 3:1 against white and `soft` (#20, tested in a11y.test.ts).
+   * Containers and separators that are not controls keep `line`.
+   */
+  control: '#8F82C4',
   purple: '#6D28D9',
   purpleDeep: '#4C1D95',
   purpleTint: '#DDD6FE',

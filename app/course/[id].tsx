@@ -6,7 +6,9 @@ import { Companion } from '../../src/features/companion/Companion';
 import { layoutPath, type PlacedNode } from '../../src/features/course/path-layout';
 import { ProgressGlass } from '../../src/features/ui/ProgressGlass';
 import { colors, fonts } from '../../src/features/theme';
+import { useAnnounce } from '../../src/features/ui/announce';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
+import { useFocusOnChange, useScreenVisits } from '../../src/features/ui/focus';
 import { BranchIcon, CheckIcon, LockIcon, StarIcon } from '../../src/features/ui/icons';
 import { AppBar, ErrorBox, Eyebrow, Loading, Screen } from '../../src/features/ui/Screen';
 import { useAsync } from '../../src/features/ui/useAsync';
@@ -63,6 +65,9 @@ export default function CourseScreen() {
   const current: TreeView | undefined = data?.trees.at(-1);
   const nextNode = current ? current.tree.nodes.find((n) => n.id === current.nextNodeId) : undefined;
   const nextReady = !!current && !!nextNode && current.readyNodeIds.includes(nextNode.id);
+  // Focus starts at the skill tree's title on arrival, on coming back, and when a new tree is added (#20).
+  const visits = useScreenVisits();
+  const treeTitleRef = useFocusOnChange(current && visits ? `${visits}:${current.tree.id}` : null);
 
   // While the next lesson is still being written on the server, refresh until it is ready.
   useEffect(() => {
@@ -130,6 +135,10 @@ export default function CourseScreen() {
     return data.course.companion.greeting;
   };
 
+  // What the companion says ("Writing…", then "… is ready") is heard through the app's live region.
+  useAnnounce(data && current ? companionLine() : null);
+  useAnnounce(waitingForTree && data ? `${data.course.companion.name} is still planning your new skill tree.` : null);
+
   return (
     <Screen
       header={<AppBar back={{ label: 'Back to home', onPress: () => router.replace('/') }} streak={data?.streak.count ?? 0} maxWidth={wide ? TWO_COLUMN_MAX_WIDTH : undefined} />}
@@ -146,7 +155,7 @@ export default function CourseScreen() {
               <Text style={styles.unitEyebrow} numberOfLines={2}>
                 Skill tree {current.tree.sequence + 1} · {data.course.title}
               </Text>
-              <Text style={styles.unitTitle} accessibilityRole="header">
+              <Text ref={treeTitleRef} style={styles.unitTitle} accessibilityRole="header">
                 {current.tree.title}
               </Text>
             </View>
@@ -160,7 +169,7 @@ export default function CourseScreen() {
             <Companion theme={data.course.companion} mood={current.complete ? 'cheering' : nextReady ? 'happy' : 'thinking'} size={56} />
             <View style={{ flex: 1, gap: 2 }}>
               <Eyebrow color={colors.coralDeep}>{data.course.companion.name}</Eyebrow>
-              <Text style={styles.greeting} accessibilityLiveRegion="polite">
+              <Text style={styles.greeting}>
                 {companionLine()}
               </Text>
             </View>
@@ -220,7 +229,7 @@ export default function CourseScreen() {
           ) : null}
 
           {waitingForTree ? (
-            <Text style={styles.building} accessibilityLiveRegion="polite">
+            <Text style={styles.building}>
               {data.course.companion.name} is still planning your new skill tree. It will appear here in a moment.
             </Text>
           ) : null}
@@ -435,7 +444,7 @@ const styles = StyleSheet.create({
   pencilIcon: { fontFamily: fonts.black, fontSize: 20, color: colors.coralDeep },
   greeting: { fontFamily: fonts.extraBold, fontSize: 15, lineHeight: 20, color: colors.ink },
   companionPanel: { gap: 10, padding: 14, borderRadius: 20, borderWidth: 3, borderColor: colors.line },
-  input: { minHeight: 52, borderWidth: 3, borderColor: '#C4B5FD', borderRadius: 16, paddingHorizontal: 14, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
+  input: { minHeight: 52, borderWidth: 3, borderColor: colors.control, borderRadius: 16, paddingHorizontal: 14, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
   completeCard: { gap: 10, padding: 16, borderRadius: 22, backgroundColor: colors.mintTint },
   completeTitle: { fontFamily: fonts.black, fontSize: 18, color: colors.mintDeep },
   completeText: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.ink },

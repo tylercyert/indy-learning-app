@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { componentRole, type ComponentResultV1, type ComponentV1, type CompanionThemeV1, type SlideV1 } from '../../contracts';
 import { Companion } from '../companion/Companion';
 import { colors, fonts, palette } from '../theme';
+import { useFocusOnChange } from '../ui/focus';
 import { Checklist } from './Checklist';
 import { CodeBlock } from './CodeBlock';
 import { Diagram } from './Diagram';
@@ -42,10 +43,12 @@ export function SlideView({ slide, companion, interactions }: { slide: SlideV1; 
   const [first, ...rest] = slide.components;
   const leadsWithCompanion = first?.type === 'callout' && first.speaker === 'companion';
   const body = leadsWithCompanion ? rest : slide.components;
+  // Each new slide is a new page for the learner: keyboard and screen-reader focus start at its title.
+  const titleRef = useFocusOnChange(slide.id);
   return (
     <View style={styles.slide}>
       {leadsWithCompanion && first ? <ComponentRenderer component={first} companion={companion} interactions={interactions} /> : null}
-      <Text accessibilityRole="header" aria-level={1} style={styles.title}>
+      <Text ref={titleRef} accessibilityRole="header" aria-level={1} style={styles.title}>
         {slide.title}
       </Text>
       {body.map((component) => {
@@ -71,7 +74,8 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
       if (component.speaker === 'companion') {
         return (
           <View style={styles.speech}>
-            <Companion theme={companion} mood={component.tone === 'celebrate' ? 'cheering' : component.tone === 'warn' ? 'thinking' : 'happy'} size={64} />
+            {/* Decorative: the companion appears on many slides and the bubble carries what it says. */}
+            <Companion theme={companion} mood={component.tone === 'celebrate' ? 'cheering' : component.tone === 'warn' ? 'thinking' : 'happy'} size={64} decorative />
             <View style={[styles.bubble, { backgroundColor: tone }]}>
               <RichText doc={component.content} size={15} />
             </View>
