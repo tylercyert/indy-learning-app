@@ -20,9 +20,9 @@ Poko runs on iOS, Android and the web from one Expo codebase. A small API server
 <p align="center">
   <img src="docs/images/home.png" width="180" alt="Home: Poko asks what you want to learn, with suggested goals">
   <img src="docs/images/skill-path.png" width="180" alt="A course's winding skill path with the first lesson ready">
-  <img src="docs/images/lesson.png" width="180" alt="A lesson slide with a diagram of the sourdough process">
-  <img src="docs/images/feedback.png" width="180" alt="Teaching feedback after a wrong answer, with Try again">
-  <img src="docs/images/celebration.png" width="180" alt="Lesson complete: celebration with progress glass and streak">
+  <img src="docs/images/lesson.png" width="180" alt="A lesson slide explaining the musical staff">
+  <img src="docs/images/feedback.png" width="180" alt="Feedback after answering a quick check">
+  <img src="docs/images/celebration.png" width="180" alt="Lesson complete: celebration with a recap, progress glass and streak">
 </p>
 
 ## Features
