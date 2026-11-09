@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { colors, fonts } from '../theme';
 import { useAnnounce } from './announce';
 import { ChunkyButton } from './ChunkyButton';
+import { KEYBOARD_DISMISS_MODE, KeyboardAware } from './KeyboardAware';
 
 /**
  * Reading surfaces live in one centered column so tablets and desktops keep a readable measure
@@ -51,8 +52,9 @@ export function Screen({
   return (
     <SafeAreaView style={styles.safe} edges={header ? ['left', 'right'] : ['top', 'left', 'right']}>
       {header}
+      <KeyboardAware>
       {scroll ? (
-        <ScrollView ref={ref} contentContainerStyle={[styles.scroll, { paddingBottom: bottomPad }]} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={ref} contentContainerStyle={[styles.scroll, { paddingBottom: bottomPad }]} keyboardShouldPersistTaps="handled" keyboardDismissMode={KEYBOARD_DISMISS_MODE}>
           <Column style={{ maxWidth }}>{children}</Column>
         </ScrollView>
       ) : (
@@ -63,6 +65,7 @@ export function Screen({
           <View style={[styles.footerColumn, { paddingBottom: 20 + insets.bottom }]}>{footer}</View>
         </View>
       ) : null}
+      </KeyboardAware>
     </SafeAreaView>
   );
 }
