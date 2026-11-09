@@ -133,6 +133,11 @@ function ComponentRenderer({ component, companion, interactions }: { component: 
         />
       );
     }
+    default: {
+      // Every catalog type needs a case (docs/components.md); a new type without one fails to compile.
+      const unhandled: never = component;
+      return unhandled;
+    }
   }
 }
 

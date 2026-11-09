@@ -10,10 +10,9 @@ import { RichTextV1Schema, richTextChars } from './rich-text';
  *   interactive:    the learner does something, result is recorded but never scored
  *   assessable:     the learner answers, result is scored by code in src/domain
  *
- * Adding a component today = add a schema here, a manifest entry in COMPONENT_MANIFESTS,
- * a renderer in src/features/components, and (if assessable) a scorer in src/domain.
- * Planned (issue #8): one folder per component with its own schema/manifest/renderer/test and a
- * registry, so a sub-agent can add one without touching this file.
+ * Adding a component: follow docs/components.md. The manifest table and the slide renderer are
+ * checked by the compiler, and server/src/ai/catalog.test.ts checks prompt guidance and stress
+ * fixtures for every type (#8).
  */
 export const ComponentRoleSchema = z.enum(['presentational', 'interactive', 'assessable']);
 export type ComponentRole = z.infer<typeof ComponentRoleSchema>;

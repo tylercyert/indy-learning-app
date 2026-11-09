@@ -58,11 +58,11 @@ Course creation awaits the orientation lesson so the first node is Ready on arri
 
 Social features are out of scope for this product. The learner, course and history models keep stable ids, so nothing blocks adding sharing later, but no social work is planned.
 
-## Component sub-agents (after slice 2; not implemented as described, see #8)
+## Component sub-agents (after slice 2; superseded, see docs/components.md and #8)
 
 A component is one folder: `schema.ts` (props + result), `Component.tsx` (renderer), `manifest.ts` (role, when to use), `*.test.ts`. The registry collects manifests and the generation context lists them. A sub-agent adds a folder and registers it; nothing else changes.
 
-Today the catalog is not organized this way: schemas, result schemas and manifests live together in `src/contracts/components.ts`, renderers are flat files in `src/features/components/`, and the generation prompt lists the manifests from the contracts module. The hardening lane (#23) added two components within that layout. Reorganizing into per-component folders remains the content of #8.
+Today the catalog is not organized this way: schemas, result schemas and manifests live together in `src/contracts/components.ts`, renderers are flat files in `src/features/components/`, and the generation prompt lists the manifests from the contracts module. The hardening lane (#23) added two components within that layout. On 2026-11-08 the per-folder layout was set aside in favor of the touchpoint guide in `docs/components.md`, with compiler and test checks for every type (#8).
 
 ## Running
 
