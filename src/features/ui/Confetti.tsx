@@ -15,7 +15,8 @@ export function Confetti({ count = 48, height = 520, loop = false }: { count?: n
   const pieces = useMemo(
     () =>
       Array.from({ length: count }, (_, i) => ({
-        left: ((i * 53) % 100) as number,
+        // 6–90% of the width: with the ±18 px sway no piece is ever cut by a side edge (#68).
+        left: 6 + ((i * 53) % 85),
         size: 10 + ((i * 7) % 11),
         color: PIECE_COLORS[i % PIECE_COLORS.length]!,
         delay: (i * 97) % 900,
@@ -63,7 +64,8 @@ function Piece({
   }, [delay, duration, reduced, loop, t]);
 
   const style = useAnimatedStyle(() => ({
-    transform: [{ translateY: -30 + t.value * (height + 30) }, { rotate: `${t.value * 540}deg` }, { translateX: Math.sin(t.value * 6.28) * 18 }],
+    // Pieces fade in just inside the top edge rather than sliding in half-clipped by it (#68).
+    transform: [{ translateY: 4 + t.value * height }, { rotate: `${t.value * 540}deg` }, { translateX: Math.sin(t.value * 6.28) * 18 }],
     opacity: t.value <= 0 ? 0 : t.value < 0.08 ? t.value * 12.5 : t.value > 0.8 ? (1 - t.value) / 0.2 : 1,
   }));
 

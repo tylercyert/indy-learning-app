@@ -8,6 +8,7 @@ import type { FillBlankFeedback } from '../../src/features/components/FillBlank'
 import type { MatchPairsFeedback } from '../../src/features/components/MatchPairs';
 import type { ChoiceFeedback } from '../../src/features/components/MultipleChoice';
 import { SlideView } from '../../src/features/components/SlideView';
+import { recapFromObjective } from '../../src/features/lesson/recap';
 import { colors, fonts } from '../../src/features/theme';
 import { announce } from '../../src/features/ui/announce';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
@@ -27,7 +28,7 @@ export default function LessonScreen() {
     // The companion and the lesson's title belong to the course; fetch it once.
     const course = await api.getCourse(view.experience.courseId).catch(() => null);
     const node = course?.trees.flatMap((t) => t.tree.nodes).find((n) => n.lessonId === view.experience.lessonId);
-    return { view, companion: course?.course.companion ?? BASE_COMPANION, courseId: view.experience.courseId, lessonTitle: node?.title ?? 'Lesson' };
+    return { view, companion: course?.course.companion ?? BASE_COMPANION, courseId: view.experience.courseId, lessonTitle: node?.title ?? 'Lesson', objective: node?.objective ?? null };
   }, [id]);
 
   if (loaded.loading && !loaded.data) return <Shell><Loading message="Opening your lesson…" /></Shell>;
@@ -37,6 +38,7 @@ export default function LessonScreen() {
       initial={loaded.data.view}
       companion={loaded.data.companion}
       lessonTitle={loaded.data.lessonTitle}
+      objective={loaded.data.objective}
       onExit={() => router.replace({ pathname: '/course/[id]', params: { id: loaded.data!.courseId } })}
     />
   );
@@ -54,12 +56,30 @@ function Shell({ children }: { children: ReactNode }) {
 interface Celebration {
   streak: StreakV1;
   treeCompleted: boolean;
-  /** Filled in once the course view arrives: the glass fills from before to after. */
+  /** Filled in once the course view arrives (usually before the learner taps Finish). */
   progress?: { completed: number; required: number };
   nextTitle?: string | null;
 }
 
-function Player({ initial, companion, lessonTitle, onExit }: { initial: ExperienceView; companion: CompanionThemeV1; lessonTitle: string; onExit: () => void }) {
+/** Room between a just-answered check and the header or the feedback sheet when it is scrolled into view. */
+const REVEAL_MARGIN = 12;
+/** Opacities of the stacked bands that fade the last visible lines when the slide continues below. */
+const FADE_STEPS = [0.85, 0.6, 0.35, 0.15];
+const FADE_BAND = 6;
+
+function Player({
+  initial,
+  companion,
+  lessonTitle,
+  objective,
+  onExit,
+}: {
+  initial: ExperienceView;
+  companion: CompanionThemeV1;
+  lessonTitle: string;
+  objective: string | null;
+  onExit: () => void;
+}) {
   const [view, setView] = useState(initial);
   const slides = view.experience.slides;
   const firstUnviewed = slides.findIndex((s) => !view.viewedSlideIds.includes(s.id));
@@ -69,27 +89,46 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
   const [matchPairsFeedback, setMatchPairsFeedback] = useState<Record<string, MatchPairsFeedback | undefined>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [celebration, setCelebration] = useState<Celebration | null>(null);
+  /**
+   * The server can record completion before the learner is done reading: viewing the last slide (or
+   * answering the last check) completes the lesson. The completion is kept here and celebrated only
+   * when the learner taps Finish, so the last slide stays on screen until then (#67).
+   */
+  const [completion, setCompletion] = useState<Celebration | null>(null);
+  const completionRef = useRef<Celebration | null>(null);
+  const [celebrating, setCelebrating] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [moreBelow, setMoreBelow] = useState(false);
   /** The app's one persistent polite region (AnnouncerHost in the root layout; VoiceOver on iOS). */
   const setAnnounce = announce;
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const insets = useSafeAreaInsets();
 
-  const celebrate = (c: Celebration) => {
-    setCelebration(c);
-    setAnnounce(c.treeCompleted ? `${lessonTitle} complete. Skill tree finished.` : `${lessonTitle} complete. The next lesson is unlocked.`);
-    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
-    // Enrich with course progress and the newly unlocked node; the screen renders fine without it.
+  const keepCompletion = (c: Celebration | null) => {
+    completionRef.current = c;
+    setCompletion(c);
+  };
+
+  /** Records a completion the server just reported, and fetches what the celebration will show. */
+  const recordCompletion = (c: Celebration) => {
+    keepCompletion(c);
+    // Course progress and the newly unlocked node; the celebration renders fine without them.
     void api
       .getCourse(view.experience.courseId)
       .then((course) => {
         const tree = course.trees.at(-1);
-        if (!tree) return;
+        if (!tree || !completionRef.current) return;
         const nextTitle = tree.tree.nodes.find((n) => n.id === tree.nextNodeId)?.title ?? null;
-        setCelebration((prev) => (prev ? { ...prev, progress: tree.progress, nextTitle } : prev));
+        keepCompletion({ ...completionRef.current, progress: tree.progress, nextTitle });
       })
       .catch(() => undefined);
+  };
+
+  const showCelebration = (c: Celebration) => {
+    keepCompletion(c);
+    setCelebrating(true);
+    setAnnounce(c.treeCompleted ? `${lessonTitle} complete. Skill tree finished.` : `${lessonTitle} complete. The next lesson is unlocked.`);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
   };
   const viewedThisSession = useRef(new Set<string>());
   /** The most recent slideViewed request, so Finish can wait for the completion it may trigger. */
@@ -106,7 +145,7 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
       .sendEvent(view.experience.id, { type: 'slideViewed', slideId: slide.id, localDate: localDate() })
       .then((res) => {
         setView(res.view);
-        if (res.lessonCompleted) celebrate({ streak: res.streak, treeCompleted: res.treeCompleted });
+        if (res.lessonCompleted) recordCompletion({ streak: res.streak, treeCompleted: res.treeCompleted });
         return res;
       })
       .catch(() => undefined);
@@ -117,10 +156,16 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
     setFinishing(true);
     try {
       await pendingView.current;
-      // If the lesson was completed on an earlier visit, still celebrate briefly rather than exit cold.
+      // Completed while the learner read this slide (or answered its check): celebrate now.
+      if (completionRef.current) {
+        showCelebration(completionRef.current);
+        return;
+      }
+      // Otherwise ask the server: the lesson may have been completed on an earlier visit (or before a
+      // reload), and then it still gets one brief celebration rather than a cold exit.
       const latest = await api.getExperience(view.experience.id).catch(() => null);
       if (latest) setView(latest);
-      if (!celebration && latest && !latest.completed) {
+      if (latest && !latest.completed) {
         // A check was skipped earlier: go back to it instead of exiting cold.
         const answered = new Set(latest.results.map((r) => r.componentId));
         const missing = slides.findIndex((s) => s.components.some((c) => componentRole(c.type) === 'assessable' && !answered.has(c.id)));
@@ -131,10 +176,16 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
           return;
         }
       }
-      if (!celebration && latest?.completed) {
+      if (latest?.completed) {
         const course = await api.getCourse(view.experience.courseId).catch(() => null);
-        celebrate({ streak: course?.streak ?? { count: 0, lastActiveDate: null }, treeCompleted: course?.trees.at(-1)?.complete ?? false });
-      } else if (!celebration) {
+        const tree = course?.trees.at(-1);
+        showCelebration({
+          streak: course?.streak ?? { count: 0, lastActiveDate: null },
+          treeCompleted: tree?.complete ?? false,
+          progress: tree?.progress,
+          nextTitle: tree ? (tree.tree.nodes.find((n) => n.id === tree.nextNodeId)?.title ?? null) : null,
+        });
+      } else {
         onExit();
       }
     } finally {
@@ -156,6 +207,44 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
     }
     return null;
   })();
+
+  /**
+   * Keeping a just-answered check in view (#68). The feedback sheet replaces the footer and is much
+   * taller, so the slide's visible area shrinks under it. Once the new layout has settled, scroll so
+   * the check sits between the header and the sheet: its top just under the header when it fits
+   * (no half-cut lines above it), its bottom just above the sheet when it is taller than the space
+   * (the coloured answers matter more than the prompt). Nothing moves when it is already in view.
+   */
+  const metrics = useRef({ viewportH: 0, contentH: 0, scrollY: 0, slideTop: 0 });
+  const checkBoxes = useRef<Record<string, { y: number; height: number }>>({});
+  const pendingReveal = useRef<string | null>(null);
+  const reveal = () => {
+    const componentId = pendingReveal.current;
+    pendingReveal.current = null;
+    if (!componentId) return;
+    const m = metrics.current;
+    const box = checkBoxes.current[componentId];
+    if (!box || m.viewportH <= 0) {
+      scrollRef.current?.scrollToEnd({ animated: true });
+      return;
+    }
+    const top = m.slideTop + box.y - REVEAL_MARGIN;
+    const bottom = m.slideTop + box.y + box.height + REVEAL_MARGIN;
+    if (top >= m.scrollY && bottom <= m.scrollY + m.viewportH) return;
+    const maxScroll = Math.max(0, m.contentH - m.viewportH);
+    const target = bottom - top <= m.viewportH ? top : bottom - m.viewportH;
+    scrollRef.current?.scrollTo({ y: Math.max(0, Math.min(target, maxScroll)), animated: true });
+  };
+  const requestReveal = (componentId: string) => {
+    pendingReveal.current = componentId;
+    // The footer's onLayout normally triggers it; this covers a sheet that did not change height.
+    setTimeout(() => requestAnimationFrame(reveal), 250);
+  };
+  const updateMoreBelow = () => {
+    const m = metrics.current;
+    const next = m.viewportH > 0 && m.contentH - m.scrollY - m.viewportH > 24;
+    setMoreBelow((prev) => (prev === next ? prev : next));
+  };
 
   const send = async (componentId: string, event: Parameters<typeof api.sendEvent>[1]) => {
     setBusy(componentId);
@@ -179,8 +268,8 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
         const wrong = mp.matches.filter((m) => !m.correct).map((m) => m.explanation).join(' ');
         setAnnounce(mp.correct ? 'Correct.' : `Not quite. ${wrong}`);
       }
-      if (res.scored || res.scoredFillBlank || res.scoredMatchPairs) requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
-      if (res.lessonCompleted) celebrate({ streak: res.streak, treeCompleted: res.treeCompleted });
+      if (res.scored || res.scoredFillBlank || res.scoredMatchPairs) requestReveal(componentId);
+      if (res.lessonCompleted) recordCompletion({ streak: res.streak, treeCompleted: res.treeCompleted });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save that');
     } finally {
@@ -195,19 +284,24 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
     setMatchPairsFeedback((f) => ({ ...f, [componentId]: undefined }));
   };
 
-  if (celebration && isLast && !finishing) {
+  if (celebrating && completion) {
+    const celebration = completion;
     const p = celebration.progress;
+    const recap = recapFromObjective(objective);
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.purple }]}>
         <Confetti />
-        <View style={styles.celebrate}>
+        {/* Scrolls rather than clips when large text makes the celebration taller than the screen. */}
+        <ScrollView contentContainerStyle={styles.celebrateScroll}>
+          <View style={styles.celebrate}>
           <Companion theme={companion} mood="cheering" size={140} />
           <Text style={styles.celebrateEyebrow}>{celebration.treeCompleted ? 'Skill tree finished' : 'Lesson complete'}</Text>
           <Text ref={focusWhenShown} style={styles.celebrateTitle} accessibilityRole="header">
             {lessonTitle}!
           </Text>
+          {recap ? <Text style={styles.celebrateRecap}>{recap}</Text> : null}
           <View style={styles.celebrateRow}>
-            {p ? <ProgressGlass completed={p.completed} required={p.required} width={64} height={104} liquid={colors.yellow} /> : null}
+            {p ? <ProgressGlass completed={p.completed} required={p.required} width={64} height={104} liquid={colors.yellow} countColor="#FFFFFF" /> : null}
             <View style={{ flex: 1, gap: 10 }}>
               <Text style={styles.celebrateText}>
                 {celebration.treeCompleted
@@ -221,8 +315,9 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
               </View>
             </View>
           </View>
-          <ChunkyButton label={celebration.nextTitle && !celebration.treeCompleted ? 'Back to the path' : 'Continue'} onPress={onExit} style={{ width: '100%', maxWidth: 420, marginTop: 20 }} />
-        </View>
+          <ChunkyButton label={celebration.nextTitle && !celebration.treeCompleted ? 'Back to the path' : 'Continue'} onPress={onExit} style={{ width: '100%', maxWidth: 420, marginTop: 20, alignSelf: 'center' }} />
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -244,8 +339,27 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
         </View>
       </AppBar>
       {/* Keyed per slide so each slide opens scrolled to the top. */}
-      <ScrollView ref={scrollRef} key={slide.id} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        ref={scrollRef}
+        key={slide.id}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={32}
+        onScroll={(e) => {
+          metrics.current.scrollY = e.nativeEvent.contentOffset.y;
+          updateMoreBelow();
+        }}
+        onLayout={(e) => {
+          metrics.current.viewportH = e.nativeEvent.layout.height;
+          updateMoreBelow();
+        }}
+        onContentSizeChange={(_, h) => {
+          metrics.current.contentH = h;
+          updateMoreBelow();
+        }}
+      >
         <View style={styles.content}>
+          <View style={styles.slideBox} onLayout={(e) => (metrics.current.slideTop = e.nativeEvent.layout.y)}>
           <SlideView
             slide={slide}
             companion={companion}
@@ -260,19 +374,34 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
               matchPairsFeedback,
               onMatchPairs: (componentId, matches) => void send(componentId, { type: 'matchPairs', slideId: slide.id, componentId, matches }),
               feedbackInFooter: true,
+              onAssessableLayout: (componentId, box) => (checkBoxes.current[componentId] = box),
             }}
           />
+          </View>
           {error ? <ErrorBox message={error} /> : null}
         </View>
       </ScrollView>
-      <View style={[styles.footer, sheet && (sheet.correct ? styles.footerRight : styles.footerWrong)]}>
+      {/* A soft fade over the last visible lines says "there is more below" when the slide runs under the footer. */}
+      {moreBelow ? (
+        <View pointerEvents="none" aria-hidden style={styles.fadeWrap}>
+          {FADE_STEPS.map((opacity, i) => (
+            <View key={i} style={[styles.fadeStep, { bottom: i * FADE_BAND, opacity }]} />
+          ))}
+        </View>
+      ) : null}
+      <View
+        style={[styles.footer, sheet && (sheet.correct ? styles.footerRight : styles.footerWrong)]}
+        onLayout={() => {
+          if (pendingReveal.current) requestAnimationFrame(reveal);
+        }}
+      >
         <View style={[styles.footerColumn, { paddingBottom: 16 + insets.bottom }]}>
           {sheet ? (
             // The correction moment: one explanation, one primary action.
             // Focus moves to its title when it appears; the explanation itself is announced by send().
             <View style={styles.sheet}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Companion theme={companion} mood={sheet.correct ? 'cheering' : 'thinking'} size={44} decorative />
+                <Companion theme={companion} mood={sheet.correct ? 'cheering' : 'thinking'} size={40} decorative />
                 <Text ref={focusWhenShown} style={styles.sheetTitle}>{sheet.correct ? 'Nice! That’s it.' : 'Close! Here’s the idea'}</Text>
               </View>
               {sheet.lines.map((line, i) => (
@@ -283,9 +412,16 @@ function Player({ initial, companion, lessonTitle, onExit }: { initial: Experien
               {sheet.correct ? (
                 <ChunkyButton label={isLast ? 'Finish' : 'Continue'} onPress={() => (isLast ? void finish() : setIndex((i) => i + 1))} loading={finishing} />
               ) : (
-                <View style={{ gap: 6 }}>
-                  <ChunkyButton label="Try again" onPress={() => tryAgain(sheet.componentId)} accessibilityHint="Pick a different answer. No penalty." />
-                  <ChunkyButton label={isLast ? 'Skip for now and finish' : 'Skip for now'} variant="ghost" onPress={() => (isLast ? void finish() : setIndex((i) => i + 1))} />
+                // One row, like the regular footer, so the sheet stays short enough to leave the answers in view.
+                <View style={styles.sheetActions}>
+                  <ChunkyButton
+                    label={isLast ? 'Skip and finish' : 'Skip for now'}
+                    variant="ghost"
+                    onPress={() => (isLast ? void finish() : setIndex((i) => i + 1))}
+                    loading={isLast && finishing}
+                    style={styles.sheetSkip}
+                  />
+                  <ChunkyButton label="Try again" onPress={() => tryAgain(sheet.componentId)} accessibilityHint="Pick a different answer. No penalty." style={styles.sheetRetry} />
                 </View>
               )}
             </View>
@@ -326,12 +462,21 @@ const styles = StyleSheet.create({
   footerColumn: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', padding: 16 },
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   footerHint: { flex: 1, textAlign: 'center', fontFamily: fonts.extraBold, fontSize: 14, color: colors.muted },
-  sheet: { gap: 10 },
+  sheet: { gap: 8 },
+  sheetActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+  sheetSkip: { flexGrow: 0, minWidth: 120 },
+  sheetRetry: { flexGrow: 1, flexBasis: 180 },
+  slideBox: { flexGrow: 1 },
+  // Zero-height anchor between the scroll view and the footer; the bands hang upwards over the slide.
+  fadeWrap: { height: 0, zIndex: 1 },
+  fadeStep: { position: 'absolute', left: 0, right: 0, height: FADE_BAND, backgroundColor: colors.bg },
   sheetTitle: { flex: 1, fontFamily: fonts.black, fontSize: 18, color: colors.ink },
   sheetText: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 22, color: colors.ink },
-  celebrate: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 28, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  celebrateScroll: { flexGrow: 1 },
+  celebrate: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 28, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   celebrateEyebrow: { fontFamily: fonts.black, fontSize: 13, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.purpleTint },
   celebrateTitle: { fontFamily: fonts.black, fontSize: 36, lineHeight: 42, color: '#FFFFFF', textAlign: 'center' },
+  celebrateRecap: { fontFamily: fonts.extraBold, fontSize: 17, lineHeight: 24, color: '#FFFFFF', textAlign: 'center', maxWidth: 440 },
   celebrateRow: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 8, width: '100%', maxWidth: 420 },
   celebrateText: { fontFamily: fonts.extraBold, fontSize: 16, lineHeight: 23, color: '#EDE9FE' },
   streakPill: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: '#FFFFFF' },

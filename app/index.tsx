@@ -1,10 +1,11 @@
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BASE_COMPANION } from '../src/contracts';
 import { Companion } from '../src/features/companion/Companion';
 import { colors, fonts } from '../src/features/theme';
 import { ChunkyButton } from '../src/features/ui/ChunkyButton';
+import { useAnnounce } from '../src/features/ui/announce';
 import { useFocusOnChange, useScreenVisits } from '../src/features/ui/focus';
 import { ProgressGlass } from '../src/features/ui/ProgressGlass';
 import { AppBar, ErrorBox, Eyebrow, Screen } from '../src/features/ui/Screen';
@@ -19,6 +20,22 @@ export default function HomeScreen() {
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const courses = useAsync(() => api.listCourses(), []);
+  // Arriving from a planning screen the learner left (#20): the course is still being built on the
+  // server. Check every few seconds until it appears (or three minutes pass), then stop.
+  const { building } = useLocalSearchParams<{ building?: string }>();
+  const courseCount = courses.data?.courses.length ?? null;
+  // The count on arrival, remembered once (state set during render is React's pattern for this).
+  const [firstCount, setFirstCount] = useState<number | null>(null);
+  if (firstCount === null && courseCount !== null) setFirstCount(courseCount);
+  const waitingForBuild = building === '1' && courseCount !== null && courseCount <= (firstCount ?? courseCount);
+  const { reload: reloadCourses } = courses;
+  useEffect(() => {
+    if (!waitingForBuild) return;
+    const started = Date.now();
+    const timer = setInterval(() => (Date.now() - started > 180_000 ? clearInterval(timer) : reloadCourses()), 4000);
+    return () => clearInterval(timer);
+  }, [waitingForBuild, reloadCourses]);
+  useAnnounce(waitingForBuild ? 'Poko is still building your new course.' : null);
   const discover = useAsync(() => api.discover(), []);
   const [startingDiscovered, setStartingDiscovered] = useState<string | null>(null);
   const [showAllDiscover, setShowAllDiscover] = useState(false);
@@ -75,6 +92,7 @@ export default function HomeScreen() {
 
   return (
     <Screen header={<AppBar streak={streak} titleRef={titleRef} />}>
+      {waitingForBuild ? <Text style={styles.building}>Poko is still building your new course. It will show up here in a moment.</Text> : null}
       <View style={styles.hero}>
         <View style={styles.speech}>
           <Companion theme={featured ? featured.course.companion : BASE_COMPANION} mood={featured ? 'happy' : 'curious'} size={88} />
@@ -94,9 +112,8 @@ export default function HomeScreen() {
           <View style={styles.continueCard}>
             <ProgressGlass completed={featured.progress.completed} required={featured.progress.required} width={64} height={100} />
             <View style={{ flex: 1, gap: 4 }}>
-              <Text style={styles.continueTitle} numberOfLines={2}>
-                {featured.course.title}
-              </Text>
+              {/* Titles run up to 80 characters; let them wrap rather than cut mid-word (#68). */}
+              <Text style={styles.continueTitle}>{featured.course.title}</Text>
               <Text style={styles.continueMeta}>
                 {featured.course.status === 'completed' ? 'Completed' : `${featured.progress.completed} of ${featured.progress.required} lessons done`}
               </Text>
@@ -216,6 +233,7 @@ const styles = StyleSheet.create({
   continueCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 22, backgroundColor: colors.coralTint },
   continueTitle: { fontFamily: fonts.black, fontSize: 18, lineHeight: 22, color: colors.ink },
   continueMeta: { fontFamily: fonts.bold, fontSize: 13, color: colors.muted },
+  building: { fontFamily: fonts.extraBold, fontSize: 14, lineHeight: 20, color: colors.purple, textAlign: 'center' },
   speech: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   bubble: { flex: 1, backgroundColor: colors.bg, padding: 14, borderRadius: 20, borderBottomLeftRadius: 6 },
   bubbleText: { fontFamily: fonts.extraBold, fontSize: 17, lineHeight: 23, color: colors.ink },

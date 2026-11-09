@@ -27,6 +27,11 @@ const t0 = Date.now();
 const log = (msg: string) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${msg}`);
 const errors: string[] = [];
 
+/** The lesson player's own progress bar (the celebration's progress glass is a progressbar too). */
+const lessonBar = (page: Page) => page.getByRole('progressbar', { name: 'Lesson progress' });
+const slideNumber = (page: Page) => lessonBar(page).getAttribute('aria-valuenow', { timeout: 3000 }).catch(() => null);
+const celebrating = async (page: Page) => (await page.getByText(/^(Lesson complete|Skill tree finished)$/).count()) > 0;
+
 async function shot(page: Page, name: string) {
   const file = path.join(outDir, `${String(++shotIndex).padStart(2, '0')}-${name}.png`);
   await page.screenshot({ path: file, fullPage: true });
@@ -36,6 +41,9 @@ async function shot(page: Page, name: string) {
 async function answerSlide(page: Page): Promise<'answered' | 'none'> {
   const radios = page.getByRole('radio');
   const boxes = page.getByRole('textbox');
+  // A real-world checklist is self-reported, never required: tick the first step, as a presenter would.
+  const ticks = page.getByRole('checkbox');
+  if ((await ticks.count()) > 0 && (await ticks.first().getAttribute('aria-checked')) !== 'true') await ticks.first().click();
   const isMatch = (await page.getByText(/Tap a term, then tap where it belongs/i).count()) > 0;
   if ((await radios.count()) === 0 && (await boxes.count()) === 0 && !isMatch) return 'none';
   if (isMatch) {
@@ -50,9 +58,9 @@ async function answerSlide(page: Page): Promise<'answered' | 'none'> {
     await page.getByRole('button', { name: /^check( again)?$/i }).first().click();
     await page.getByText(/Nice!|Close!|Not quite/).first().waitFor({ timeout: 20_000 });
     await shot(page, 'lesson-feedback-matchpairs');
-    const skip = page.getByRole('button', { name: /^skip for now/i });
+    const skip = page.getByRole('button', { name: /^skip (for now|and finish)$/i });
     if ((await skip.count()) > 0) await skip.first().click();
-    else await page.getByRole('button', { name: /^continue$/i }).first().click();
+    else await page.getByRole('button', { name: /^(continue|finish)$/i }).first().click();
     return 'answered';
   }
   if ((await radios.count()) === 0) {
@@ -63,7 +71,7 @@ async function answerSlide(page: Page): Promise<'answered' | 'none'> {
     await page.getByRole('button', { name: /^check( again)?$/i }).first().click();
     await page.getByText(/Nice!|Close!|Not quite/).first().waitFor({ timeout: 20_000 });
     await shot(page, 'lesson-feedback-fillblank');
-    const skip = page.getByRole('button', { name: /^skip for now/i });
+    const skip = page.getByRole('button', { name: /^skip (for now|and finish)$/i });
     if ((await skip.count()) > 0) await skip.first().click();
     return 'answered';
   }
@@ -138,28 +146,37 @@ async function main() {
 
   await page.getByRole('button', { name: /Up next\./ }).first().click();
   await page.waitForURL(/\/lesson\//, { timeout: 120_000 });
-  await page.getByRole('progressbar').waitFor({ timeout: 60_000 });
+  await lessonBar(page).waitFor({ timeout: 60_000 });
 
   for (let slide = 1; slide <= 14; slide++) {
     await page.waitForTimeout(400);
-    if ((await page.getByText(/Lesson complete/).count()) > 0) break;
+    if (await celebrating(page)) {
+      // The celebration waits for Finish (#67); arriving here without tapping it is a regression.
+      log('REGRESSION: the celebration replaced a slide before Finish was tapped');
+      break;
+    }
     await shot(page, `lesson-slide-${slide}`);
-    const before = await page.getByRole('progressbar').getAttribute('aria-valuenow');
+    const before = await slideNumber(page);
     await answerSlide(page);
-    if ((await page.getByRole('progressbar').getAttribute('aria-valuenow')) !== before) continue; // skip moved us on
+    if (await celebrating(page)) break; // "Skip and finish" on the last slide
+    if ((await slideNumber(page)) !== before) continue; // skip moved us on
     const finish = page.getByRole('button', { name: /^finish$/i });
     if ((await finish.count()) > 0) {
-      const at = await page.getByRole('progressbar').getAttribute('aria-valuenow');
+      // Evidence for #67: the last slide is still on screen well after it was viewed (and completed).
+      await page.waitForTimeout(1500);
+      if (await celebrating(page)) log('REGRESSION: the celebration replaced the last slide before Finish');
+      else await shot(page, 'lesson-last-slide-before-finish');
+      const at = await slideNumber(page);
       await finish.first().click();
       const celebrated = await page
-        .getByText(/Lesson complete|Skill tree finished/)
+        .getByText(/^(Lesson complete|Skill tree finished)$/)
         .first()
         .waitFor({ timeout: 30_000 })
         .then(() => true)
         .catch(() => false);
       if (celebrated) break;
       // Finish jumps back to an unanswered check; keep going from there.
-      if ((await page.getByRole('progressbar').count()) > 0 && (await page.getByRole('progressbar').getAttribute('aria-valuenow')) !== at) {
+      if ((await lessonBar(page).count()) > 0 && (await slideNumber(page)) !== at) {
         log('finish sent us back to an open check');
         continue;
       }
@@ -169,10 +186,14 @@ async function main() {
     await page.getByRole('button', { name: /^continue$/i }).first().click();
   }
 
+  // Let the confetti burst get going so the frame shows the celebration, not its first pieces.
+  await page.waitForTimeout(1200);
   await shot(page, 'celebration');
-  const cont = page.getByRole('button', { name: /^continue$/i });
-  if ((await cont.count()) > 0) await cont.first().click();
-  await page.waitForURL(/\/course\//, { timeout: 30_000 }).catch(() => undefined);
+  // "Back to the path" when a next lesson is unlocked, "Continue" when the tree is finished.
+  const leave = page.getByRole('button', { name: /^(back to the path|continue)$/i });
+  if ((await leave.count()) > 0) await leave.first().click();
+  else log('no way back from the celebration found');
+  await page.waitForURL(/\/course\//, { timeout: 30_000 }).catch(() => log('did not return to the course screen'));
   await page.waitForTimeout(800);
   await shot(page, 'course-after');
 

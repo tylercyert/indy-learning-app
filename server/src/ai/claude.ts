@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { z } from 'zod';
 import { aiEnabled, env } from '../env';
+import { parseWithCloserRepair } from './json-repair';
 import { outputJsonSchema, schemaForPrompt } from './output-format';
 
 /**
@@ -85,18 +86,22 @@ function extractJson(text: string): unknown {
     try {
       return JSON.parse(body);
     } catch {
-      // Last resort: raw control characters inside strings (a literal newline or tab in a text
-      // value) are the usual slip; escape them and try once more. Still validated by Zod after.
+      // Raw control characters inside strings (a literal newline or tab in a text value) are one
+      // slip; a stray closing bracket after an array is the other (json-repair.ts). Escape the first
+      // and repair the second, then parse. Still validated by Zod after.
+      const escaped = body.replace(/[\u0000-\u001f]/g, (ch) => (ch === '\n' ? '\\n' : ch === '\t' ? '\\t' : ch === '\r' ? '' : ' '));
       try {
-        return JSON.parse(body.replace(/[\u0000-\u001f]/g, (ch) => (ch === '\n' ? '\\n' : ch === '\t' ? '\\t' : ch === '\r' ? '' : ' ')));
+        return JSON.parse(escaped);
       } catch {
-        return undefined;
+        const repaired = parseWithCloserRepair(escaped);
+        if (repaired !== undefined) console.warn('[generation] repaired stray closing brackets in model JSON');
+        return repaired;
       }
     }
   }
 }
 
-/** Where JSON.parse gave up, with the surrounding characters, for the server log only. */
+/** Where JSON.parse gave up, with the surrounding characters: for the server log and the retry message. */
 function describeJsonError(text: string): string {
   const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   try {
@@ -173,9 +178,11 @@ export async function generateStructured<S extends z.ZodType>(
       };
     }
 
+    // The parse error and where it happened go back to the model: "not valid JSON" alone made the
+    // retry repeat the same slip at the same place (#68).
     const issues = parsed
       ? parsed.error.issues.slice(0, 25).map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
-      : ['response was not valid JSON'];
+      : [`response was not valid JSON: ${describeJsonError(text)}`];
     if (!parsed) {
       // Diagnostics only: where the JSON broke. Model output is data; it is logged truncated, never executed.
       console.warn(`[generation] ${req.task}: non-JSON output (${text.length} chars, stop=${message.stop_reason}). ${describeJsonError(text)}`);

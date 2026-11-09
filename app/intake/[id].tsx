@@ -1,5 +1,5 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BASE_COMPANION, type IntakeSessionView } from '../../src/contracts';
 import { Companion } from '../../src/features/companion/Companion';
@@ -23,6 +23,14 @@ export default function IntakeScreen() {
   const [sending, setSending] = useState(false);
   const [planning, setPlanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Set when the learner leaves the planning screen: the build carries on, but must not navigate them. */
+  const left = useRef(false);
+  useEffect(() => {
+    left.current = false;
+    return () => {
+      left.current = true;
+    };
+  }, []);
 
   const view: IntakeSessionView | null = session.data;
   const lastCompanion = view?.transcript.filter((m) => m.role === 'companion').at(-1);
@@ -60,17 +68,29 @@ export default function IntakeScreen() {
     try {
       // An intake started inside a course becomes a new skill tree there; otherwise a new course.
       const course = view.courseId ? await api.addTree(view.courseId, { kind: 'explore', intakeId: view.id }) : await api.createCourse(view.id);
+      if (left.current) return;
       router.replace({ pathname: '/course/[id]', params: { id: course.course.id } });
     } catch (e) {
+      if (left.current) return;
       setError(e instanceof Error ? e.message : 'Could not plan the course');
       setPlanning(false);
     }
   };
 
+  /**
+   * Leaving the planning screen (#20). Planning runs on the server and finishes either way (there is
+   * no server-side cancel), so the screen says so, and Home (or the course) watches for the result.
+   */
+  const leavePlanning = () => {
+    left.current = true;
+    if (view?.courseId) router.replace({ pathname: '/course/[id]', params: { id: view.courseId, building: '1' } });
+    else router.replace({ pathname: '/', params: { building: '1' } });
+  };
+
   if (planning) {
     const addingTree = Boolean(view?.courseId);
     return (
-      <Screen scroll={false} header={<AppBar />}>
+      <Screen scroll={false} header={<AppBar back={{ label: addingTree ? 'Back to course' : 'Back to home', onPress: leavePlanning }} />}>
         <View style={styles.planning}>
           <BeakerLoader size={210} />
           <Text ref={focusWhenShown} accessibilityRole="header" style={styles.planningTitle}>
@@ -80,6 +100,9 @@ export default function IntakeScreen() {
           <StatusTicker lines={addingTree ? PLANNING_LINES.tree : PLANNING_LINES.course} intervalMs={7000} />
           <Text style={styles.planningText}>
             {addingTree ? 'Poko is planning the new branch and writing its first lesson.' : 'Your first lesson will be ready the moment the path is. About a minute.'}
+          </Text>
+          <Text style={styles.planningNote}>
+            {addingTree ? 'You can go back to your course: the new tree appears there when it’s ready.' : 'You can leave this screen: your course keeps building and appears on Home.'}
           </Text>
         </View>
       </Screen>
@@ -280,11 +303,14 @@ const styles = StyleSheet.create({
   companionBubble: { flex: 1, backgroundColor: colors.soft, padding: 14, borderRadius: 20, borderBottomLeftRadius: 6 },
   companionText: { fontFamily: fonts.extraBold, fontSize: 16, lineHeight: 22, color: colors.ink },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, borderWidth: 3, borderColor: colors.control, backgroundColor: colors.bg },
+  // maxWidth + flexShrink: a long quick answer wraps inside its pill instead of running off the screen (#20).
+  chip: { minHeight: 44, maxWidth: '100%', flexShrink: 1, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, borderWidth: 3, borderColor: colors.control, backgroundColor: colors.bg },
   chipPressed: { backgroundColor: colors.purpleTint, borderColor: colors.purple },
-  chipText: { fontFamily: fonts.black, fontSize: 14, lineHeight: 18, color: colors.purple },
+  chipText: { flexShrink: 1, fontFamily: fonts.black, fontSize: 14, lineHeight: 18, color: colors.purple },
   row: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  input: { flex: 1, minHeight: 56, borderWidth: 3, borderColor: colors.control, borderRadius: 18, paddingHorizontal: 16, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
+  // minWidth 0: a web <input> has an intrinsic width (its size attribute) and would not shrink below it,
+  // which pushed the row 4 px past a 390 px screen and clipped the Send button (#68).
+  input: { flex: 1, minWidth: 0, minHeight: 56, borderWidth: 3, borderColor: colors.control, borderRadius: 18, paddingHorizontal: 16, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
   // Secondary by design: thinner, quieter, and it never competes with the Build button above it.
   correctionInput: { minHeight: 48, borderWidth: 2, borderColor: colors.control, borderRadius: 14, backgroundColor: colors.soft, fontFamily: fonts.bold, fontSize: 15 },
   summary: { padding: 16, borderRadius: 22, backgroundColor: colors.mintTint, gap: 8 },
@@ -296,4 +322,5 @@ const styles = StyleSheet.create({
   planning: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
   planningTitle: { fontFamily: fonts.black, fontSize: 24, color: colors.ink, textAlign: 'center' },
   planningText: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 22, color: colors.muted, textAlign: 'center' },
+  planningNote: { fontFamily: fonts.bold, fontSize: 13, lineHeight: 19, color: colors.muted, textAlign: 'center', maxWidth: 320 },
 });

@@ -55,7 +55,7 @@ Rich text is a structured document: blocks (heading level 1-3, paragraph, bullet
 
 Slide rules:
 - 5 to 9 slides. Each slide has 1-4 components and a short title. purpose is orient | teach | practice | assess | wrapUp.
-- Open with a slide whose first component is a callout with speaker "companion": one or two sentences in the companion's voice that connect the lesson to the learner's real goal.
+- Open with a slide whose first component is a callout with speaker "companion": one or two sentences in the companion's voice that connect the lesson to the learner's real goal. The companion introduces itself only in the course's orientation lesson; in every other lesson the learner already knows it, so it never says hello, never gives its name ("Hi, I'm …") and simply picks up where the learner is.
 - Teach with short paragraphs and lists. One idea per slide. Use the learner's own situation in examples.
 - Use ratioBar for proportions (2-5 segments, labels one or two words, title ≤ 60 chars). Parts are the recipe's own small whole numbers in lowest terms (2 : 1 : 1, not 8 : 4 : 4 and not 4 : 9 : 1 in quarter-ounces); total parts ≤ 16 and the largest segment at most 6× the smallest (validated). A trace amount (a squeeze, dash, pinch, rinse, garnish) is NOT a segment: leave it out of the bar and name it in the title, the altText or a text line ("plus a squeeze of lime"). Never rescale the main parts to make room for a trace. For fractions or "x out of y", show y EQUAL segments of 1 part each (e.g. 4 segments, 3 in one color and 1 in another), never one block of 3 next to one block of 1, so the equal-parts idea is visible. Avoid jargon in segment labels; use the learner's words. Use diagram only for relationships between a few named things: 2-6 nodes on at most 3 columns and 3 rows, so x is one of 0/50/100 and y is one of 0/50/100 (every pair at least 50 apart on x or 34 apart on y); labels of at most 3 short words (≤ 28 characters, no word over 14); ids lowercase-hyphenated; at most 8 edges, one per pair, edge labels one word or empty; altText ≤ 240 characters. It renders on a phone: if it would not be readable at 350px wide, use a bulletList instead. Every visual has a required altText that explains it without seeing it.
 - Use codeBlock for any code, command or markup the learner would type: language from plain|javascript|typescript|python|html|css|json|bash|sql, lines as an array of strings (1-16 lines, each ≤ 80 characters, keep real indentation, no markdown fences), caption ≤ 80 characters saying what to notice or "" for none. Never put multi-line code inside a paragraph or a code mark.
@@ -227,7 +227,7 @@ export function experienceUserMessage(args: {
   const orientation = node.kind === 'orientation' ? orientationBrief(args.upcomingTitles) : '';
   return [
     `Course: ${course.title} — ${course.summary}`,
-    `Companion name: ${course.companion.name}`,
+    `Companion name: ${course.companion.name}${node.kind === 'orientation' ? ' (first meeting: it may introduce itself once)' : ' (the learner already knows it: no greeting, no self-introduction)'}`,
     `Learner context:\n${describeContext(course.context)}`,
     '',
     `Lesson to write: "${lesson.title}" (${lesson.difficulty}, about ${lesson.estimatedMinutes} minutes)`,

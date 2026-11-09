@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { NodeV1 } from '../../contracts';
-import { anchorOf, BRANCH_RADIUS, layerNodes, layoutPath, MAIN_RADIUS, roadOrder } from './path-layout';
+import { anchorOf, BRANCH_LABEL_TOP, BRANCH_RADIUS, branchStep, layerNodes, layoutPath, MAIN_RADIUS, ROW_BRANCH, ROW_SINGLE, roadOrder, SIDE_LABEL_FIT, SIDE_LABEL_TOP } from './path-layout';
 
 const L = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 const node = (id: string, required: boolean, allOf: string[] = [], kind: NodeV1['kind'] = required ? 'core' : 'optional'): NodeV1 => ({
@@ -88,5 +88,39 @@ describe('path layout (winding road with side branches)', () => {
       expect(p.cx - p.r).toBeGreaterThanOrEqual(0);
       expect(p.cx + p.r).toBeLessThanOrEqual(350);
     }
+  });
+
+  it('keeps the fixed road step for normal labels and grows a row to clear a tall label', () => {
+    const plain = layoutPath(tree, 400);
+    const branchId = 'fix-by-taste';
+    // Default-size road labels (about 75 px) fit the fixed road step: only the branch row moves.
+    const normal = layoutPath(tree, 400, 0, Object.fromEntries(tree.filter((n) => n.required).map((n) => [n.id, 75])));
+    expect(normal.nodes.map((p) => p.cy)).toEqual(plain.nodes.map((p) => p.cy));
+
+    // 200% text: the "kit" label is 180 px tall and the branch label 120 px.
+    const tall = layoutPath(tree, 400, 0, { kit: 180, [branchId]: 120 });
+    const at = (id: string) => tall.nodes.find((p) => p.node.id === id)!;
+    const top = (p: { cy: number; r: number }) => p.cy - p.r;
+    const kit = at('kit');
+    const next = tall.nodes[tall.nodes.indexOf(kit) + 1]!;
+    // The next row starts below the kit label (label top + height + gap), not one fixed step down.
+    expect(top(next) - top(kit)).toBe(ROW_SINGLE + 180 - SIDE_LABEL_FIT);
+    expect(top(next)).toBeGreaterThanOrEqual(top(kit) + SIDE_LABEL_TOP + 180);
+    const branch = at(branchId);
+    const afterBranch = tall.nodes[tall.nodes.indexOf(branch) + 1]!;
+    expect(top(afterBranch) - top(branch)).toBe(branchStep(120));
+    expect(tall.height - plain.height).toBe(180 - SIDE_LABEL_FIT + branchStep(120) - ROW_BRANCH);
+  });
+
+  it('starts the row after a branch below the branch label, even at default text size', () => {
+    // A two-line title plus the meta line and a tag, about 75 px: at 390 px the next road step's
+    // side label and the companion fill the lane, so the label cannot hang beside them (#20).
+    const laid = layoutPath(tree, 350, 20, { 'fix-by-taste': 75 });
+    const branch = laid.nodes.find((p) => p.node.id === 'fix-by-taste')!;
+    const after = laid.nodes[laid.nodes.indexOf(branch) + 1]!;
+    const labelBottom = branch.cy - branch.r + BRANCH_LABEL_TOP + 75;
+    // The next circle, and the 7 px "up next" ring around it, start below the label with a gap.
+    expect(after.cy - after.r - 7).toBeGreaterThanOrEqual(labelBottom + 12);
+    expect(branchStep(0)).toBe(ROW_BRANCH);
   });
 });

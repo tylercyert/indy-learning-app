@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import type { ComponentResultV1, ComponentV1, CompanionThemeV1, SlideV1 } from '../../contracts';
+import { componentRole, type ComponentResultV1, type ComponentV1, type CompanionThemeV1, type SlideV1 } from '../../contracts';
 import { Companion } from '../companion/Companion';
 import { colors, fonts, palette } from '../theme';
 import { useFocusOnChange } from '../ui/focus';
@@ -26,6 +26,8 @@ export interface SlideInteractions {
   onMatchPairs?: (componentId: string, matches: { pairId: string; chosenPairId: string }[]) => void;
   /** The screen renders explanations and retry/continue in its footer; components keep only their colouring. */
   feedbackInFooter?: boolean;
+  /** Where each assessable component sits inside the slide, so the screen can keep a just-answered check in view. */
+  onAssessableLayout?: (componentId: string, box: { y: number; height: number }) => void;
 }
 
 /** Body text size: 17 reads better than 16 at arm's length and fills a phone slide (UX audit #36 P1-11). */
@@ -49,9 +51,16 @@ export function SlideView({ slide, companion, interactions }: { slide: SlideV1; 
       <Text ref={titleRef} accessibilityRole="header" aria-level={1} style={styles.title}>
         {slide.title}
       </Text>
-      {body.map((component) => (
-        <ComponentRenderer key={component.id} component={component} companion={companion} interactions={interactions} />
-      ))}
+      {body.map((component) => {
+        const rendered = <ComponentRenderer key={component.id} component={component} companion={companion} interactions={interactions} />;
+        const report = interactions.onAssessableLayout;
+        if (!report || componentRole(component.type) !== 'assessable') return rendered;
+        return (
+          <View key={component.id} onLayout={(e) => report(component.id, { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height })}>
+            {rendered}
+          </View>
+        );
+      })}
     </View>
   );
 }
