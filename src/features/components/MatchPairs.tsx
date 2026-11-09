@@ -1,8 +1,11 @@
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { PixelRatio, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { z } from 'zod';
 import type { ComponentV1, MatchPairsResultSchema } from '../../contracts/components';
+import { glyphBoxSize } from '../ui/a11y';
+import { announce } from '../ui/announce';
 import { ChunkyButton } from '../ui/ChunkyButton';
+import { useRadioKeys } from '../ui/useRadioKeys';
 import { colors, fonts, palette } from '../theme';
 
 type MatchPairsComponent = Extract<ComponentV1, { type: 'matchPairs' }>;
@@ -59,17 +62,63 @@ export function MatchPairs({
   const complete = component.pairs.every((p) => !!matches[p.id]);
   const stateFor = (leftId: string) => feedback?.matches.find((m) => m.pairId === leftId);
 
+  const pick = (leftId: string | null) => {
+    setPicked(leftId);
+    const term = leftId ? byId.get(leftId)?.left : null;
+    if (term) announce(`Now choose where ${term} belongs.`);
+  };
+  // The terms are one radio group: one tab stop, arrows move and pick, Space picks (web keyboard).
+  const pickedIndex = component.pairs.findIndex((p) => p.id === picked);
+  const { radioProps, focusRadio } = useRadioKeys({
+    count: component.pairs.length,
+    checkedIndex: pickedIndex,
+    select: (i) => pick(component.pairs[i]!.id),
+    disabled: locked,
+  });
+  // Number and slot badges grow with the OS text size, so the digit keeps its margin at 200%.
+  const fontScale = PixelRatio.getFontScale();
+  const numberBox = glyphBoxSize(28, fontScale);
+  const slotBox = glyphBoxSize(32, fontScale);
+
   const onRight = (rightId: string) => {
     if (locked || !picked) return;
-    setMatches((m) => {
-      const next = { ...m };
-      // A row holds one term: taking it from another term frees that term.
-      for (const [l, r] of Object.entries(next)) if (r === rightId) delete next[l];
-      next[picked] = rightId;
-      return next;
-    });
+    const next = { ...matches };
+    // A row holds one term: taking it from another term frees that term.
+    for (const [l, r] of Object.entries(next)) if (r === rightId) delete next[l];
+    next[picked] = rightId;
+    setMatches(next);
     setPicked(null);
+    announce(`${byId.get(picked)?.left ?? ''} matched with ${byId.get(rightId)?.right ?? ''}.`);
+    // Keyboard flow: back to the next term still without a row (after this one, wrapping).
+    const from = component.pairs.findIndex((p) => p.id === picked);
+    for (let k = 1; k <= component.pairs.length; k++) {
+      const i = (from + k) % component.pairs.length;
+      if (!next[component.pairs[i]!.id]) {
+        focusRadio(i);
+        break;
+      }
+    }
   };
+
+  // Feedback shown here (not in the screen's footer) is announced through the app's live region.
+  useEffect(() => {
+    if (!feedback || feedbackInFooter) return;
+    const wrong = feedback.matches.filter((m) => !m.correct);
+    announce(feedback.correct ? 'All matched!' : `${feedback.matches.length - wrong.length} of ${feedback.matches.length} right. ${wrong.map((m) => `${byId.get(m.pairId)?.left}: ${m.explanation}`).join(' ')}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- announce each new result once
+  }, [feedback, feedbackInFooter]);
+  // "Try again" clears the footer's explanation: put the keyboard on the first term to move.
+  const hadFeedback = useRef(!!feedback);
+  const lastFeedback = useRef(feedback);
+  useEffect(() => {
+    if (hadFeedback.current && !feedback && !locked) {
+      const firstWrong = component.pairs.findIndex((p) => lastFeedback.current?.matches.some((m) => m.pairId === p.id && !m.correct));
+      focusRadio(Math.max(0, firstWrong));
+    }
+    hadFeedback.current = !!feedback;
+    if (feedback) lastFeedback.current = feedback;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when feedback appears or clears
+  }, [feedback]);
 
   return (
     <View style={styles.wrap}>
@@ -90,7 +139,8 @@ export function MatchPairs({
               aria-disabled={locked}
               accessibilityLabel={`${pair.left}${matched ? `, matched with ${byId.get(matches[pair.id]!)?.right ?? ''}` : ''}`}
               disabled={locked}
-              onPress={() => setPicked(isPicked ? null : pair.id)}
+              onPress={() => pick(isPicked ? null : pair.id)}
+              {...radioProps(i)}
               style={[
                 styles.chip,
                 matched && { backgroundColor: c.fill, borderColor: c.fill },
@@ -98,7 +148,7 @@ export function MatchPairs({
                 state && (state.correct ? styles.chipRight : styles.chipWrong),
               ]}
             >
-              <View style={[styles.number, matched && { backgroundColor: c.shadow }]}>
+              <View style={[styles.number, { minWidth: numberBox, minHeight: numberBox, borderRadius: numberBox / 2 }, matched && { backgroundColor: c.shadow }]}>
                 <Text style={[styles.numberText, matched && { color: '#FFFFFF' }]}>{i + 1}</Text>
               </View>
               <Text style={[styles.chipText, matched && { color: c.text }]}>{pair.left}</Text>
@@ -124,7 +174,7 @@ export function MatchPairs({
               onPress={() => onRight(rightId)}
               style={[styles.row, picked && !locked && styles.rowTarget, state && (state.correct ? styles.rowRight : styles.rowWrong)]}
             >
-              <View style={[styles.slot, c && { backgroundColor: c.fill }]}>
+              <View style={[styles.slot, { minWidth: slotBox, minHeight: slotBox, borderRadius: Math.round(slotBox * 0.3) }, c && { backgroundColor: c.fill }]}>
                 {idx >= 0 ? <Text style={[styles.slotText, { color: c!.text }]}>{idx + 1}</Text> : <Text style={styles.slotEmpty}>?</Text>}
               </View>
               <Text style={styles.rowText}>{pair.right}</Text>
@@ -134,7 +184,7 @@ export function MatchPairs({
       </View>
 
       {feedback && !feedbackInFooter ? (
-        <View style={[styles.feedback, feedback.correct ? styles.feedbackRight : styles.feedbackWrong]} accessibilityLiveRegion="polite">
+        <View style={[styles.feedback, feedback.correct ? styles.feedbackRight : styles.feedbackWrong]}>
           <Text style={styles.feedbackTitle}>{feedback.correct ? 'All matched!' : `${feedback.matches.filter((m) => m.correct).length} of ${feedback.matches.length} right. Look at the marked ones`}</Text>
           {feedback.matches
             .filter((m) => !m.correct)
@@ -165,19 +215,20 @@ const styles = StyleSheet.create({
   prompt: { fontFamily: fonts.black, fontSize: 20, lineHeight: 26, color: colors.ink },
   hint: { fontFamily: fonts.bold, fontSize: 13, color: colors.muted },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 52, maxWidth: '100%', paddingVertical: 8, paddingLeft: 8, paddingRight: 14, borderRadius: 999, borderWidth: 3, borderColor: colors.line, backgroundColor: colors.bg },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 52, maxWidth: '100%', paddingVertical: 8, paddingLeft: 8, paddingRight: 14, borderRadius: 999, borderWidth: 3, borderColor: colors.control, backgroundColor: colors.bg },
   chipPicked: { borderColor: colors.purple, backgroundColor: colors.soft },
   chipRight: { borderColor: colors.green },
   chipWrong: { borderColor: colors.coralDeep, borderStyle: 'dashed' },
-  number: { minWidth: 28, minHeight: 28, borderRadius: 14, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.soft },
+  number: { paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.soft },
   numberText: { fontFamily: fonts.black, fontSize: 13, color: colors.muted },
   chipText: { flexShrink: 1, fontFamily: fonts.extraBold, fontSize: 15, lineHeight: 20, color: colors.ink },
   rows: { gap: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, padding: 12, borderRadius: 16, borderWidth: 3, borderColor: colors.line, backgroundColor: colors.bg },
-  rowTarget: { borderColor: colors.purpleTint, borderStyle: 'dashed' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, padding: 12, borderRadius: 16, borderWidth: 3, borderColor: colors.control, backgroundColor: colors.bg },
+  // "Place it here" is a state, so its edge needs 3:1 too: purple, dashed.
+  rowTarget: { borderColor: colors.purple, borderStyle: 'dashed' },
   rowRight: { borderColor: colors.green, backgroundColor: colors.greenTint },
   rowWrong: { borderColor: colors.orangeLine, backgroundColor: colors.coralTint },
-  slot: { minWidth: 32, minHeight: 32, borderRadius: 10, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.soft },
+  slot: { paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.soft },
   slotText: { fontFamily: fonts.black, fontSize: 14 },
   slotEmpty: { fontFamily: fonts.black, fontSize: 14, color: colors.muted },
   rowText: { flex: 1, minWidth: 0, fontFamily: fonts.extraBold, fontSize: 15, lineHeight: 21, color: colors.ink },

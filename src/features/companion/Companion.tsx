@@ -1,6 +1,9 @@
 import { View, type ViewStyle } from 'react-native';
 import type { CompanionMood, CompanionThemeV1 } from '../../contracts';
 import { colors } from '../theme';
+import { describeCompanion, describeCompanionFace } from './describe';
+
+export { describeCompanion } from './describe';
 
 /**
  * Poko, the companion, drawn with plain views so it works on every platform without an SVG
@@ -16,11 +19,28 @@ import { colors } from '../theme';
  * Layers, back to front: headphone band · feet · body (head, shoulders, belly as one outlined
  * silhouette) · rim shadow · belly patch · highlight · face · headpiece. No arms or hands (owner decision).
  */
-export function Companion({ theme, mood = 'happy', size = 96 }: { theme: CompanionThemeV1; mood?: CompanionMood; size?: number }) {
+export function Companion({
+  theme,
+  mood = 'happy',
+  size = 96,
+  decorative = false,
+}: {
+  theme: CompanionThemeV1;
+  mood?: CompanionMood;
+  size?: number;
+  /** Hidden from assistive tech: a repeated avatar (chat turns, cards, slides) whose text says it all. */
+  decorative?: boolean;
+}) {
   const s = size / 96;
   const pal = derivePalette(theme);
   return (
-    <View accessible accessibilityRole="image" accessibilityLabel={describeCompanion(theme, mood)} style={{ width: size, height: size * 1.08 }}>
+    <View
+      accessible={!decorative}
+      aria-hidden={decorative || undefined}
+      accessibilityRole={decorative ? undefined : 'image'}
+      accessibilityLabel={decorative ? undefined : describeCompanion(theme, mood)}
+      style={{ width: size, height: size * 1.08 }}
+    >
       {theme.headpiece === 'headphones' && <HeadphoneBand s={s} accent={theme.accentColor} />}
 
       <Outlined s={s} fill={pal.feet} parts={FEET} />
@@ -48,7 +68,7 @@ export function CompanionFace({ theme, mood = 'happy', size = 96 }: { theme: Com
   const s = size / span;
   const pal = derivePalette(theme);
   return (
-    <View accessible accessibilityRole="image" accessibilityLabel={`${theme.name}, ${mood}`} style={{ width: size, height: size, overflow: 'hidden' }}>
+    <View accessible accessibilityRole="image" accessibilityLabel={describeCompanionFace(theme, mood)} style={{ width: size, height: size, overflow: 'hidden' }}>
       <View style={{ position: 'absolute', left: -(HEAD.cx - HEAD.r - 3) * s, top: -(HEAD.cy - HEAD.r - 3) * s, width: 96 * s, height: 104 * s }}>
         <Outlined s={s} fill={theme.bodyColor} parts={[BODY_PARTS[0]!]} />
         <Rect p={HIGHLIGHT} s={s} color={pal.bodyLight} />
@@ -58,28 +78,7 @@ export function CompanionFace({ theme, mood = 'happy', size = 96 }: { theme: Com
   );
 }
 
-/**
- * Nonvisual description, e.g. "Zest, your companion, happy, wearing a sprig". Props are part of the
- * contract but are not rendered (owner decision 2026-11-07), so they are not described either.
- */
-export function describeCompanion(theme: CompanionThemeV1, mood: CompanionMood): string {
-  const parts = [`${theme.name}, your companion`, mood];
-  if (theme.headpiece !== 'none') parts.push(`wearing ${HEADPIECE_LABEL[theme.headpiece]}`);
-  return parts.join(', ');
-}
-
-const HEADPIECE_LABEL: Record<Exclude<CompanionThemeV1['headpiece'], 'none'>, string> = {
-  sprig: 'a sprig',
-  chefHat: 'a chef hat',
-  antenna: 'an antenna',
-  beanie: 'a beanie',
-  headphones: 'headphones',
-  leaf: 'a leaf',
-  crown: 'a crown',
-  glasses: 'glasses',
-  bandana: 'a bandana',
-};
-
+/* Nonvisual descriptions (human mood wording, #20) live in ./describe.ts so they are unit-tested. */
 
 /* ---------------------------------------------------------------- geometry (96 x 104 canvas units) */
 

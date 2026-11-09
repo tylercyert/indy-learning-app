@@ -6,6 +6,7 @@ import { Companion } from '../../src/features/companion/Companion';
 import { colors, fonts } from '../../src/features/theme';
 import { BeakerLoader } from '../../src/features/ui/BeakerLoader';
 import { ChunkyButton } from '../../src/features/ui/ChunkyButton';
+import { focusWhenShown, useFocusOnChange } from '../../src/features/ui/focus';
 import { AppBar, ErrorBox, Screen } from '../../src/features/ui/Screen';
 import { StatusTicker } from '../../src/features/ui/StatusTicker';
 import { PLANNING_LINES } from '../../src/features/ui/status-ticker';
@@ -31,6 +32,10 @@ export default function IntakeScreen() {
   const levelLabel = { new: 'Brand new to this', some: 'Some experience', experienced: 'Experienced' } as const;
   const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   const correction = draft.trim();
+  // Each new companion question takes focus (a tapped quick answer has just disappeared); someone
+  // typing keeps their place in the field and hears the question instead (#20).
+  const lastCompanionIndex = view ? view.transcript.map((m) => m.role).lastIndexOf('companion') : -1;
+  const questionRef = useFocusOnChange(lastCompanionIndex >= 0 ? lastCompanionIndex : null, { unlessTyping: true, announceInstead: lastCompanion?.text });
 
   const send = async (text: string) => {
     const answer = text.trim();
@@ -68,7 +73,9 @@ export default function IntakeScreen() {
       <Screen scroll={false} header={<AppBar />}>
         <View style={styles.planning}>
           <BeakerLoader size={210} />
-          <Text style={styles.planningTitle}>{addingTree ? 'Adding a new skill tree…' : 'Mixing up your course…'}</Text>
+          <Text ref={focusWhenShown} accessibilityRole="header" style={styles.planningTitle}>
+            {addingTree ? 'Adding a new skill tree…' : 'Mixing up your course…'}
+          </Text>
           {/* Four to six short lines over the ~60 s wait, so the screen never looks stuck. */}
           <StatusTicker lines={addingTree ? PLANNING_LINES.tree : PLANNING_LINES.course} intervalMs={7000} />
           <Text style={styles.planningText}>
@@ -138,8 +145,8 @@ export default function IntakeScreen() {
     >
       {session.loading && !view ? (
         // Warm first paint: the companion is already here and thinking, not a spinner.
-        <View style={styles.companionRow} accessibilityLiveRegion="polite">
-          <Companion theme={BASE_COMPANION} mood="thinking" size={56} />
+        <View style={styles.companionRow}>
+          <Companion theme={BASE_COMPANION} mood="thinking" size={56} decorative />
           <View style={styles.companionBubble}>
             <Text style={styles.companionText}>Ooh, good one. Give me a second to think about where to start…</Text>
           </View>
@@ -157,9 +164,11 @@ export default function IntakeScreen() {
           </View>
         ) : (
           <View key={i} style={styles.companionRow}>
-            <Companion theme={BASE_COMPANION} mood={isLast && view.status === 'ready' ? 'cheering' : 'curious'} size={56} />
+            <Companion theme={BASE_COMPANION} mood={isLast && view.status === 'ready' ? 'cheering' : 'curious'} size={56} decorative />
             <View style={styles.companionBubble}>
-              <Text style={styles.companionText}>{m.text}</Text>
+              <Text ref={isLast ? questionRef : undefined} style={styles.companionText}>
+                {m.text}
+              </Text>
             </View>
           </View>
         );
@@ -184,9 +193,11 @@ export default function IntakeScreen() {
 
       {sending ? (
         <View style={styles.companionRow}>
-          <Companion theme={BASE_COMPANION} mood="thinking" size={56} />
+          <Companion theme={BASE_COMPANION} mood="thinking" size={56} decorative />
           <View style={styles.companionBubble}>
-            <Text style={styles.companionText}>…</Text>
+            <Text style={styles.companionText} accessibilityLabel={`${BASE_COMPANION.name} is thinking`}>
+              …
+            </Text>
           </View>
         </View>
       ) : null}
@@ -269,13 +280,13 @@ const styles = StyleSheet.create({
   companionBubble: { flex: 1, backgroundColor: colors.soft, padding: 14, borderRadius: 20, borderBottomLeftRadius: 6 },
   companionText: { fontFamily: fonts.extraBold, fontSize: 16, lineHeight: 22, color: colors.ink },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, borderWidth: 3, borderColor: '#C4B5FD', backgroundColor: colors.bg },
+  chip: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, borderWidth: 3, borderColor: colors.control, backgroundColor: colors.bg },
   chipPressed: { backgroundColor: colors.purpleTint, borderColor: colors.purple },
   chipText: { fontFamily: fonts.black, fontSize: 14, lineHeight: 18, color: colors.purple },
   row: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  input: { flex: 1, minHeight: 56, borderWidth: 3, borderColor: '#C4B5FD', borderRadius: 18, paddingHorizontal: 16, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
+  input: { flex: 1, minHeight: 56, borderWidth: 3, borderColor: colors.control, borderRadius: 18, paddingHorizontal: 16, backgroundColor: colors.bg, fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
   // Secondary by design: thinner, quieter, and it never competes with the Build button above it.
-  correctionInput: { minHeight: 48, borderWidth: 2, borderColor: colors.line, borderRadius: 14, backgroundColor: colors.soft, fontFamily: fonts.bold, fontSize: 15 },
+  correctionInput: { minHeight: 48, borderWidth: 2, borderColor: colors.control, borderRadius: 14, backgroundColor: colors.soft, fontFamily: fonts.bold, fontSize: 15 },
   summary: { padding: 16, borderRadius: 22, backgroundColor: colors.mintTint, gap: 8 },
   summaryTitle: { fontFamily: fonts.black, fontSize: 14, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.mintDeep },
   summaryRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },

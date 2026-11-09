@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { colors } from '../src/features/theme';
+import { AnnouncerHost } from '../src/features/ui/announce';
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({ Nunito_700Bold, Nunito_800ExtraBold, Nunito_900Black });
@@ -13,6 +14,8 @@ export default function RootLayout() {
     <>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }} />
+      {/* The app's one polite and one assertive live region, shared by every screen (#20). */}
+      <AnnouncerHost />
     </>
   );
 }
