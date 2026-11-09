@@ -1,21 +1,27 @@
 {
   "expo": {
-    "name": "Poko: Learn Anything",
-    "slug": "indy-learning-app",
-    "scheme": "indylearning",
+    "name": "Poko",
+    "slug": "poko",
+    "scheme": "poko",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "primaryColor": "#6D28D9",
+    "backgroundColor": "#FFFFFF",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tylercyert.poko",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.tylercyert.poko",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "monochromeImage": "./assets/android-icon-monochrome.png",
+        "backgroundColor": "#6D28D9"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -34,7 +40,16 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#6D28D9"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

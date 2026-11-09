@@ -2,6 +2,8 @@
 
 Triage of `npm audit` for issue #10 (tracked as #44). Run 2026-11-07 on `main` at `ecaf7b5`, read-only (`npm audit --json`, Node 24, lockfile `package-lock.json`). No dependency was changed.
 
+**Re-checked 2026-11-08 (#10)** after adding `expo-splash-screen` and `expo-system-ui`: still 16 moderate, 0 high or critical, from the same three advisories (glob GHSA-3g3m-2fjr-6pw4, minimatch GHSA-g3hv-75wg-m249, esbuild GHSA-67mh-4wv8-2f99). `npm audit fix --dry-run` offers only semver-major downgrades (`expo` 52, `eslint-config-expo` 6, `drizzle-kit` 0.18). Decision: accepted, because none is reachable at runtime (reasoning below). Re-run `npm audit` when Expo 58, `eslint-config-expo` or `drizzle-kit` publish releases that lift the vulnerable floors.
+
 ## Summary
 
 | Severity | Count |

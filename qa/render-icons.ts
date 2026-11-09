@@ -10,6 +10,12 @@
  *   apple-touch-icon.png    full-bleed square, 180 (iOS applies its own corner mask)
  *   icon-maskable-512.png   full-bleed square, Poko inside the central safe zone (purpose maskable)
  *   ../../assets/favicon.png rounded, 48 (Expo copies it to dist/favicon.ico)
+ *
+ * Native (#72), rendered at 1024:
+ *   assets/icon.png                     full-bleed opaque square (iOS masks it; no transparency allowed)
+ *   assets/android-icon-foreground.png  face on transparent, inside the adaptive-icon safe circle
+ *   assets/android-icon-monochrome.png  the foreground's dark line art only (Android 13 themed icons)
+ *   assets/splash-icon.png              face on transparent (expo-splash-screen paints the purple)
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -18,8 +24,10 @@ import { chromium, type Page } from 'playwright';
 const base = process.env.QA_BASE_URL ?? 'http://127.0.0.1:8796';
 const outDir = path.resolve('public/icons');
 
-async function shoot(page: Page, shape: 'rounded' | 'square' | 'maskable'): Promise<Buffer> {
-  await page.goto(`${base}/dev/icon?size=512&shape=${shape}`);
+type Shape = 'rounded' | 'square' | 'maskable' | 'foreground' | 'splash';
+
+async function shoot(page: Page, shape: Shape, size = 512): Promise<Buffer> {
+  await page.goto(`${base}/dev/icon?size=${size}&shape=${shape}`);
   const icon = page.getByTestId('icon');
   await icon.waitFor({ timeout: 30_000 });
   // Fonts and layout settle; the companion is pure Views, so this is generous.
@@ -72,6 +80,33 @@ async function downscale(page: Page, png: Buffer, target: number): Promise<Buffe
   return Buffer.from(dataUrl.split(',')[1]!, 'base64');
 }
 
+/** Keep only the dark ink (outline, eyes, mouth) as opaque white: Android tints it for themed icons. */
+async function lineArt(page: Page, png: Buffer): Promise<Buffer> {
+  const dataUrl = await page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, c.width, c.height);
+    const px = data.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const luminance = 0.2126 * px[i]! + 0.7152 * px[i + 1]! + 0.0722 * px[i + 2]!;
+      const ink = px[i + 3]! > 128 && luminance < 90;
+      px[i] = 255;
+      px[i + 1] = 255;
+      px[i + 2] = 255;
+      px[i + 3] = ink ? 255 : 0;
+    }
+    ctx.putImageData(data, 0, 0);
+    return c.toDataURL('image/png');
+  }, png.toString('base64'));
+  return Buffer.from(dataUrl.split(',')[1]!, 'base64');
+}
+
 async function main(): Promise<void> {
   mkdirSync(outDir, { recursive: true });
   const browser = await chromium.launch();
@@ -95,6 +130,19 @@ async function main(): Promise<void> {
   const favicon = await downscale(page, rounded, 48);
   writeFileSync(path.resolve('assets/favicon.png'), favicon);
   console.log(`wrote assets/favicon.png (${favicon.length} bytes)`);
+
+  const big = await browser.newPage({ viewport: { width: 1100, height: 1100 }, deviceScaleFactor: 1 });
+  const foreground = await shoot(big, 'foreground', 1024);
+  const nativeFiles: Record<string, Buffer> = {
+    'icon.png': await shoot(big, 'square', 1024),
+    'android-icon-foreground.png': foreground,
+    'android-icon-monochrome.png': await lineArt(big, foreground),
+    'splash-icon.png': await shoot(big, 'splash', 1024),
+  };
+  for (const [name, buf] of Object.entries(nativeFiles)) {
+    writeFileSync(path.resolve('assets', name), buf);
+    console.log(`wrote assets/${name} (${buf.length} bytes)`);
+  }
 
   await browser.close();
 }

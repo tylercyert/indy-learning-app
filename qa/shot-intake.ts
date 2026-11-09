@@ -74,7 +74,7 @@ async function main() {
     page = await ctx.newPage();
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(base);
-    await page.evaluate((token) => window.localStorage.setItem('indy.learnerToken', token), process.env.QA_TOKEN);
+    await page.evaluate((token) => window.localStorage.setItem('poko.learnerToken', token), process.env.QA_TOKEN);
     await page.route('**/api/intakes/**', async (route) => {
       await new Promise((r) => setTimeout(r, 4000));
       await route.continue();
