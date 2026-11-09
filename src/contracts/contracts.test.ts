@@ -13,12 +13,16 @@ import {
   ComponentV1Schema,
   CoursePlanV1Schema,
   GeneratedSlidesV1Schema,
+  ORIENTATION_MAX_SLIDES,
+  OrientationSlidesV1Schema,
+  TreePlanV1Schema,
   IntakeTurnV1Schema,
   LearnerContextV1Schema,
   ProgressionRuleV1Schema,
   RICH_TEXT_MAX_BLOCK_CHARS,
   RICH_TEXT_MAX_HEADING_CHARS,
   RichTextV1Schema,
+  slideHasAssessable,
   SkillTreeV1Schema,
   SlideV1Schema,
   richTextChars,
@@ -287,6 +291,46 @@ describe('ProgressionRuleV1 and SkillTreeV1', () => {
   it('rejects progress fields on nodes (state is derived, never stored)', () => {
     const nodes = exampleTree.nodes.map((n) => ({ ...n, status: 'done' }));
     expect(SkillTreeV1Schema.safeParse({ ...exampleTree, nodes }).success).toBe(false);
+  });
+});
+
+describe('OrientationSlidesV1 (#21)', () => {
+  const opener = { ...exampleSlides.slides[0]!, id: 'welcome', purpose: 'orient' as const };
+  const teach = exampleSlides.slides.find((x) => x.purpose === 'teach');
+  const check = exampleSlides.slides.find(slideHasAssessable);
+  it('accepts a short preview lesson', () => {
+    expect(OrientationSlidesV1Schema.safeParse(exampleSlides).success).toBe(true);
+  });
+  it(`rejects more than ${ORIENTATION_MAX_SLIDES} slides`, () => {
+    const extra = [1, 2, 3].map((i) => ({ ...opener, id: `extra-${i}`, purpose: 'orient' as const }));
+    const long = { slides: [opener, ...extra, check!, { ...check!, id: 'check-2' }] };
+    expect(GeneratedSlidesV1Schema.safeParse(long).success).toBe(true);
+    expect(OrientationSlidesV1Schema.safeParse(long).success).toBe(false);
+  });
+  it('rejects a second teach or practice slide', () => {
+    const teachy = { slides: [opener, teach!, { ...teach!, id: 'teach-2', purpose: 'practice' as const }, check!] };
+    expect(GeneratedSlidesV1Schema.safeParse(teachy).success).toBe(true);
+    expect(OrientationSlidesV1Schema.safeParse(teachy).success).toBe(false);
+  });
+});
+
+describe('plans offer a choice (#20)', () => {
+  const allRequired = examplePlan.nodes.map((n) => (n.required ? n : { ...n, kind: 'core' as const, required: true }));
+  it('rejects a course plan of five or more nodes with no optional node', () => {
+    expect(allRequired.length).toBeGreaterThanOrEqual(5);
+    expect(CoursePlanV1Schema.safeParse({ ...examplePlan, nodes: allRequired }).success).toBe(false);
+  });
+  it('allows a short plan without optional nodes', () => {
+    const short = examplePlan.nodes.filter((n) => n.required).map((n) => (n.id === 'design' ? { ...n, rule: { allOf: ['acidity', 'dilution'] } } : n));
+    expect(short.length).toBeLessThan(5);
+    expect(CoursePlanV1Schema.safeParse({ ...examplePlan, nodes: short }).success).toBe(true);
+  });
+  it('applies to additional trees too', () => {
+    const tree = allRequired.filter((n) => n.kind !== 'orientation').map((n) => ({ ...n, rule: {} }));
+    const five = [...tree, { ...tree[0]!, id: 'one-more' }];
+    expect(five.length).toBeGreaterThanOrEqual(5);
+    expect(TreePlanV1Schema.safeParse({ treeTitle: 'Next', nodes: five }).success).toBe(false);
+    expect(TreePlanV1Schema.safeParse({ treeTitle: 'Next', nodes: [...five.slice(0, 4), { ...five[4]!, kind: 'optional', required: false }] }).success).toBe(true);
   });
 });
 

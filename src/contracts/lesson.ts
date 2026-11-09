@@ -42,6 +42,28 @@ export const GeneratedSlidesV1Schema = z
   });
 export type GeneratedSlidesV1 = z.infer<typeof GeneratedSlidesV1Schema>;
 
+/** Orientation lessons stay short and preview-only (decision 2026-11-07, #21). */
+export const ORIENTATION_MAX_SLIDES = 5;
+export const ORIENTATION_MAX_TEACHING_SLIDES = 1;
+
+/**
+ * The slides of an orientation lesson: GeneratedSlidesV1 plus the orientation shape, so a long or
+ * teaching-heavy orientation is fed back to the model and retried instead of stored.
+ */
+export const OrientationSlidesV1Schema = GeneratedSlidesV1Schema.superRefine((value, ctx) => {
+  if (value.slides.length > ORIENTATION_MAX_SLIDES) {
+    ctx.addIssue({ code: 'custom', message: `an orientation lesson has at most ${ORIENTATION_MAX_SLIDES} slides`, path: ['slides'] });
+  }
+  const teaching = value.slides.filter((s) => s.purpose === 'teach' || s.purpose === 'practice').length;
+  if (teaching > ORIENTATION_MAX_TEACHING_SLIDES) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `an orientation lesson previews the course: at most ${ORIENTATION_MAX_TEACHING_SLIDES} slide with purpose teach or practice`,
+      path: ['slides'],
+    });
+  }
+});
+
 /**
  * LearningExperienceV1: the instructional run of a lesson for one learner in one course.
  * Generated on demand when the learner first opens the node; validated before storage.

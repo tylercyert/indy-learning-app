@@ -39,7 +39,7 @@ A reusable, contract-driven block placed on a slide. A component is presentation
 _Avoid_: Widget, block, element
 
 **Orientation Lesson**:
-The lesson at a course's single orientation node, the root of its first skill tree: it introduces the subject, establishes a baseline and helps the platform understand the learner. Orientation is a node placement, not a property of the lesson itself.
+The lesson at a course's single orientation node, the root of its first skill tree: it introduces the subject, establishes a baseline and helps the platform understand the learner. Orientation is a node placement, not a property of the lesson itself. It is short and preview-only: at most five slides, at most one of them teaching or practice, and a preview of the path ahead that says how many more lessons follow when it stops early.
 _Avoid_: 101, intro, onboarding lesson
 
 ### Progression

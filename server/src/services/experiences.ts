@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   GeneratedSlidesV1Schema,
+  OrientationSlidesV1Schema,
   ruleReferences,
   type CourseV1,
   type LearningExperienceV1,
@@ -73,7 +74,8 @@ async function generate(learnerId: string, course: CourseV1, tree: SkillTreeV1, 
 
   const { data, model } = await generateStructured({
     task: `experience:${lesson.title}`,
-    schema: GeneratedSlidesV1Schema,
+    // Orientation lessons carry a stricter shape (#21); violations are fed back and retried like any other.
+    schema: node.kind === 'orientation' ? OrientationSlidesV1Schema : GeneratedSlidesV1Schema,
     system: EXPERIENCE_SYSTEM,
     messages: [{ role: 'user', content: experienceUserMessage({ course, lesson, node, before, after, completedTitles, upcomingTitles, history }) }],
     effort: 'medium',
