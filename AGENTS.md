@@ -39,6 +39,9 @@ Run `npm run verify` and `npm run export:all` on the final code. Report exact co
 - Score objective answers with code in `src/domain`. Never store node state; derive it. Learner context is self-reported and never evidence of mastery.
 - Runtime-validate persisted JSON on read. Every stored document has a `schemaVersion`.
 
-## Stop and ask
+## When stuck
 
-After two failed approaches, summarize the blocker and propose the smallest next step. Stop for unclear ownership, incompatible contracts, data-loss risk, missing permission, or anything that costs money.
+Judge by progress: keep going while each attempt teaches you something, and change the approach when one stops teaching. When you lack information, ask whoever holds it, with what you tried and the smallest next step:
+
+- **Unclear ownership, intent or scope, or incompatible contracts:** the coordinator that dispatched you (`orca orchestration ask --question "<question>"`, then end your turn; Orca wakes you with the answer), otherwise the issue's author, on the issue.
+- **Data-loss risk, missing permission, or anything that costs money:** the owner. Label the issue `status:blocked` and take other work.
